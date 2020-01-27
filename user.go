@@ -10,7 +10,11 @@ import (
 )
 
 var (
-	ErrInvalidEmail    = errors.New("invalid email")
+	// ErrInvalidEmail is returned when email is determined to be invalid.
+	ErrInvalidEmail = errors.New("invalid email")
+
+	// ErrInvalidPassword is returned when password is determined to be
+	// invalid.
 	ErrInvalidPassword = errors.New("invalid password")
 )
 
@@ -20,19 +24,37 @@ var (
 	emailRe = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 )
 
+// User is an interface every user data type should implement.
 type User interface {
+	// Init should initialize default and other values needed for
+	// user data type to be inserted into the data store for the first
+	// time.
 	Init(i Inputer) error
+
+	// Update should update all modified / non-empty fields.
 	Update(i Inputer) error
 }
 
+// Core holds core fields needed for user data types.
 type Core struct {
-	ID           xid.ID
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
-	Email        string
+	// ID is the primary and unique user identification key.
+	ID xid.ID
+
+	// CreatedAt specifies the exact time when the user was created.
+	CreatedAt time.Time
+
+	// UpdatedAt specifies the exact time when the user was last updated.
+	UpdatedAt time.Time
+
+	// Email is user's active email address.
+	Email string
+
+	// PasswordHash is already hashed version of user's password.
 	PasswordHash []byte
 }
 
+// Init initializes all the values, user specified and default, needed for
+// user's core to be usable.
 func (c *Core) Init(i Inputer) error {
 	ci := i.Core()
 
@@ -48,6 +70,7 @@ func (c *Core) Init(i Inputer) error {
 	return nil
 }
 
+// Update modifies all fields of the provided non-empty values.
 func (c *Core) Update(i Inputer) error {
 	ci := i.Core()
 
@@ -64,6 +87,7 @@ func (c *Core) Update(i Inputer) error {
 	return nil
 }
 
+// SetEmail checks and updates user's email address.
 func (c *Core) SetEmail(e string) error {
 	if e == "" {
 		if c.Email == "" {
@@ -80,6 +104,7 @@ func (c *Core) SetEmail(e string) error {
 	return nil
 }
 
+// SetPassword checks and updates user's password hash.
 func (c *Core) SetPassword(p string) error {
 	if p == "" {
 		if u.PasswordHash == nil {
@@ -101,10 +126,13 @@ func (c *Core) SetPassword(p string) error {
 	return nil
 }
 
+// IsPasswordCorrect checks whether the provided password matches the hash.
 func (c *Core) IsPasswordCorrect(p string) bool {
 	return bcrypt.CompareHashAndPassword(c.PasswordHash, []byte(p)) == nil
 }
 
+// CheckEmail determines whether the provided email address is of correct
+// format.
 func CheckEmail(e string) error {
 	if !emailRe.MatchString(e) {
 		return ErrInvalidEmail
@@ -113,6 +141,7 @@ func CheckEmail(e string) error {
 	return nil
 }
 
+// CheckPassword determines whether the provided password is of correct format.
 func CheckPassword(p string) error {
 	if len(p) < 8 { // TODO add more extensive checks
 		return ErrInvalidPassword
@@ -121,11 +150,17 @@ func CheckPassword(p string) error {
 	return nil
 }
 
+// Inputer is an interface every user input data type should implement.
 type Inputer interface {
 	Core() CoreInput
 }
 
+// CoreInput holds core fields needed for every user's Init/Update.
 type CoreInput struct {
-	Email    string
+	// Email is the user's email address submitted for further processing.
+	Email string
+
+	// Password is the user's plain-text password version submitted for
+	// futher processing.
 	Password string
 }
