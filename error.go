@@ -1,6 +1,7 @@
 package httpuser
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
@@ -30,6 +31,15 @@ func (e *statusError) Error() string {
 
 func (e *statusError) Unwrap() error {
 	return e.err
+}
+
+func DetectError(err error) error {
+	if errors.Is(err, sql.ErrNoRows) {
+		return NewError(err, http.StatusNotFound, "not found")
+	}
+
+	return NewError(err, http.StatusInternalServerError,
+		strings.ToLower(http.StatusText(http.StatusInternalServerError)))
 }
 
 func ErrorCode(err error) int {

@@ -1,7 +1,7 @@
 package httpuser
 
 import (
-	"errors"
+	"net/http"
 	"regexp"
 	"time"
 
@@ -11,11 +11,16 @@ import (
 
 var (
 	// ErrInvalidEmail is returned when email is determined to be invalid.
-	ErrInvalidEmail = errors.New("invalid email")
+	ErrInvalidEmail = NewError(nil, http.StatusBadRequest, "invalid email")
 
 	// ErrInvalidPassword is returned when password is determined to be
 	// invalid.
-	ErrInvalidPassword = errors.New("invalid password")
+	ErrInvalidPassword = NewError(nil, http.StatusBadRequest, "invalid password")
+
+	// ErrInvalidCredentials is returned when login credentials are
+	// determined to be incorrect.
+	ErrInvalidCredentials = NewError(nil, http.StatusBadRequest,
+		"email or password is incorrect")
 )
 
 var (
@@ -33,6 +38,9 @@ type User interface {
 
 	// Update should update all modified / non-empty fields.
 	Update(i Inputer) error
+
+	// Core exposes the user's core fields.
+	Core() *Core
 }
 
 // Core holds core fields needed for user data types.
@@ -85,6 +93,11 @@ func (c *Core) Update(i Inputer) error {
 	c.UpdatedAt = time.Now()
 
 	return nil
+}
+
+// Core exposes the user's core fields.
+func (c *Core) Core() *Core {
+	return c
 }
 
 // SetEmail checks and updates user's email address.
