@@ -20,7 +20,7 @@ var (
 	// ErrInvalidCredentials is returned when login credentials are
 	// determined to be incorrect.
 	ErrInvalidCredentials = NewError(nil, http.StatusBadRequest,
-		"email or password is incorrect")
+		"incorrect credentials")
 )
 
 var (
