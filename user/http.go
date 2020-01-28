@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi"
+	"github.com/swithek/httputil"
 	"github.com/swithek/sessionup"
 )
 
@@ -48,9 +49,9 @@ func (h *Handler) ServeHTTP() http.Handler {
 
 	r.Route("/sessions", func(r chi.Router) {
 		r.Use(h.sessions.Auth)
-		//r.Get("/", h.FetchSessions)
-		//r.Delete("/{id}", h.RevokeSession)
-		//r.Delete("/", h.RevokeAllSessions)
+		r.Get("/", h.FetchSessions)
+		r.Delete("/{id}", h.RevokeSession)
+		r.Delete("/", h.RevokeOtherSessions)
 	})
 
 	return r
@@ -209,7 +210,50 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httputil.Respond(w, r, nil, http.StatusNoContent)
+}
 
+// FetchSessions retrieves all sessions of the same user.
+func (h *Handler) FetchSessions(w http.ResponseWriter, r *http.Request) {
+	ss, err := h.sessions.FetchAll(r.Context())
+	if err != nil {
+		httputil.RespondError(w, r, err, h.fatal)
+		return
+	}
+
+	if len(ss) == 0 {
+		httputil.RespondError(w, r, httputil.NewError(nil,
+			http.StatusNotFound, "not found"), h.fatal)
+		return
+	}
+
+	httputil.Respond(w, r, ss, http.StatusOK)
+}
+
+// RevokeSession revokes one specific session of the user with the
+// active session in the request's context.
+func (h *Handler) RevokeSession(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	if s, ok := sessionup.FromContext(r.Context()); ok && s.ID == id {
+		httputil.RespondError(w, r, httputil.NewError(nil,
+			http.StatusBadRequest, "current session cannot be revoked"))
+		return
+	}
+
+	if err := h.sessions.RevokeByID(r.Context(), id); err != nil {
+		httputil.RespondError(w, r, err)
+		return
+	}
+
+	httputil.Respond(w, r, nil, http.StatusNoContent)
+}
+
+// RevokeOtherSessions revokes all sessions of the same user besides the
+// current one.
+func (h *Handler) RevokeOtherSessions(w http.ResponseWriter, r *http.Request) {
+	if err := h.sessions.RevokeOther(r.Context()); err != nil {
+		httputil.RespondError(w, r, err)
+	}
+	httputil.Respond(w, r, nil, http.StatusNoContent)
 }
 
 // UserDB is an interface data store layer should implement.
