@@ -3,6 +3,7 @@ module github.com/swithek/httputil
 go 1.13
 
 require (
+	github.com/dchest/uniuri v0.0.0-20160212164326-8902c56451e9
 	github.com/go-chi/chi v4.0.3+incompatible
 	github.com/rs/xid v1.2.1
 	github.com/swithek/sessionup v1.1.1

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/rs/xid"
+	"github.com/swithek/httputil"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -56,8 +57,16 @@ type Core struct {
 	// UpdatedAt specifies the exact time when the user was last updated.
 	UpdatedAt time.Time
 
+	// ActivatedAt specifies the exact time when user's account
+	// was activated.
+	ActivatedAt time.Time
+
 	// Email is user's active email address.
 	Email string
+
+	// UnverifiedEmail is a new email address yet to be verified by its
+	// owner. When verified this field is empty.
+	UnverifiedEmail string
 
 	// PasswordHash is already hashed version of user's password.
 	PasswordHash []byte
@@ -80,7 +89,8 @@ func (c *Core) Init(i Inputer) error {
 	return nil
 }
 
-// Update modifies all fields of the provided non-empty values.
+// Update applies modification to user's core fields and sets new update
+// time.
 func (c *Core) Update(i Inputer) error {
 	ci := i.Core()
 
@@ -102,6 +112,11 @@ func (c *Core) Core() *Core {
 	return c
 }
 
+// IsActivated checks whether the user's account is activated.
+func (c *Core) IsActivated() bool {
+	return !c.ActivatedAt.IsZero()
+}
+
 // SetEmail checks and updates user's email address.
 func (c *Core) SetEmail(e string) error {
 	if e == "" {
@@ -111,11 +126,37 @@ func (c *Core) SetEmail(e string) error {
 		return nil
 	}
 
+	if c.Email == e {
+		return nil
+	}
+
+	if c.Email != "" && c.IsActivated() {
+		return c.SetUnverifiedEmail(e)
+	}
+
 	if err := CheckEmail(e); err != nil {
 		return err
 	}
 
 	c.Email = e
+	return nil
+}
+
+// SetUnverifiedEmail checks and updates user's unverified email address.
+func (c *Core) SetUnverifiedEmail(e string) error {
+	if e == "" {
+		return nil
+	}
+
+	if c.UnverifiedEmail == e {
+		return nil
+	}
+
+	if err := CheckEmail(e); err != nil {
+		return err
+	}
+
+	c.UnverifiedEmail = e
 	return nil
 }
 
