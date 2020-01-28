@@ -1,4 +1,4 @@
-module github.com/swithek/httpuser
+module github.com/swithek/httputil
 
 go 1.13
 

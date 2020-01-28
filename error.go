@@ -1,4 +1,4 @@
-package httpuser
+package httputil
 
 import (
 	"database/sql"

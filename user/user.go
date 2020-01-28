@@ -1,4 +1,4 @@
-package httpuser
+package user
 
 import (
 	"net/http"
@@ -11,15 +11,17 @@ import (
 
 var (
 	// ErrInvalidEmail is returned when email is determined to be invalid.
-	ErrInvalidEmail = NewError(nil, http.StatusBadRequest, "invalid email")
+	ErrInvalidEmail = httputil.NewError(nil, http.StatusBadRequest,
+		"invalid email")
 
 	// ErrInvalidPassword is returned when password is determined to be
 	// invalid.
-	ErrInvalidPassword = NewError(nil, http.StatusBadRequest, "invalid password")
+	ErrInvalidPassword = httputil.NewError(nil, http.StatusBadRequest,
+		"invalid password")
 
 	// ErrInvalidCredentials is returned when login credentials are
 	// determined to be incorrect.
-	ErrInvalidCredentials = NewError(nil, http.StatusBadRequest,
+	ErrInvalidCredentials = httputil.NewError(nil, http.StatusBadRequest,
 		"incorrect credentials")
 )
 
