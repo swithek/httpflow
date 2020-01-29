@@ -41,6 +41,10 @@ func (e *statusError) Unwrap() error {
 // DetectError wraps the provided error with additional information
 // useful for applications.
 func DetectError(err error) error {
+	if errors.As(err, &statusError{}) {
+		return err
+	}
+
 	if errors.Is(err, sql.ErrNoRows) {
 		return NewError(err, http.StatusNotFound, "not found")
 	}
