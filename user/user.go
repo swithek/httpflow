@@ -6,23 +6,23 @@ import (
 	"time"
 
 	"github.com/rs/xid"
-	"github.com/swithek/httputil"
+	"github.com/swithek/httpflow"
 	"golang.org/x/crypto/bcrypt"
 )
 
 var (
 	// ErrInvalidEmail is returned when email is determined to be invalid.
-	ErrInvalidEmail = httputil.NewError(nil, http.StatusBadRequest,
+	ErrInvalidEmail = httpflow.NewError(nil, http.StatusBadRequest,
 		"invalid email")
 
 	// ErrInvalidPassword is returned when password is determined to be
 	// invalid.
-	ErrInvalidPassword = httputil.NewError(nil, http.StatusBadRequest,
+	ErrInvalidPassword = httpflow.NewError(nil, http.StatusBadRequest,
 		"invalid password")
 
 	// ErrInvalidCredentials is returned when login credentials are
 	// determined to be incorrect.
-	ErrInvalidCredentials = httputil.NewError(nil, http.StatusBadRequest,
+	ErrInvalidCredentials = httpflow.NewError(nil, http.StatusBadRequest,
 		"incorrect credentials")
 )
 
@@ -75,14 +75,12 @@ type Core struct {
 // Init initializes all the values, user specified and default, needed for
 // user's core to be usable.
 func (c *Core) Init(i Inputer) error {
-	ci := i.Core()
-
-	c := Core{
+	*c = Core{
 		ID:        xid.New(),
 		CreatedAt: time.Now(),
 	}
 
-	if err := c.Update(ci); err != nil {
+	if err := c.Update(i); err != nil {
 		return err
 	}
 
@@ -163,7 +161,7 @@ func (c *Core) SetUnverifiedEmail(e string) error {
 // SetPassword checks and updates user's password hash.
 func (c *Core) SetPassword(p string) error {
 	if p == "" {
-		if u.PasswordHash == nil {
+		if c.PasswordHash == nil {
 			return ErrInvalidPassword
 		}
 		return nil

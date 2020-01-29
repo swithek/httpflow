@@ -6,19 +6,19 @@ import (
 
 	"github.com/dchest/uniuri"
 	"github.com/rs/xid"
-	"github.com/swithek/httputil"
+	"github.com/swithek/httpflow"
 	"golang.org/x/crypto/bcrypt"
 )
 
 var (
 	// ErrTooManyTokens is returned when too many requests for new tokens
 	// have been received.
-	ErrTooManyTokens = httputil.NewError(nil, http.StatusTooManyRequests,
+	ErrTooManyTokens = httpflow.NewError(nil, http.StatusTooManyRequests,
 		"too many requests")
 
 	// ErrInvalidToken is returned when the provided token is incorrect or
 	// already expired.
-	ErrInvalidToken = httputil.NewError(nil, http.StatusBadRequest,
+	ErrInvalidToken = httpflow.NewError(nil, http.StatusBadRequest,
 		"invalid token")
 )
 

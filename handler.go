@@ -1,4 +1,4 @@
-package httputil
+package httpflow
 
 import (
 	"encoding/json"
@@ -26,7 +26,7 @@ func RespondError(w http.ResponseWriter, r *http.Request, err error,
 	fatal func(error)) {
 	err = DetectError(err)
 	code := ErrorCode(err)
-	Respond(w, r, err, code)
+	Respond(w, r, err, code, fatal)
 	if code >= 500 {
 		fatal(err)
 	}

@@ -1,4 +1,4 @@
-module github.com/swithek/httputil
+module github.com/swithek/httpflow
 
 go 1.13
 

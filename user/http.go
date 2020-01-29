@@ -6,19 +6,19 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi"
-	"github.com/swithek/httputil"
+	"github.com/swithek/httpflow"
 	"github.com/swithek/sessionup"
 )
 
 var (
 	// ErrUnauthorized is returned when request's context contains invalid
 	// session.
-	ErrUnauthorized = httputil.NewError(nil, http.StatusUnauthorized,
+	ErrUnauthorized = httpflow.NewError(nil, http.StatusUnauthorized,
 		"unauthorized")
 
 	// ErrInvalidJSON is returned when request body contains invalid JSON
 	// data.
-	ErrInvalidJSON = httputil.NewError(nil, http.StatusBadRequest,
+	ErrInvalidJSON = httpflow.NewError(nil, http.StatusBadRequest,
 		"invalid JSON body")
 )
 
@@ -61,64 +61,64 @@ func (h *Handler) ServeHTTP() http.Handler {
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	i, err := h.input(r)
 	if err != nil {
-		httputil.RespondError(w, r, err, h.fatal)
+		httpflow.RespondError(w, r, err, h.fatal)
 		return
 	}
 
 	u, err := h.create(i)
 	if err != nil {
-		httputil.RespondError(w, r, err, h.fatal)
+		httpflow.RespondError(w, r, err, h.fatal)
 		return
 	}
 
 	if err = h.db.Create(r.Context(), u); err != nil {
-		httputil.RespondError(w, r, err, h.fatal)
+		httpflow.RespondError(w, r, err, h.fatal)
 		return
 	}
 
 	if err = h.sessions.Init(w, r, u.Core().ID.String()); err != nil {
-		httputil.RespondError(w, r, err, h.fatal)
+		httpflow.RespondError(w, r, err, h.fatal)
 		return
 	}
 
-	httputil.Respond(w, r, nil, http.StatusNoContent)
+	httpflow.Respond(w, r, nil, http.StatusNoContent, h.fatal)
 }
 
 // Login handles user's credentials checking and new session creation.
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	var ci CoreInput
-	if err := json.NewDecoder(r.Body).Decode(v); err != nil {
-		httputil.RespondError(w, r, ErrInvalidJSON, h.fatal)
+	if err := json.NewDecoder(r.Body).Decode(&ci); err != nil {
+		httpflow.RespondError(w, r, ErrInvalidJSON, h.fatal)
 		return
 	}
 
 	u, err := h.db.FetchByEmail(r.Context(), ci.Email)
 	if err != nil {
-		httputil.RespondError(w, r, err, h.fatal)
+		httpflow.RespondError(w, r, err, h.fatal)
 		return
 	}
 
 	if !u.Core().IsPasswordCorrect(ci.Password) {
-		httputil.RespondError(w, r, ErrInvalidCredentials, h.fatal)
+		httpflow.RespondError(w, r, ErrInvalidCredentials, h.fatal)
 		return
 	}
 
-	if err = h.sessions.Init(w, r, id.String()); err != nil {
-		httputil.RespondError(w, r, err, h.fatal)
+	if err = h.sessions.Init(w, r, u.Core().ID.String()); err != nil {
+		httpflow.RespondError(w, r, err, h.fatal)
 		return
 	}
 
-	httputil.Respond(w, r, nil, http.StatusNoContent)
+	httpflow.Respond(w, r, nil, http.StatusNoContent, h.fatal)
 }
 
 // Logout handles user's active session revokation.
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	if err := h.sessions.Revoke(r.Context(), w); err != nil {
-		httputil.RespondError(w, r, err, h.fatal)
+		httpflow.RespondError(w, r, err, h.fatal)
 		return
 	}
 
-	httputil.Respond(w, r, nil, http.StatusNoContent)
+	httpflow.Respond(w, r, nil, http.StatusNoContent, h.fatal)
 }
 
 // Fetch handles user's data retrieval.
@@ -126,17 +126,17 @@ func (h *Handler) Fetch(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	s, ok := sessionup.FromContext(ctx)
 	if !ok {
-		httputil.RespondError(w, r, ErrUnauthorized, h.fatal)
+		httpflow.RespondError(w, r, ErrUnauthorized, h.fatal)
 		return
 	}
 
 	u, err := h.db.FetchByID(r.Context(), s.UserKey)
 	if err != nil {
-		httputil.RespondError(w, r, err, h.fatal)
+		httpflow.RespondError(w, r, err, h.fatal)
 		return
 	}
 
-	httputil.Respond(w, r, u, http.StatusOK)
+	httpflow.Respond(w, r, u, http.StatusOK, h.fatal)
 }
 
 // Update handles user's data update in the data store.
@@ -144,33 +144,33 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	s, ok := sessionup.FromContext(ctx)
 	if !ok {
-		httputil.RespondError(w, r, ErrUnauthorized, h.fatal)
+		httpflow.RespondError(w, r, ErrUnauthorized, h.fatal)
 		return
 	}
 
 	i, err := h.input(r)
 	if err != nil {
-		httputil.RespondError(w, r, err, h.fatal)
+		httpflow.RespondError(w, r, err, h.fatal)
 		return
 	}
 
 	u, err := h.db.FetchByID(ctx, s.UserKey)
 	if err != nil {
-		httputil.RespondError(w, r, err, h.fatal)
+		httpflow.RespondError(w, r, err, h.fatal)
 		return
 	}
 
 	if err = u.Update(i); err != nil {
-		httputil.RespondError(w, r, err, h.fatal)
+		httpflow.RespondError(w, r, err, h.fatal)
 		return
 	}
 
 	if err = h.db.Update(ctx, u); err != nil {
-		httputil.RespondError(w, r, err, h.fatal)
+		httpflow.RespondError(w, r, err, h.fatal)
 		return
 	}
 
-	httputil.Respond(w, r, nil, http.StatusNoContent)
+	httpflow.Respond(w, r, nil, http.StatusNoContent, h.fatal)
 }
 
 // Delete handles user's data removal from the data store.
@@ -178,55 +178,55 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	s, ok := sessionup.FromContext(ctx)
 	if !ok {
-		httputil.RespondError(w, r, ErrUnauthorized, h.fatal)
+		httpflow.RespondError(w, r, ErrUnauthorized, h.fatal)
 		return
 	}
 
 	var ci CoreInput
-	if err := json.NewDecoder(r.Body).Decode(v); err != nil {
-		httputil.RespondError(w, r, ErrInvalidJSON, h.fatal)
+	if err := json.NewDecoder(r.Body).Decode(&ci); err != nil {
+		httpflow.RespondError(w, r, ErrInvalidJSON, h.fatal)
 		return
 	}
 
 	u, err := h.db.FetchByID(r.Context(), s.UserKey)
 	if err != nil {
-		httputil.RespondError(w, r, err, h.fatal)
+		httpflow.RespondError(w, r, err, h.fatal)
 		return
 	}
 
 	if !u.Core().IsPasswordCorrect(ci.Password) {
-		httputil.RespondError(w, r, ErrInvalidCredentials, h.fatal)
+		httpflow.RespondError(w, r, ErrInvalidCredentials, h.fatal)
 		return
 	}
 
 	if err = h.db.DeleteByID(ctx, s.UserKey); err != nil {
-		httputil.RespondError(w, r, err, h.fatal)
+		httpflow.RespondError(w, r, err, h.fatal)
 		return
 	}
 
 	if err = h.sessions.RevokeAll(ctx, w); err != nil {
-		httputil.RespondError(w, r, err, h.fatal)
+		httpflow.RespondError(w, r, err, h.fatal)
 		return
 	}
 
-	httputil.Respond(w, r, nil, http.StatusNoContent)
+	httpflow.Respond(w, r, nil, http.StatusNoContent, h.fatal)
 }
 
 // FetchSessions retrieves all sessions of the same user.
 func (h *Handler) FetchSessions(w http.ResponseWriter, r *http.Request) {
 	ss, err := h.sessions.FetchAll(r.Context())
 	if err != nil {
-		httputil.RespondError(w, r, err, h.fatal)
+		httpflow.RespondError(w, r, err, h.fatal)
 		return
 	}
 
 	if len(ss) == 0 {
-		httputil.RespondError(w, r, httputil.NewError(nil,
+		httpflow.RespondError(w, r, httpflow.NewError(nil,
 			http.StatusNotFound, "not found"), h.fatal)
 		return
 	}
 
-	httputil.Respond(w, r, ss, http.StatusOK)
+	httpflow.Respond(w, r, ss, http.StatusOK, h.fatal)
 }
 
 // RevokeSession revokes one specific session of the user with the
@@ -234,26 +234,27 @@ func (h *Handler) FetchSessions(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) RevokeSession(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if s, ok := sessionup.FromContext(r.Context()); ok && s.ID == id {
-		httputil.RespondError(w, r, httputil.NewError(nil,
-			http.StatusBadRequest, "current session cannot be revoked"))
+		httpflow.RespondError(w, r, httpflow.NewError(nil,
+			http.StatusBadRequest,
+			"current session cannot be revoked"), h.fatal)
 		return
 	}
 
 	if err := h.sessions.RevokeByID(r.Context(), id); err != nil {
-		httputil.RespondError(w, r, err)
+		httpflow.RespondError(w, r, err, h.fatal)
 		return
 	}
 
-	httputil.Respond(w, r, nil, http.StatusNoContent)
+	httpflow.Respond(w, r, nil, http.StatusNoContent, h.fatal)
 }
 
 // RevokeOtherSessions revokes all sessions of the same user besides the
 // current one.
 func (h *Handler) RevokeOtherSessions(w http.ResponseWriter, r *http.Request) {
 	if err := h.sessions.RevokeOther(r.Context()); err != nil {
-		httputil.RespondError(w, r, err)
+		httpflow.RespondError(w, r, err, h.fatal)
 	}
-	httputil.Respond(w, r, nil, http.StatusNoContent)
+	httpflow.Respond(w, r, nil, http.StatusNoContent, h.fatal)
 }
 
 // UserDB is an interface data store layer should implement.
