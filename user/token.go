@@ -78,6 +78,13 @@ func (t *token) Check(v string) error {
 	return nil
 }
 
+// Clear resets all token data.
+func (t *token) Clear() {
+	t.ExpiresAt = time.Time{}
+	t.NextAt = time.Time{}
+	t.Hash = nil
+}
+
 // toFullToken combines token value and user's ID.
 func toFullToken(t string, id xid.ID) string {
 	return t + id.String()

@@ -70,6 +70,13 @@ type Core struct {
 
 	// PasswordHash is already hashed version of user's password.
 	PasswordHash []byte
+
+	// Verification holds data needed for account activation or email
+	// update.
+	Verification token
+
+	// Recovery holds data needed for password recovery.
+	Recovery token
 }
 
 // Init initializes all the values, user specified and default, needed for
@@ -183,6 +190,97 @@ func (c *Core) SetPassword(p string) error {
 // IsPasswordCorrect checks whether the provided password matches the hash.
 func (c *Core) IsPasswordCorrect(p string) bool {
 	return bcrypt.CompareHashAndPassword(c.PasswordHash, []byte(p)) == nil
+}
+
+// InitVerification initializes account / email verification and returns
+// combination of token and user ID in a string format to send in verification
+// emails etc.
+// First parameter determines how long the verification token should be active.
+// Second parameter determines how much time has to pass until another token
+// can be generated.
+func (c *Core) InitVerification(exp, nxt time.Duration) (string, error) {
+	t, err := c.Verification.init(exp, nxt)
+	if err != nil {
+		return "", err
+	}
+	return toFullToken(t, c.ID), nil
+}
+
+// Verify checks whether the provided token is valid and either activates
+// the account (if it wasn't already) or, if unverified email address exists,
+// confirms it as the main email address.
+// NOTE: provided token must in its original / raw form - not combined with
+// the user's ID (as InitVerification method returns).
+func (c *Core) Verify(t string) error {
+	if err := c.Verification.Check(t); err != nil {
+		return err
+	}
+
+	if !c.IsActivated() {
+		c.ActivatedAt = time.Now()
+	} else if c.UnverifiedEmail != "" {
+		if c.UnverifiedEmail != c.Email {
+			c.Email = c.UnverifiedEmail
+		}
+		c.UnverifiedEmail = ""
+	}
+
+	c.Verification.Clear()
+	return nil
+}
+
+// CancelVerification checks whether the provided token is valid and clears
+// the active verification token data.
+// NOTE: provided token must in its original / raw form - not combined with
+// the user's ID (as InitVerification method returns).
+func (c *Core) CancelVerification(t string) error {
+	if err := c.Verification.Check(t); err != nil {
+		return err
+	}
+	c.Verification.Clear()
+	return nil
+}
+
+// InitRecovery initializes password recovery and returns a combination of
+// token and user ID in a string format to send in recovery emails etc.
+// First parameter determines how long the recovery token should be active.
+// Second parameter determines how much time has to pass until another token
+// can be generated.
+func (c *Core) InitRecovery(exp, nxt time.Duration) (string, error) {
+	t, err := c.Recovery.init(exp, nxt)
+	if err != nil {
+		return "", err
+	}
+	return toFullToken(t, c.ID), nil
+}
+
+// Recover checks whether the provided token is valid and sets the provided
+// password as the new account password.
+// NOTE: provided token must in its original / raw form - not combined with
+// the user's ID (as InitRecovery method returns).
+func (c *Core) Recover(t, p string) error {
+	if err := c.Recovery.Check(t); err != nil {
+		return err
+	}
+
+	if err := c.SetPassword(p); err != nil {
+		return err
+	}
+
+	c.Recovery.Clear()
+	return nil
+}
+
+// CancelRecovery checks whether the provided token is valid and clears all
+// active recovery token data.
+// NOTE: provided token must in its original / raw form - not combined with
+// the user's ID (as InitRecovery method returns).
+func (c *Core) CancelRecovery(t string) error {
+	if err := c.Recovery.Check(t); err != nil {
+		return err
+	}
+	c.Recovery.Clear()
+	return nil
 }
 
 // CheckEmail determines whether the provided email address is of correct
