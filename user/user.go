@@ -39,8 +39,8 @@ type User interface {
 	// time.
 	Init(i Inputer) error
 
-	// Update should update all modified / non-empty fields.
-	Update(i Inputer) error
+	// ApplyInput should set values from provided data structure.
+	ApplyInput(i Inputer) error
 
 	// Core exposes the user's core fields.
 	Core() *Core
@@ -49,61 +49,61 @@ type User interface {
 // Core holds core fields needed for user data types.
 type Core struct {
 	// ID is the primary and unique user identification key.
-	ID xid.ID
+	ID xid.ID `json:"id"`
 
 	// CreatedAt specifies the exact time when the user was created.
-	CreatedAt time.Time
+	CreatedAt time.Time `json:"created_at"`
 
 	// UpdatedAt specifies the exact time when the user was last updated.
-	UpdatedAt time.Time
+	UpdatedAt time.Time `json:"updated_at"`
 
 	// ActivatedAt specifies the exact time when user's account
 	// was activated.
-	ActivatedAt time.Time
+	ActivatedAt time.Time `json:"activated_at"`
 
 	// Email is user's active email address.
-	Email string
+	Email string `json:"email"`
 
 	// UnverifiedEmail is a new email address yet to be verified by its
 	// owner. When verified this field is empty.
-	UnverifiedEmail string
+	UnverifiedEmail string `json:"unverified_email"`
 
 	// PasswordHash is already hashed version of user's password.
-	PasswordHash []byte
+	PasswordHash []byte `json:"password_hash"`
 
 	// Verification holds data needed for account activation or email
 	// update.
-	Verification token
+	Verification token `json:"-"`
 
 	// Recovery holds data needed for password recovery.
-	Recovery token
+	Recovery token `json:"-"`
 }
 
 // Init initializes all the values, user specified and default, needed for
 // user's core to be usable.
-func (c *Core) Init(i Inputer) error {
+func (c *Core) Init(inp Inputer) error {
 	*c = Core{
 		ID:        xid.New(),
 		CreatedAt: time.Now(),
 	}
 
-	if err := c.Update(i); err != nil {
+	if err := c.ApplyInput(inp); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-// Update applies modification to user's core fields and sets new update
+// ApplyInput applies modification to user's core fields and sets new update
 // time.
-func (c *Core) Update(i Inputer) error {
-	ci := i.Core()
+func (c *Core) ApplyInput(inp Inputer) error {
+	cInp := inp.Core()
 
-	if err := c.SetEmail(ci.Email); err != nil {
+	if err := c.SetEmail(cInp.Email); err != nil {
 		return err
 	}
 
-	if err := c.SetPassword(ci.Password); err != nil {
+	if err := c.SetPassword(cInp.Password); err != nil {
 		return err
 	}
 
@@ -307,7 +307,7 @@ type Inputer interface {
 	Core() CoreInput
 }
 
-// CoreInput holds core fields needed for every user's Init/Update.
+// CoreInput holds core fields needed for every user's Init/ApplyInput calls.
 type CoreInput struct {
 	// Email is the user's email address submitted for further processing.
 	Email string
@@ -315,4 +315,8 @@ type CoreInput struct {
 	// Password is the user's plain-text password version submitted for
 	// futher processing.
 	Password string
+}
+
+func (c CoreInput) Core() CoreInput {
+	return c
 }

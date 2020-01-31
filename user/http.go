@@ -2,7 +2,6 @@ package user
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi"
@@ -15,11 +14,6 @@ var (
 	// session.
 	ErrUnauthorized = httpflow.NewError(nil, http.StatusUnauthorized,
 		"unauthorized")
-
-	// ErrInvalidJSON is returned when request body contains invalid JSON
-	// data.
-	ErrInvalidJSON = httpflow.NewError(nil, http.StatusBadRequest,
-		"invalid JSON body")
 )
 
 // Handler holds dependencies required for user management.
@@ -29,22 +23,39 @@ type Handler struct {
 	email    EmailSender
 
 	onError httpflow.ErrorExec
-	parse   InputParser
-	create  UserCreator
+	parse   Parser
+	create  Creator
 
 	verif TokenTimes
 	recov TokenTimes
 }
 
-// InputParse is a function that should be used for custom input parsing.
-type InputParser func(*http.Request) (Inputer, error)
+// Parser is a function that should be used for custom input parsing.
+// Used only during user update process and registration.
+type Parser func(r *http.Request) (Inputer, error)
 
-// UserCreator is a function that should be used for custom user creation.
-type UserCreator func(Inputer) (User, error)
+func DefaultParser(r *http.Request) (Inputer, error) {
+	var cInp CoreInput
+	if err := httpflow.DecodeJSON(r, &cInp); err != nil {
+		return nil, err
+	}
+
+	return cInp, nil
+}
+
+// Creator is a function that should be used for custom user creation.
+// Used only during registration.
+type Creator func(inp Inputer) (User, error)
+
+func DefaultCreator(inp Inputer) (User, error) {
+	usr := &Core{}
+	usr.Init(inp)
+	return usr, nil
+}
 
 // NewHandler creates a new user http handler.
 func NewHandler(sm sessionup.Manager, db Database, email EmailSender,
-	onError httpflow.ErrorExec, parse InputParser, create UserCreator,
+	onError httpflow.ErrorExec, parse Parser, create Creator,
 	verif TokenTimes, recov TokenTimes) *Handler {
 	return &Handler{
 		sessions: sm,
@@ -139,8 +150,8 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 // Login handles user's credentials checking and new session creation.
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	var cInp CoreInput
-	if err := json.NewDecoder(r.Body).Decode(&cInp); err != nil {
-		httpflow.RespondError(w, r, ErrInvalidJSON, h.onError)
+	if err := httpflow.DecodeJSON(r, &cInp); err != nil {
+		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}
 
@@ -231,7 +242,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	usrC := usr.Core()
 	unver := usrC.UnverifiedEmail != ""
 
-	if err = usr.Update(inp); err != nil {
+	if err = usr.ApplyInput(inp); err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}
@@ -268,8 +279,8 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var cInp CoreInput
-	if err := json.NewDecoder(r.Body).Decode(&cInp); err != nil {
-		httpflow.RespondError(w, r, ErrInvalidJSON, h.onError)
+	if err := httpflow.DecodeJSON(r, &cInp); err != nil {
+		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}
 
@@ -404,14 +415,23 @@ func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = usr.Core().Verify(tok); err != nil {
+	usrC := usr.Core()
+	oEml := usrC.Email
+
+	if err = usrC.Verify(tok); err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}
 
-	if err = h.db.Update(r.Context(), usr); err != nil {
+	ctx := r.Context()
+
+	if err = h.db.Update(ctx, usr); err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
+	}
+
+	if oEml != usrC.Email { // email was changed
+		go h.email.SendEmailChanged(ctx, oEml, usrC.Email)
 	}
 
 	httpflow.Respond(w, r, nil, http.StatusNoContent, h.onError)
@@ -443,7 +463,7 @@ func (h *Handler) CancelVerification(w http.ResponseWriter, r *http.Request) {
 // provided email address and sends to the same address.
 func (h *Handler) InitRecovery(w http.ResponseWriter, r *http.Request) {
 	var cInp CoreInput
-	if err := json.NewDecoder(r.Body).Decode(&cInp); err != nil {
+	if err := httpflow.DecodeJSON(r, &cInp); err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}
@@ -489,7 +509,7 @@ func (h *Handler) Recover(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var cInp CoreInput
-	if err := json.NewDecoder(r.Body).Decode(&cInp); err != nil {
+	if err = httpflow.DecodeJSON(r, &cInp); err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}
@@ -608,20 +628,25 @@ type EmailSender interface {
 	// specified email address.
 	SendAccountActivation(ctx context.Context, eml, tok string)
 
-	// EmailVerification should send an email regarding new email
+	// SendEmailVerification should send an email regarding new email
 	// verification with the token, embedded into a full URL, to the
 	// specified email address.
 	SendEmailVerification(ctx context.Context, eml, tok string)
 
-	// Recovery should send an email regarding password recovery with
+	// SendEmailChanged should send an email to the old email
+	// address (first parameter) about a new email address
+	// being set (second parameter).
+	SendEmailChanged(ctx context.Context, oEml, nEml string)
+
+	// SendRecovery should send an email regarding password recovery with
 	// the token, embedded into a full URL, to the specified email address.
 	SendRecovery(ctx context.Context, eml, tok string)
 
-	// AccountDeleted should send an email regarding successful account
+	// SendAccountDeleted should send an email regarding successful account
 	// deletion to the specified email address.
 	SendAccountDeleted(ctx context.Context, eml string)
 
-	// PasswordChanged should send an email notifying about a successful
+	// SendPasswordChanged should send an email notifying about a successful
 	// password change to the specified email address.
 	// Last parameter specifies whether the password was changed during
 	// the recovery process or not.

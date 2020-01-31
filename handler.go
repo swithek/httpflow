@@ -5,8 +5,15 @@ import (
 	"net/http"
 )
 
-// ErrorExec is a function that should be delegated for calling on
-// errors.
+var (
+	// ErrInvalidJSON is returned when request body contains invalid JSON
+	// data.
+	ErrInvalidJSON = NewError(nil, http.StatusBadRequest,
+		"invalid JSON body")
+)
+
+// ErrorExec is a function that should be used for calling on
+// errors. Useful for error logging etc.
 type ErrorExec func(error)
 
 // Respond sends JSON type response to the client.
@@ -34,4 +41,13 @@ func RespondError(w http.ResponseWriter, r *http.Request, err error,
 	if code >= 500 {
 		onError(err)
 	}
+}
+
+// DecodeJSON tries to decode request's JSON body into destination object.
+func DecodeJSON(r *http.Request, v interface{}) error {
+	if err := json.NewDecoder(r.Body).Decode(v); err != nil {
+		return ErrInvalidJSON
+	}
+
+	return nil
 }

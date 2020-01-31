@@ -35,15 +35,15 @@ type TokenTimes struct {
 // verification and recovery.
 type token struct {
 	// ExpiresAt specifies the exact time when the token becomes invalid.
-	ExpiresAt time.Time
+	ExpiresAt time.Time `json:"-"`
 
 	// NextAt specifies the exact time when the next token will be allowed
 	// to be generated.
-	NextAt time.Time
+	NextAt time.Time `json:"-"`
 
 	// Hash is the hashed token value version. Treat it as a temporary
 	// password.
-	Hash []byte
+	Hash []byte `json:"-"`
 }
 
 // IsEmpty checks whether the token is active or not.
