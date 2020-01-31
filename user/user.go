@@ -198,8 +198,8 @@ func (c *Core) IsPasswordCorrect(p string) bool {
 // First parameter determines how long the verification token should be active.
 // Second parameter determines how much time has to pass until another token
 // can be generated.
-func (c *Core) InitVerification(exp, nxt time.Duration) (string, error) {
-	t, err := c.Verification.init(exp, nxt)
+func (c *Core) InitVerification(tt TokenTimes) (string, error) {
+	t, err := c.Verification.init(tt)
 	if err != nil {
 		return "", err
 	}
@@ -246,8 +246,8 @@ func (c *Core) CancelVerification(t string) error {
 // First parameter determines how long the recovery token should be active.
 // Second parameter determines how much time has to pass until another token
 // can be generated.
-func (c *Core) InitRecovery(exp, nxt time.Duration) (string, error) {
-	t, err := c.Recovery.init(exp, nxt)
+func (c *Core) InitRecovery(tt TokenTimes) (string, error) {
+	t, err := c.Recovery.init(tt)
 	if err != nil {
 		return "", err
 	}

@@ -41,7 +41,7 @@ func (e *statusError) Unwrap() error {
 // DetectError wraps the provided error with additional information
 // useful for applications.
 func DetectError(err error) error {
-	if errors.As(err, &statusError{}) {
+	if _, ok := err.(*statusError); ok {
 		return err
 	}
 

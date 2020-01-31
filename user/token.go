@@ -22,6 +22,15 @@ var (
 		"invalid token")
 )
 
+// TokenTimes holds data related to token expiration and next generation times.
+type TokenTimes struct {
+	// Interval is used for token expiration time calculation.
+	Interval time.Duration
+
+	// Cooldown is used for token next allowed generation time calculation.
+	Cooldown time.Duration
+}
+
 // token is a temporary password-type data structure used for account
 // verification and recovery.
 type token struct {
@@ -44,7 +53,7 @@ func (t *token) IsEmpty() bool {
 
 // init generates a new token. Provided values determine the expiration time
 // and the time when another token will be allowed to be generated.
-func (t *token) init(exp, nxt time.Duration) (string, error) {
+func (t *token) init(tt TokenTimes) (string, error) {
 	if time.Now().Before(t.NextAt) {
 		return "", ErrTooManyTokens
 	}
@@ -55,8 +64,8 @@ func (t *token) init(exp, nxt time.Duration) (string, error) {
 		return "", err
 	}
 
-	t.ExpiresAt = time.Now().Add(exp)
-	t.NextAt = time.Now().Add(nxt)
+	t.ExpiresAt = time.Now().Add(tt.Interval)
+	t.NextAt = time.Now().Add(tt.Cooldown)
 	t.Hash = h
 	return v, nil
 }
