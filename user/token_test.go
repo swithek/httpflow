@@ -12,10 +12,10 @@ import (
 
 func TestTokenIsEmpty(t *testing.T) {
 	tok := token{}
-	assert.Equal(t, true, tok.IsEmpty())
+	assert.True(t, tok.IsEmpty())
 
 	tok = token{Hash: []byte("123")}
-	assert.Equal(t, false, tok.IsEmpty())
+	assert.False(t, tok.IsEmpty())
 }
 
 func TestTokenInit(t *testing.T) {
@@ -47,8 +47,8 @@ func TestTokenInit(t *testing.T) {
 			}
 
 			assert.Equal(t, uniuri.StdLen, len(tok))
-			assert.Equal(t, false, c.Token.ExpiresAt.IsZero())
-			assert.Equal(t, false, c.Token.NextAt.IsZero())
+			assert.False(t, c.Token.ExpiresAt.IsZero())
+			assert.False(t, c.Token.NextAt.IsZero())
 			assert.NotZero(t, c.Token.Hash)
 		})
 	}

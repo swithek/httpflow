@@ -135,7 +135,7 @@ func (c *Core) SetEmail(e string) error {
 		return nil
 	}
 
-	if c.Email != "" && c.IsActivated() {
+	if c.Email != "" {
 		return c.SetUnverifiedEmail(e)
 	}
 
@@ -295,7 +295,7 @@ func CheckEmail(e string) error {
 
 // CheckPassword determines whether the provided password is of correct format.
 func CheckPassword(p string) error {
-	if len(p) < 8 { // TODO add more extensive checks
+	if len(p) < 8 { // TODO add more extensive checks?
 		return ErrInvalidPassword
 	}
 
