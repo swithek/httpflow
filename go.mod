@@ -8,6 +8,7 @@ require (
 	github.com/gorilla/schema v1.1.0 // indirect
 	github.com/rs/xid v1.2.1
 	github.com/rs/zerolog v1.17.2 // indirect
+	github.com/stretchr/testify v1.4.0
 	github.com/swithek/sessionup v1.1.1
 	golang.org/x/crypto v0.0.0-20200117160349-530e935923ad
 	gopkg.in/guregu/null.v3 v3.4.0 // indirect
