@@ -54,7 +54,7 @@ func TestCoreApplyInput(t *testing.T) {
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
 			cr := Core{}
-			err := cr.ApplyInput(c.Input)
+			res, err := cr.ApplyInput(c.Input)
 
 			if c.Err != nil {
 				if c.Err == assert.AnError {
@@ -65,8 +65,22 @@ func TestCoreApplyInput(t *testing.T) {
 				return
 			}
 
-			assert.Equal(t, c.Input.Email, cr.Email)
-			assert.NotZero(t, cr.PasswordHash)
+			if c.Input.Email != "" {
+				assert.True(t, res.Core().Email)
+				assert.Equal(t, c.Input.Email, cr.Email)
+			} else {
+				assert.False(t, res.Core().Email)
+				assert.Zero(t, cr.Email)
+			}
+
+			if c.Input.Password != "" {
+				assert.True(t, res.Core().Password)
+				assert.NotZero(t, cr.PasswordHash)
+			} else {
+				assert.False(t, res.Core().Password)
+				assert.Zero(t, cr.PasswordHash)
+			}
+
 		})
 	}
 }
@@ -132,7 +146,7 @@ func TestCoreSetEmail(t *testing.T) {
 			cr := Core{}
 			cr.Email = c.Current
 
-			err := cr.SetEmail(c.New)
+			res, err := cr.SetEmail(c.New)
 			if c.Err != nil {
 				if c.Err == assert.AnError {
 					assert.NotNil(t, err)
@@ -141,6 +155,8 @@ func TestCoreSetEmail(t *testing.T) {
 				}
 				return
 			}
+
+			assert.Equal(t, c.Applied, res)
 
 			if c.Applied {
 				if c.Unverified {
@@ -190,7 +206,8 @@ func TestCoreSetUnverifiedEmail(t *testing.T) {
 			t.Parallel()
 			cr := Core{}
 			cr.UnverifiedEmail = c.Current
-			err := cr.SetUnverifiedEmail(c.New)
+
+			res, err := cr.SetUnverifiedEmail(c.New)
 			if c.Err != nil {
 				if c.Err == assert.AnError {
 					assert.NotNil(t, err)
@@ -199,6 +216,8 @@ func TestCoreSetUnverifiedEmail(t *testing.T) {
 				}
 				return
 			}
+
+			assert.Equal(t, c.Applied, res)
 
 			if c.Applied {
 				assert.Equal(t, c.New, cr.UnverifiedEmail)
@@ -242,7 +261,8 @@ func TestCoreSetPassword(t *testing.T) {
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
 			cr := Core{PasswordHash: c.Hash}
-			err := cr.SetPassword(c.Password)
+
+			res, err := cr.SetPassword(c.Password)
 			if c.Err != nil {
 				if c.Err == assert.AnError {
 					assert.NotNil(t, err)
@@ -251,6 +271,8 @@ func TestCoreSetPassword(t *testing.T) {
 				}
 				return
 			}
+
+			assert.Equal(t, c.Applied, res)
 
 			if c.Applied {
 				assert.Nil(t, bcrypt.CompareHashAndPassword(
@@ -274,14 +296,14 @@ func TestCoreIsPasswordCorrect(t *testing.T) {
 func TestCoreInitVerification(t *testing.T) {
 	cc := map[string]struct {
 		Err   error
-		Token token
+		Token Token
 	}{
 		"Too many requests": {
 			Err:   assert.AnError,
-			Token: token{NextAt: time.Now().Add(time.Minute)},
+			Token: Token{NextAt: time.Now().Add(time.Minute)},
 		},
 		"Successful init": {
-			Token: token{},
+			Token: Token{},
 		},
 	}
 
@@ -308,7 +330,7 @@ func TestCoreInitVerification(t *testing.T) {
 }
 
 func TestCoreVerify(t *testing.T) {
-	inp := token{}
+	inp := Token{}
 	str, _ := inp.init(TokenTimes{time.Hour, time.Hour})
 	cc := map[string]struct {
 		Err             error
@@ -316,10 +338,10 @@ func TestCoreVerify(t *testing.T) {
 		Token           string
 		UnverifiedEmail bool
 	}{
-		"Unsuccessful token check": {
+		"Unsuccessful Token check": {
 			Err: assert.AnError,
 			Core: Core{
-				Verification: func() token {
+				Verification: func() Token {
 					tok := inp
 					tok.ExpiresAt = time.Time{}
 					return tok
@@ -387,17 +409,17 @@ func TestCoreVerify(t *testing.T) {
 }
 
 func TestCoreCancelVerification(t *testing.T) {
-	inp := token{}
+	inp := Token{}
 	str, _ := inp.init(TokenTimes{time.Hour, time.Hour})
 	cc := map[string]struct {
 		Err   error
 		Core  Core
 		Token string
 	}{
-		"Unsuccessful token check": {
+		"Unsuccessful Token check": {
 			Err: assert.AnError,
 			Core: Core{
-				Verification: func() token {
+				Verification: func() Token {
 					tok := inp
 					tok.ExpiresAt = time.Time{}
 					return tok
@@ -434,14 +456,14 @@ func TestCoreCancelVerification(t *testing.T) {
 func TestCoreInitRecovery(t *testing.T) {
 	cc := map[string]struct {
 		Err   error
-		Token token
+		Token Token
 	}{
 		"Too many requests": {
 			Err:   assert.AnError,
-			Token: token{NextAt: time.Now().Add(time.Minute)},
+			Token: Token{NextAt: time.Now().Add(time.Minute)},
 		},
 		"Successful init": {
-			Token: token{},
+			Token: Token{},
 		},
 	}
 
@@ -468,7 +490,7 @@ func TestCoreInitRecovery(t *testing.T) {
 }
 
 func TestCoreRecover(t *testing.T) {
-	inp := token{}
+	inp := Token{}
 	str, _ := inp.init(TokenTimes{time.Hour, time.Hour})
 	cc := map[string]struct {
 		Err      error
@@ -476,10 +498,10 @@ func TestCoreRecover(t *testing.T) {
 		Token    string
 		Password string
 	}{
-		"Unsuccessful token check": {
+		"Unsuccessful Token check": {
 			Err: assert.AnError,
 			Core: Core{
-				Recovery: func() token {
+				Recovery: func() Token {
 					tok := inp
 					tok.ExpiresAt = time.Time{}
 					return tok
@@ -495,6 +517,15 @@ func TestCoreRecover(t *testing.T) {
 			},
 			Token:    str,
 			Password: "pass",
+		},
+		"Empty password": {
+			Err: ErrInvalidPassword,
+			Core: Core{
+				PasswordHash: []byte("password"),
+				Recovery:     inp,
+			},
+			Token:    str,
+			Password: "",
 		},
 		"Successful recovery": {
 			Core: Core{
@@ -527,17 +558,17 @@ func TestCoreRecover(t *testing.T) {
 }
 
 func TestCoreCancelRecovery(t *testing.T) {
-	inp := token{}
+	inp := Token{}
 	str, _ := inp.init(TokenTimes{time.Hour, time.Hour})
 	cc := map[string]struct {
 		Err   error
 		Core  Core
 		Token string
 	}{
-		"Unsuccessful token check": {
+		"Unsuccessful Token check": {
 			Err: assert.AnError,
 			Core: Core{
-				Recovery: func() token {
+				Recovery: func() Token {
 					tok := inp
 					tok.ExpiresAt = time.Time{}
 					return tok
@@ -637,4 +668,9 @@ func TestCheckPassword(t *testing.T) {
 func TestCoreInputCore(t *testing.T) {
 	cInp := CoreInput{Email: "user@email.com"}
 	assert.Equal(t, cInp, cInp.Core())
+}
+
+func TestCoreSummaryCore(t *testing.T) {
+	cSum := CoreSummary{Email: true}
+	assert.Equal(t, cSum, cSum.Core())
 }

@@ -31,9 +31,9 @@ type TokenTimes struct {
 	Cooldown time.Duration
 }
 
-// token is a temporary password-type data structure used for account
+// Token is a temporary password-type data structure used for account
 // verification and recovery.
-type token struct {
+type Token struct {
 	// ExpiresAt specifies the exact time when the token becomes invalid.
 	ExpiresAt time.Time `json:"-"`
 
@@ -47,13 +47,13 @@ type token struct {
 }
 
 // IsEmpty checks whether the token is active or not.
-func (t *token) IsEmpty() bool {
+func (t *Token) IsEmpty() bool {
 	return t.ExpiresAt.IsZero() && t.NextAt.IsZero() && len(t.Hash) == 0
 }
 
 // init generates a new token. Provided values determine the expiration time
 // and the time when another token will be allowed to be generated.
-func (t *token) init(tt TokenTimes) (string, error) {
+func (t *Token) init(tt TokenTimes) (string, error) {
 	if time.Now().Before(t.NextAt) {
 		return "", ErrTooManyTokens
 	}
@@ -71,7 +71,7 @@ func (t *token) init(tt TokenTimes) (string, error) {
 }
 
 // Check determines whether the provided token is correct and non-expired.
-func (t *token) Check(v string) error {
+func (t *Token) Check(v string) error {
 	if time.Now().After(t.ExpiresAt) {
 		return ErrInvalidToken
 	}
@@ -88,7 +88,7 @@ func (t *token) Check(v string) error {
 }
 
 // Clear resets all token data.
-func (t *token) Clear() {
+func (t *Token) Clear() {
 	t.ExpiresAt = time.Time{}
 	t.NextAt = time.Time{}
 	t.Hash = nil

@@ -2,6 +2,7 @@ package httpflow
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 )
 
@@ -15,6 +16,11 @@ var (
 // ErrorExec is a function that should be used for calling on
 // errors. Useful for error logging etc.
 type ErrorExec func(error)
+
+// DefaultErrorExec logs the provided error via global logger.
+func DefaultErrorExec(err error) {
+	log.Print(err)
+}
 
 // Respond sends JSON type response to the client.
 func Respond(w http.ResponseWriter, r *http.Request, data interface{},

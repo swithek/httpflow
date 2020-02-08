@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
 	"github.com/swithek/httpflow"
 	"github.com/swithek/sessionup"
 )
@@ -17,8 +18,9 @@ var (
 )
 
 // Handler holds dependencies required for user management.
+//go:generate moq -out ./http_mock_test.go . Database EmailSender
 type Handler struct {
-	sessions sessionup.Manager
+	sessions *sessionup.Manager
 	db       Database
 	email    EmailSender
 
@@ -34,6 +36,8 @@ type Handler struct {
 // Used only during user update process and registration.
 type Parser func(r *http.Request) (Inputer, error)
 
+// DefaultParser marshals incoming request's body into a core input
+// data structure.
 func DefaultParser(r *http.Request) (Inputer, error) {
 	var cInp CoreInput
 	if err := httpflow.DecodeJSON(r, &cInp); err != nil {
@@ -47,6 +51,8 @@ func DefaultParser(r *http.Request) (Inputer, error) {
 // Used only during registration.
 type Creator func(inp Inputer) (User, error)
 
+// DefaultCreator creates a new user with only core data fields from the
+// provided input.
 func DefaultCreator(inp Inputer) (User, error) {
 	usr := &Core{}
 	usr.Init(inp)
@@ -54,7 +60,7 @@ func DefaultCreator(inp Inputer) (User, error) {
 }
 
 // NewHandler creates a new user http handler.
-func NewHandler(sm sessionup.Manager, db Database, email EmailSender,
+func NewHandler(sm *sessionup.Manager, db Database, email EmailSender,
 	onError httpflow.ErrorExec, parse Parser, create Creator,
 	verif TokenTimes, recov TokenTimes) *Handler {
 	return &Handler{
@@ -72,10 +78,12 @@ func NewHandler(sm sessionup.Manager, db Database, email EmailSender,
 // ServeHTTP returns a handler with all core user routes.
 func (h *Handler) ServeHTTP() http.Handler {
 	r := chi.NewRouter()
+	r.Use(middleware.AllowContentType("application/json"))
+
 	r.Post("/new", h.Register)
 	r.Route("/auth", func(sr chi.Router) {
-		sr.Post("/", h.Login)
-		sr.With(h.sessions.Auth).Delete("/", h.Logout)
+		sr.Post("/", h.LogIn)
+		sr.With(h.sessions.Auth).Delete("/", h.LogOut)
 	})
 
 	r.Group(func(sr chi.Router) {
@@ -147,8 +155,8 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	httpflow.Respond(w, r, nil, http.StatusCreated, h.onError)
 }
 
-// Login handles user's credentials checking and new session creation.
-func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
+// LogIn handles user's credentials checking and new session creation.
+func (h *Handler) LogIn(w http.ResponseWriter, r *http.Request) {
 	var cInp CoreInput
 	if err := httpflow.DecodeJSON(r, &cInp); err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
@@ -190,8 +198,8 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	httpflow.Respond(w, r, nil, http.StatusNoContent, h.onError)
 }
 
-// Logout handles user's active session revokation.
-func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
+// LogOut handles user's active session revokation.
+func (h *Handler) LogOut(w http.ResponseWriter, r *http.Request) {
 	if err := h.sessions.Revoke(r.Context(), w); err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
@@ -239,22 +247,23 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	usrC := usr.Core()
-	unver := usrC.UnverifiedEmail != ""
-
-	if err = usr.ApplyInput(inp); err != nil {
+	upd, err := usr.ApplyInput(inp)
+	if err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}
 
-	if !unver && usrC.UnverifiedEmail != "" { // email address was added
-		tok, err := usrC.InitVerification(h.verif)
+	usrC := usr.Core()
+	updC := upd.Core()
+
+	var tok string
+
+	if updC.Email {
+		tok, err = usrC.InitVerification(h.verif)
 		if err != nil {
 			httpflow.RespondError(w, r, err, h.onError)
 			return
 		}
-
-		go h.email.SendEmailVerification(ctx, usrC.UnverifiedEmail, tok)
 	}
 
 	if err = h.db.Update(ctx, usr); err != nil {
@@ -262,7 +271,11 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if inp.Core().Password != "" {
+	if tok != "" {
+		go h.email.SendEmailVerification(ctx, usrC.UnverifiedEmail, tok)
+	}
+
+	if updC.Password {
 		go h.email.SendPasswordChanged(ctx, usrC.Email, false)
 	}
 
@@ -599,11 +612,12 @@ func (h *Handler) fetchByToken(r *http.Request) (User, string, error) {
 	return usr, tok, nil
 }
 
-// Database is an interface user's data store layer should implement.
+// Database is an interface which should be implemented by the user data
+// store layer.
 type Database interface {
 	// Create should insert the freshly created user into the underlying
 	// data store.
-	Create(ctx context.Context, u User) error
+	Create(ctx context.Context, usr User) error
 
 	// FetchByID should retrieve the user from the underlying data store
 	// by their ID.
@@ -611,17 +625,18 @@ type Database interface {
 
 	// FetchByEmail should retrieve the user from the underlying data store
 	// by their email address.
-	FetchByEmail(ctx context.Context, e string) (User, error)
+	FetchByEmail(ctx context.Context, eml string) (User, error)
 
 	// Update should update user's data in the underlying data store.
-	Update(ctx context.Context, u User) error
+	Update(ctx context.Context, usr User) error
 
 	// DeleteByID should delete the user from the underlying data store
 	// by their ID.
 	DeleteByID(ctx context.Context, id string) error
 }
 
-// EmailSender is an interface email sending service should implement.
+// EmailSender is an interface which should be implemented by email
+// sending service.
 type EmailSender interface {
 	// SendAccountActivation should send an email regarding account
 	// activation with the token, embedded into a full URL, to the

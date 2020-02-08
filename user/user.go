@@ -40,9 +40,9 @@ type User interface {
 	Init(i Inputer) error
 
 	// ApplyInput should set values from provided data structure.
-	ApplyInput(i Inputer) error
+	ApplyInput(i Inputer) (Summary, error)
 
-	// Core exposes the user's core fields.
+	// Core should expose the user's core fields.
 	Core() *Core
 }
 
@@ -73,10 +73,10 @@ type Core struct {
 
 	// Verification holds data needed for account activation or email
 	// update.
-	Verification token `json:"-"`
+	Verification Token `json:"-"`
 
 	// Recovery holds data needed for password recovery.
-	Recovery token `json:"-"`
+	Recovery Token `json:"-"`
 }
 
 // Init initializes all the values, user specified and default, needed for
@@ -87,7 +87,7 @@ func (c *Core) Init(inp Inputer) error {
 		CreatedAt: time.Now(),
 	}
 
-	if err := c.ApplyInput(inp); err != nil {
+	if _, err := c.ApplyInput(inp); err != nil {
 		return err
 	}
 
@@ -96,20 +96,25 @@ func (c *Core) Init(inp Inputer) error {
 
 // ApplyInput applies modification to user's core fields and sets new update
 // time.
-func (c *Core) ApplyInput(inp Inputer) error {
+func (c *Core) ApplyInput(inp Inputer) (Summary, error) {
 	cInp := inp.Core()
 
-	if err := c.SetEmail(cInp.Email); err != nil {
-		return err
+	eml, err := c.SetEmail(cInp.Email)
+	if err != nil {
+		return nil, err
 	}
 
-	if err := c.SetPassword(cInp.Password); err != nil {
-		return err
+	pass, err := c.SetPassword(cInp.Password)
+	if err != nil {
+		return nil, err
 	}
 
 	c.UpdatedAt = time.Now()
 
-	return nil
+	return CoreSummary{
+		Email:    eml,
+		Password: pass,
+	}, nil
 }
 
 // Core exposes the user's core fields.
@@ -123,16 +128,17 @@ func (c *Core) IsActivated() bool {
 }
 
 // SetEmail checks and updates user's email address.
-func (c *Core) SetEmail(e string) error {
+// First return value determines whether the email was set or not.
+func (c *Core) SetEmail(e string) (bool, error) {
 	if e == "" {
 		if c.Email == "" {
-			return ErrInvalidEmail
+			return false, ErrInvalidEmail
 		}
-		return nil
+		return false, nil
 	}
 
 	if c.Email == e {
-		return nil
+		return false, nil
 	}
 
 	if c.Email != "" {
@@ -140,51 +146,53 @@ func (c *Core) SetEmail(e string) error {
 	}
 
 	if err := CheckEmail(e); err != nil {
-		return err
+		return false, err
 	}
 
 	c.Email = e
-	return nil
+	return true, nil
 }
 
 // SetUnverifiedEmail checks and updates user's unverified email address.
-func (c *Core) SetUnverifiedEmail(e string) error {
+// First return value determines whether the email was set or not.
+func (c *Core) SetUnverifiedEmail(e string) (bool, error) {
 	if e == "" {
-		return nil
+		return false, nil
 	}
 
 	if c.UnverifiedEmail == e {
-		return nil
+		return false, nil
 	}
 
 	if err := CheckEmail(e); err != nil {
-		return err
+		return false, err
 	}
 
 	c.UnverifiedEmail = e
-	return nil
+	return true, nil
 }
 
 // SetPassword checks and updates user's password hash.
-func (c *Core) SetPassword(p string) error {
+// First return value determines whether the password was set or not.
+func (c *Core) SetPassword(p string) (bool, error) {
 	if p == "" {
 		if c.PasswordHash == nil {
-			return ErrInvalidPassword
+			return false, ErrInvalidPassword
 		}
-		return nil
+		return false, nil
 	}
 
 	if err := CheckPassword(p); err != nil {
-		return err
+		return false, err
 	}
 
 	h, err := bcrypt.GenerateFromPassword([]byte(p), bcrypt.DefaultCost)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	c.PasswordHash = h
-	return nil
+	return true, nil
 }
 
 // IsPasswordCorrect checks whether the provided password matches the hash.
@@ -193,10 +201,10 @@ func (c *Core) IsPasswordCorrect(p string) bool {
 }
 
 // InitVerification initializes account / email verification and returns
-// combination of token and user ID in a string format to send in verification
+// combination of Token and user ID in a string format to send in verification
 // emails etc.
-// First parameter determines how long the verification token should be active.
-// Second parameter determines how much time has to pass until another token
+// First parameter determines how long the verification Token should be active.
+// Second parameter determines how much time has to pass until another Token
 // can be generated.
 func (c *Core) InitVerification(tt TokenTimes) (string, error) {
 	t, err := c.Verification.init(tt)
@@ -206,10 +214,10 @@ func (c *Core) InitVerification(tt TokenTimes) (string, error) {
 	return toFullToken(t, c.ID), nil
 }
 
-// Verify checks whether the provided token is valid and either activates
+// Verify checks whether the provided Token is valid and either activates
 // the account (if it wasn't already) or, if unverified email address exists,
 // confirms it as the main email address.
-// NOTE: provided token must in its original / raw form - not combined with
+// NOTE: provided Token must in its original / raw form - not combined with
 // the user's ID (as InitVerification method returns).
 func (c *Core) Verify(t string) error {
 	if err := c.Verification.Check(t); err != nil {
@@ -229,9 +237,9 @@ func (c *Core) Verify(t string) error {
 	return nil
 }
 
-// CancelVerification checks whether the provided token is valid and clears
-// the active verification token data.
-// NOTE: provided token must in its original / raw form - not combined with
+// CancelVerification checks whether the provided Token is valid and clears
+// the active verification Token data.
+// NOTE: provided Token must in its original / raw form - not combined with
 // the user's ID (as InitVerification method returns).
 func (c *Core) CancelVerification(t string) error {
 	if err := c.Verification.Check(t); err != nil {
@@ -242,9 +250,9 @@ func (c *Core) CancelVerification(t string) error {
 }
 
 // InitRecovery initializes password recovery and returns a combination of
-// token and user ID in a string format to send in recovery emails etc.
-// First parameter determines how long the recovery token should be active.
-// Second parameter determines how much time has to pass until another token
+// Token and user ID in a string format to send in recovery emails etc.
+// First parameter determines how long the recovery Token should be active.
+// Second parameter determines how much time has to pass until another Token
 // can be generated.
 func (c *Core) InitRecovery(tt TokenTimes) (string, error) {
 	t, err := c.Recovery.init(tt)
@@ -254,26 +262,31 @@ func (c *Core) InitRecovery(tt TokenTimes) (string, error) {
 	return toFullToken(t, c.ID), nil
 }
 
-// Recover checks whether the provided token is valid and sets the provided
+// Recover checks whether the provided Token is valid and sets the provided
 // password as the new account password.
-// NOTE: provided token must in its original / raw form - not combined with
+// NOTE: provided Token must in its original / raw form - not combined with
 // the user's ID (as InitRecovery method returns).
 func (c *Core) Recover(t, p string) error {
 	if err := c.Recovery.Check(t); err != nil {
 		return err
 	}
 
-	if err := c.SetPassword(p); err != nil {
+	res, err := c.SetPassword(p)
+	if err != nil {
 		return err
+	}
+
+	if !res {
+		return ErrInvalidPassword
 	}
 
 	c.Recovery.Clear()
 	return nil
 }
 
-// CancelRecovery checks whether the provided token is valid and clears all
-// active recovery token data.
-// NOTE: provided token must in its original / raw form - not combined with
+// CancelRecovery checks whether the provided Token is valid and clears all
+// active recovery Token data.
+// NOTE: provided Token must in its original / raw form - not combined with
 // the user's ID (as InitRecovery method returns).
 func (c *Core) CancelRecovery(t string) error {
 	if err := c.Recovery.Check(t); err != nil {
@@ -302,8 +315,10 @@ func CheckPassword(p string) error {
 	return nil
 }
 
-// Inputer is an interface every user input data type should implement.
+// Inputer is an interface which should be implemented by every user
+// input data type.
 type Inputer interface {
+	// Core should expose the user's core input fields.
 	Core() CoreInput
 }
 
@@ -317,6 +332,31 @@ type CoreInput struct {
 	Password string
 }
 
+// Core exposes the user's core input fields.
 func (c CoreInput) Core() CoreInput {
+	return c
+}
+
+// Summary is an interface which should be implemented by every user
+// data type describing modifications during updates.
+type Summary interface {
+	// Core should expose the user's core fields' modification status.
+	Core() CoreSummary
+}
+
+// CoreSummary holds core fields' information about whether or not they
+// were modified.
+type CoreSummary struct {
+	// Email specifies whether the email was modified during
+	// input application.
+	Email bool
+
+	// Password specifies whether the password was modified
+	// during input application.
+	Password bool
+}
+
+// Core exposes the user's core input fields' modification status.
+func (c CoreSummary) Core() CoreSummary {
 	return c
 }

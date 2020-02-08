@@ -11,26 +11,26 @@ import (
 )
 
 func TestTokenIsEmpty(t *testing.T) {
-	tok := token{}
+	tok := Token{}
 	assert.True(t, tok.IsEmpty())
 
-	tok = token{Hash: []byte("123")}
+	tok = Token{Hash: []byte("123")}
 	assert.False(t, tok.IsEmpty())
 }
 
 func TestTokenInit(t *testing.T) {
 	cc := map[string]struct {
-		Token token
+		Token Token
 		Err   error
 	}{
 		"Too many requests": {
-			Token: token{
+			Token: Token{
 				NextAt: time.Now().Add(time.Hour),
 			},
 			Err: ErrTooManyTokens,
 		},
-		"Successful token init": {
-			Token: token{},
+		"Successful Token init": {
+			Token: Token{},
 		},
 	}
 
@@ -55,45 +55,45 @@ func TestTokenInit(t *testing.T) {
 }
 
 func TestTokenCheck(t *testing.T) {
-	inp := token{
+	inp := Token{
 		ExpiresAt: time.Now().Add(time.Hour),
 		Hash: func() []byte {
-			hash, _ := bcrypt.GenerateFromPassword([]byte("token"), bcrypt.DefaultCost)
+			hash, _ := bcrypt.GenerateFromPassword([]byte("Token"), bcrypt.DefaultCost)
 			return hash
 		}(),
 	}
 
 	cc := map[string]struct {
-		Token token
+		Token Token
 		Err   error
 		Input string
 	}{
-		"Expired token": {
-			Token: func() token {
+		"Expired Token": {
+			Token: func() Token {
 				tok := inp
 				tok.ExpiresAt = time.Time{}
 				return tok
 			}(),
 			Err:   ErrInvalidToken,
-			Input: "token",
+			Input: "Token",
 		},
 		"Token hash is empty": {
-			Token: func() token {
+			Token: func() Token {
 				tok := inp
 				tok.Hash = nil
 				return tok
 			}(),
 			Err:   ErrInvalidToken,
-			Input: "token",
+			Input: "Token",
 		},
 		"Tokens do not match": {
 			Token: inp,
 			Err:   ErrInvalidToken,
-			Input: "token1",
+			Input: "Token1",
 		},
 		"Successful check": {
 			Token: inp,
-			Input: "token",
+			Input: "Token",
 		},
 	}
 
@@ -108,14 +108,14 @@ func TestTokenCheck(t *testing.T) {
 }
 
 func TestTokenClear(t *testing.T) {
-	tok := token{
+	tok := Token{
 		ExpiresAt: time.Now(),
 		NextAt:    time.Now(),
 		Hash:      []byte("10"),
 	}
 
 	tok.Clear()
-	assert.Equal(t, token{}, tok)
+	assert.Equal(t, Token{}, tok)
 }
 
 func TestToFullToken(t *testing.T) {
@@ -134,7 +134,7 @@ func TestFromFullToken(t *testing.T) {
 		Err   error
 		Input string
 	}{
-		"Invalid token length": {
+		"Invalid Token length": {
 			Err:   ErrInvalidToken,
 			Input: "123",
 		},
