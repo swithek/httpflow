@@ -117,6 +117,8 @@ func (h *Handler) ServeHTTP() http.Handler {
 }
 
 // Register handles new user's creation and insertion into the data store.
+// On successful execution, a session will be created and account activation
+// email will sent.
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	inp, err := h.parse(r)
 	if err != nil {
@@ -156,6 +158,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 }
 
 // LogIn handles user's credentials checking and new session creation.
+// On successful execution, a session will be created.
 func (h *Handler) LogIn(w http.ResponseWriter, r *http.Request) {
 	var cInp CoreInput
 	if err := httpflow.DecodeJSON(r, &cInp); err != nil {
@@ -227,6 +230,9 @@ func (h *Handler) Fetch(w http.ResponseWriter, r *http.Request) {
 }
 
 // Update handles user's data update in the data store.
+// On email address change, a verification email will be sent to the new
+// address.
+// On password change, all other sessions will be destroyed and email sent.
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	ses, ok := sessionup.FromContext(ctx)
@@ -271,18 +277,24 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if tok != "" {
-		go h.email.SendEmailVerification(ctx, usrC.UnverifiedEmail, tok)
+	if updC.Password {
+		if err := h.sessions.RevokeOther(r.Context()); err != nil {
+			httpflow.RespondError(w, r, err, h.onError)
+			return
+		}
+
+		go h.email.SendPasswordChanged(ctx, usrC.Email, false)
 	}
 
-	if updC.Password {
-		go h.email.SendPasswordChanged(ctx, usrC.Email, false)
+	if tok != "" {
+		go h.email.SendEmailVerification(ctx, usrC.UnverifiedEmail, tok)
 	}
 
 	httpflow.Respond(w, r, nil, http.StatusNoContent, h.onError)
 }
 
 // Delete handles user's data removal from the data store.
+// On successful deletion, an email will be sent.
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	ses, ok := sessionup.FromContext(ctx)
@@ -348,7 +360,7 @@ func (h *Handler) RevokeSession(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := chi.URLParam(r, "id")
 
-	if ses, ok := sessionup.FromContext(ctx); ok && ses.ID == id {
+	if ses, ok := sessionup.FromContext(ctx); !ok || ses.ID == id {
 		httpflow.RespondError(w, r, httpflow.NewError(nil,
 			http.StatusBadRequest,
 			"current session cannot be revoked"), h.onError)
@@ -375,6 +387,8 @@ func (h *Handler) RevokeOtherSessions(w http.ResponseWriter, r *http.Request) {
 
 // ResendVerification attempts to send and generate the verification token
 // once more.
+// On successful execution, either account activation or new email verification
+// will be sent.
 func (h *Handler) ResendVerification(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -421,6 +435,8 @@ func (h *Handler) ResendVerification(w http.ResponseWriter, r *http.Request) {
 
 // Verify checks whether the token in the URL is valid and activates either
 // user's account or their new email address.
+// If new email was changed and verified, an email will be sent to the old
+// address about the change.
 func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
 	usr, tok, err := h.fetchByToken(r)
 	if err != nil {
@@ -474,6 +490,8 @@ func (h *Handler) CancelVerification(w http.ResponseWriter, r *http.Request) {
 
 // InitRecovery initializes recovery token for the user associated with the
 // provided email address and sends to the same address.
+// On successful execution, a recovery email will be sent to the email
+// provided.
 func (h *Handler) InitRecovery(w http.ResponseWriter, r *http.Request) {
 	var cInp CoreInput
 	if err := httpflow.DecodeJSON(r, &cInp); err != nil {
@@ -514,6 +532,8 @@ func (h *Handler) InitRecovery(w http.ResponseWriter, r *http.Request) {
 
 // Recover checks the token in the URL and applies the provided password
 // to the user account data structure.
+// On successful execution, an email will be sent notifying about password
+// change.
 func (h *Handler) Recover(w http.ResponseWriter, r *http.Request) {
 	usr, tok, err := h.fetchByToken(r)
 	if err != nil {
@@ -540,12 +560,12 @@ func (h *Handler) Recover(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go h.email.SendPasswordChanged(ctx, usrC.Email, true)
-
 	if err = h.sessions.RevokeByUserKey(ctx, usrC.ID.String()); err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}
+
+	go h.email.SendPasswordChanged(ctx, usrC.Email, true)
 
 	httpflow.Respond(w, r, nil, http.StatusNoContent, h.onError)
 }
@@ -576,7 +596,7 @@ func (h *Handler) CancelRecovery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = usr.Core().CancelVerification(tok); err != nil {
+	if err = usr.Core().CancelRecovery(tok); err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}
