@@ -201,7 +201,7 @@ func (c *Core) IsPasswordCorrect(p string) bool {
 }
 
 // InitVerification initializes account / email verification and returns
-// combination of Token and user ID in a string format to send in verification
+// combination of token and user ID in a string format to send in verification
 // emails etc.
 // First parameter determines how long the verification Token should be active.
 // Second parameter determines how much time has to pass until another Token
@@ -214,7 +214,7 @@ func (c *Core) InitVerification(tt TokenTimes) (string, error) {
 	return toFullToken(t, c.ID), nil
 }
 
-// Verify checks whether the provided Token is valid and either activates
+// Verify checks whether the provided token is valid and either activates
 // the account (if it wasn't already) or, if unverified email address exists,
 // confirms it as the main email address.
 // NOTE: provided Token must in its original / raw form - not combined with
