@@ -46,7 +46,8 @@ func DetectError(err error) error {
 	}
 
 	if errors.Is(err, sql.ErrNoRows) {
-		return NewError(err, http.StatusNotFound, "not found")
+		return NewError(err, http.StatusNotFound, strings.ToLower(
+			http.StatusText(http.StatusNotFound)))
 	}
 
 	return NewError(err, http.StatusInternalServerError,
