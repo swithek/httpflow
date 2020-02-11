@@ -2,6 +2,7 @@ package email
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/smtp"
 
@@ -17,20 +18,28 @@ type Manager struct {
 	password string
 	from     string
 	herm     hermes.Hermes
+	links    httpflow.Links
 	onError  httpflow.ErrorExec
 }
 
 // NewManager creates a fresh instance of email manager.
 func NewManager(host, username, password, from string, herm hermes.Hermes,
-	onError httpflow.ErrorExec) *Manager {
+	l httpflow.Links, onError httpflow.ErrorExec) (*Manager, error) {
+	if !l.Exist(httpflow.LinkVerification, httpflow.LinkVerificationCancel,
+		httpflow.LinkActivation, httpflow.LinkActivationCancel,
+		httpflow.LinkRecovery, httpflow.LinkRecoveryCancel) {
+		return nil, errors.New("not all links are set up")
+	}
+
 	return &Manager{
 		host:     host,
 		username: username,
 		password: password,
 		from:     from,
 		herm:     herm,
+		links:    l,
 		onError:  onError,
-	}
+	}, nil
 }
 
 // send authenticates against the smtp server, builds an email and sends it
@@ -62,7 +71,16 @@ func (m *Manager) SendAccountActivation(ctx context.Context, eml string, tok str
 					Instructions: "To activatate your account, please click here:",
 					Button: hermes.Button{
 						Text: "Activate",
-						Link: "", // TODO
+						Link: m.links.Prep(
+							httpflow.LinkActivation, tok),
+					},
+				},
+				{
+					Instructions: "Wrong email address? Please click here:",
+					Button: hermes.Button{
+						Text: "Cancel",
+						Link: m.links.Prep(
+							httpflow.LinkActivationCancel, tok),
 					},
 				},
 			},
@@ -90,7 +108,16 @@ func (m *Manager) SendEmailVerification(ctx context.Context, eml string, tok str
 					Instructions: "To verify your new email address, please click here:",
 					Button: hermes.Button{
 						Text: "Verify",
-						Link: "", // TODO
+						Link: m.links.Prep(
+							httpflow.LinkVerification, tok),
+					},
+				},
+				{
+					Instructions: "Wrong email address? Please click here:",
+					Button: hermes.Button{
+						Text: "Cancel",
+						Link: m.links.Prep(
+							httpflow.LinkVerificationCancel, tok),
 					},
 				},
 			},
@@ -136,7 +163,16 @@ func (m *Manager) SendRecovery(ctx context.Context, eml string, tok string) {
 					Instructions: "To recover access to your account, please click here:",
 					Button: hermes.Button{
 						Text: "Recover",
-						Link: "", // TODO
+						Link: m.links.Prep(
+							httpflow.LinkRecovery, tok),
+					},
+				},
+				{
+					Instructions: "Wrong email address? Please click here:",
+					Button: hermes.Button{
+						Text: "Cancel",
+						Link: m.links.Prep(
+							httpflow.LinkRecoveryCancel, tok),
 					},
 				},
 			},
@@ -148,7 +184,7 @@ func (m *Manager) SendRecovery(ctx context.Context, eml string, tok string) {
 		m.onError(err)
 	}
 
-	m.send(ctx, eml, "Password recovery", eBody)
+	m.send(ctx, eml, "Password reset", eBody)
 }
 
 // SendAccountDeleted sends an email regarding successful account deletion to
@@ -168,7 +204,7 @@ func (m *Manager) SendAccountDeleted(ctx context.Context, eml string) {
 		m.onError(err)
 	}
 
-	m.send(ctx, oEml, "Account deleted", eBody)
+	m.send(ctx, eml, "Account deleted", eBody)
 }
 
 // SendPasswordChanged sends an email notifying about a successful
@@ -179,10 +215,10 @@ func (m *Manager) SendPasswordChanged(ctx context.Context, eml string, recov boo
 	var e hermes.Email
 	var subj string
 	if recov {
-		subj = "Password successfully recovered"
+		subj = "Password successfully reset"
 		e = hermes.Email{
 			Body: hermes.Body{
-				Title: "Password was successfully recovered.",
+				Title: "Password was successfully reset.",
 				Intros: []string{
 					"You can log in to your account any time with your new password.",
 				},
@@ -205,5 +241,5 @@ func (m *Manager) SendPasswordChanged(ctx context.Context, eml string, recov boo
 		m.onError(err)
 	}
 
-	m.send(ctx, oEml, subj, eBody)
+	m.send(ctx, eml, subj, eBody)
 }
