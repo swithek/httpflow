@@ -119,6 +119,21 @@ func (h *Handler) ServeHTTP() http.Handler {
 	return r
 }
 
+// SetupLinks creates a link string map that should be used for email
+// sending etc.
+// The parameter specifies the root of the link, example:
+// "http://yoursite.com/user"
+func SetupLinks(r string) map[httpflow.LinkKey]string {
+	return map[httpflow.LinkKey]string{
+		httpflow.LinkActivation:         r + "/activ?token=%s",
+		httpflow.LinkActivationCancel:   r + "/activ/cancel?token=%s",
+		httpflow.LinkVerification:       r + "/verif?token=%s",
+		httpflow.LinkVerificationCancel: r + "/verif/cancel?token=%s",
+		httpflow.LinkRecovery:           r + "/recov?token=%s",
+		httpflow.LinkRecoveryCancel:     r + "/recov/cancel?token=%s",
+	}
+}
+
 // Register handles new user's creation and insertion into the data store.
 // On successful execution, a session will be created and account activation
 // email will sent.

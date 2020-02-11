@@ -61,6 +61,23 @@ func TestNewHandler(t *testing.T) {
 	assert.NotZero(t, hdl.ServeHTTP())
 }
 
+func TestSetupLinks(t *testing.T) {
+	ll := SetupLinks("http://yoursite.com/user")
+	require.NotNil(t, ll)
+	assert.Equal(t, "http://yoursite.com/user/activ?token=%s",
+		ll[httpflow.LinkActivation])
+	assert.Equal(t, "http://yoursite.com/user/activ/cancel?token=%s",
+		ll[httpflow.LinkActivationCancel])
+	assert.Equal(t, "http://yoursite.com/user/verif?token=%s",
+		ll[httpflow.LinkVerification])
+	assert.Equal(t, "http://yoursite.com/user/verif/cancel?token=%s",
+		ll[httpflow.LinkVerificationCancel])
+	assert.Equal(t, "http://yoursite.com/user/recov?token=%s",
+		ll[httpflow.LinkRecovery])
+	assert.Equal(t, "http://yoursite.com/user/recov/cancel?token=%s",
+		ll[httpflow.LinkRecoveryCancel])
+}
+
 func TestHandlerRegister(t *testing.T) {
 	type check func(*testing.T, *DatabaseMock, *EmailSenderMock, *httptest.ResponseRecorder)
 
