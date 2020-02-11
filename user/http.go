@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -21,6 +22,7 @@ var (
 //go:generate moq -out ./http_mock_test.go . Database EmailSender
 type Handler struct {
 	sessions *sessionup.Manager
+	sesDur   time.Duration
 	db       Database
 	email    EmailSender
 
@@ -60,11 +62,12 @@ func DefaultCreator(inp Inputer) (User, error) {
 }
 
 // NewHandler creates a new user http handler.
-func NewHandler(sm *sessionup.Manager, db Database, email EmailSender,
-	onError httpflow.ErrorExec, parse Parser, create Creator,
-	verif TokenTimes, recov TokenTimes) *Handler {
+func NewHandler(sm *sessionup.Manager, sd time.Duration, db Database,
+	email EmailSender, onError httpflow.ErrorExec, parse Parser,
+	create Creator, verif TokenTimes, recov TokenTimes) *Handler {
 	return &Handler{
 		sessions: sm,
+		sesDur:   sd,
 		db:       db,
 		email:    email,
 		onError:  onError,
@@ -147,7 +150,12 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = h.sessions.Init(w, r, usrC.ID.String()); err != nil {
+	sessions := h.sessions
+	if inp.Core().RememberMe {
+		sessions = sessions.Clone(sessionup.ExpiresIn(h.sesDur))
+	}
+
+	if err = sessions.Init(w, r, usrC.ID.String()); err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}
@@ -193,7 +201,12 @@ func (h *Handler) LogIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = h.sessions.Init(w, r, usrC.ID.String()); err != nil {
+	sessions := h.sessions
+	if cInp.RememberMe {
+		sessions = sessions.Clone(sessionup.ExpiresIn(h.sesDur))
+	}
+
+	if err = sessions.Init(w, r, usrC.ID.String()); err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}
@@ -673,7 +686,7 @@ type EmailSender interface {
 	// being set (second parameter).
 	SendEmailChanged(ctx context.Context, oEml, nEml string)
 
-	// SendRecovery should send an email regarding password recovery with
+	// SendRecovery should send an email regarding account recovery with
 	// the token, embedded into a full URL, to the specified email address.
 	SendRecovery(ctx context.Context, eml, tok string)
 

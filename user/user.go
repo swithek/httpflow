@@ -75,7 +75,7 @@ type Core struct {
 	// update.
 	Verification Token `json:"-"`
 
-	// Recovery holds data needed for password recovery.
+	// Recovery holds data needed for account recovery.
 	Recovery Token `json:"-"`
 }
 
@@ -249,7 +249,7 @@ func (c *Core) CancelVerification(t string) error {
 	return nil
 }
 
-// InitRecovery initializes password recovery and returns a combination of
+// InitRecovery initializes account recovery and returns a combination of
 // Token and user ID in a string format to send in recovery emails etc.
 // First parameter determines how long the recovery Token should be active.
 // Second parameter determines how much time has to pass until another Token
@@ -325,11 +325,15 @@ type Inputer interface {
 // CoreInput holds core fields needed for every user's Init/ApplyInput calls.
 type CoreInput struct {
 	// Email is the user's email address submitted for further processing.
-	Email string
+	Email string `json:"email"`
 
 	// Password is the user's plain-text password version submitted for
 	// futher processing.
-	Password string
+	Password string `json:"password"`
+
+	// RememberMe specifies whether a session should be created on
+	// registration / log in.
+	RememberMe bool `json:"remember_me"`
 }
 
 // Core exposes the user's core input fields.
