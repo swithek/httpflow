@@ -93,6 +93,7 @@ func TestHandlerRegister(t *testing.T) {
 				return
 			}
 
+			assert.NotNil(t, ff[0].Ctx)
 			assert.Equal(t, eml, ff[0].Usr.Core().Email)
 			assert.NotNil(t, ff[0].Usr.Core().PasswordHash)
 			assert.NotNil(t, ff[0].Usr.Core().ID)
@@ -107,6 +108,7 @@ func TestHandlerRegister(t *testing.T) {
 				return
 			}
 
+			assert.NotNil(t, ff[0].Ctx)
 			assert.Equal(t, eml, ff[0].Eml)
 			assert.NotZero(t, ff[0].Tok)
 		}
@@ -292,6 +294,7 @@ func TestHandlerLogIn(t *testing.T) {
 				return
 			}
 
+			assert.NotNil(t, ff[0].Ctx)
 			assert.Equal(t, eml, ff[0].Eml)
 		}
 	}
@@ -304,6 +307,7 @@ func TestHandlerLogIn(t *testing.T) {
 				return
 			}
 
+			assert.NotNil(t, ff[0].Ctx)
 			assert.Zero(t, ff[0].Usr.Core().Recovery)
 		}
 	}
@@ -525,6 +529,7 @@ func TestHandlerFetch(t *testing.T) {
 				return
 			}
 
+			assert.NotNil(t, ff[0].Ctx)
 			assert.Equal(t, id, ff[0].ID)
 		}
 	}
@@ -616,6 +621,7 @@ func TestHandlerUpdate(t *testing.T) {
 				return
 			}
 
+			assert.NotNil(t, ff[0].Ctx)
 			assert.Equal(t, id, ff[0].ID)
 		}
 	}
@@ -628,6 +634,7 @@ func TestHandlerUpdate(t *testing.T) {
 				return
 			}
 
+			assert.NotNil(t, ff[0].Ctx)
 			assert.Equal(t, eml, ff[0].Usr.Core().UnverifiedEmail)
 			assert.NotZero(t, ff[0].Usr.Core().PasswordHash)
 
@@ -645,6 +652,7 @@ func TestHandlerUpdate(t *testing.T) {
 				return
 			}
 
+			assert.NotNil(t, ff[0].Ctx)
 			assert.Equal(t, eml, ff[0].Eml)
 			assert.NotZero(t, ff[0].Tok)
 		}
@@ -658,6 +666,7 @@ func TestHandlerUpdate(t *testing.T) {
 				return
 			}
 
+			assert.NotNil(t, ff[0].Ctx)
 			assert.Equal(t, eml, ff[0].Eml)
 			assert.False(t, ff[0].Recov)
 		}
@@ -902,6 +911,7 @@ func TestHandlerDelete(t *testing.T) {
 				return
 			}
 
+			assert.NotNil(t, ff[0].Ctx)
 			assert.Equal(t, id, ff[0].ID)
 		}
 	}
@@ -914,6 +924,7 @@ func TestHandlerDelete(t *testing.T) {
 				return
 			}
 
+			assert.NotNil(t, ff[0].Ctx)
 			assert.Equal(t, id, ff[0].ID)
 		}
 	}
@@ -926,6 +937,7 @@ func TestHandlerDelete(t *testing.T) {
 				return
 			}
 
+			assert.NotNil(t, ff[0].Ctx)
 			assert.Equal(t, eml, ff[0].Eml)
 		}
 	}
@@ -1342,6 +1354,7 @@ func TestHandlerResendVerification(t *testing.T) {
 				return
 			}
 
+			assert.NotNil(t, ff[0].Ctx)
 			assert.Equal(t, id, ff[0].ID)
 		}
 	}
@@ -1354,6 +1367,7 @@ func TestHandlerResendVerification(t *testing.T) {
 				return
 			}
 
+			assert.NotNil(t, ff[0].Ctx)
 			assert.NotZero(t, ff[0].Usr.Core().Verification)
 		}
 	}
@@ -1366,6 +1380,7 @@ func TestHandlerResendVerification(t *testing.T) {
 				return
 			}
 
+			assert.NotNil(t, ff[0].Ctx)
 			assert.Equal(t, eml, ff[0].Eml)
 			assert.NotZero(t, ff[0].Tok)
 		}
@@ -1379,6 +1394,7 @@ func TestHandlerResendVerification(t *testing.T) {
 				return
 			}
 
+			assert.NotNil(t, ff[0].Ctx)
 			assert.Equal(t, eml, ff[0].Eml)
 			assert.NotZero(t, ff[0].Tok)
 		}
@@ -1564,6 +1580,7 @@ func TestHandlerVerify(t *testing.T) {
 				return
 			}
 
+			assert.NotNil(t, ff[0].Ctx)
 			assert.Zero(t, ff[0].Usr.Core().Verification)
 		}
 	}
@@ -1576,6 +1593,7 @@ func TestHandlerVerify(t *testing.T) {
 				return
 			}
 
+			assert.NotNil(t, ff[0].Ctx)
 			assert.Equal(t, oEml, ff[0].OEml)
 			assert.Equal(t, nEml, ff[0].NEml)
 		}
@@ -1717,6 +1735,7 @@ func TestHandlerCancelVerification(t *testing.T) {
 				return
 			}
 
+			assert.NotNil(t, ff[0].Ctx)
 			assert.Zero(t, ff[0].Usr.Core().Verification)
 		}
 	}
@@ -1827,6 +1846,7 @@ func TestHandlerInitRecovery(t *testing.T) {
 				return
 			}
 
+			assert.NotNil(t, ff[0].Ctx)
 			assert.Equal(t, eml, ff[0].Eml)
 		}
 	}
@@ -1839,6 +1859,7 @@ func TestHandlerInitRecovery(t *testing.T) {
 				return
 			}
 
+			assert.NotNil(t, ff[0].Ctx)
 			assert.NotZero(t, ff[0].Usr.Core().Recovery)
 		}
 	}
@@ -1851,6 +1872,7 @@ func TestHandlerInitRecovery(t *testing.T) {
 				return
 			}
 
+			assert.NotNil(t, ff[0].Ctx)
 			assert.Equal(t, eml, ff[0].Eml)
 			assert.NotZero(t, ff[0].Tok)
 		}
@@ -2000,6 +2022,7 @@ func TestHandlerRecover(t *testing.T) {
 				return
 			}
 
+			assert.NotNil(t, ff[0].Ctx)
 			assert.Zero(t, ff[0].Usr.Core().Recovery)
 			assert.NotZero(t, ff[0].Usr.Core().PasswordHash)
 		}
@@ -2013,6 +2036,7 @@ func TestHandlerRecover(t *testing.T) {
 				return
 			}
 
+			assert.NotNil(t, ff[0].Ctx)
 			assert.Equal(t, eml, ff[0].Eml)
 			assert.True(t, ff[0].Recov)
 		}
@@ -2267,6 +2291,7 @@ func TestHandlerCancelRecovery(t *testing.T) {
 				return
 			}
 
+			assert.NotNil(t, ff[0].Ctx)
 			assert.Zero(t, ff[0].Usr.Core().Recovery)
 		}
 	}
@@ -2385,6 +2410,7 @@ func TestHandlerFetchByToken(t *testing.T) {
 				return
 			}
 
+			assert.NotNil(t, ff[0].Ctx)
 			assert.Equal(t, id, ff[0].ID)
 		}
 	}
