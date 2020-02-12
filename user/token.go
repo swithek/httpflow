@@ -8,6 +8,7 @@ import (
 	"github.com/rs/xid"
 	"github.com/swithek/httpflow"
 	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/guregu/null.v3"
 )
 
 var (
@@ -35,26 +36,27 @@ type TokenTimes struct {
 // verification and recovery.
 type Token struct {
 	// ExpiresAt specifies the exact time when the token becomes invalid.
-	ExpiresAt time.Time `json:"-"`
+	ExpiresAt null.Time `json:"-" db:"expires_at"`
 
 	// NextAt specifies the exact time when the next token will be allowed
 	// to be generated.
-	NextAt time.Time `json:"-"`
+	NextAt null.Time `json:"-" db:"next_at"`
 
 	// Hash is the hashed token value version. Treat it as a temporary
 	// password.
-	Hash []byte `json:"-"`
+	Hash []byte `json:"-" db:"hash"`
 }
 
 // IsEmpty checks whether the token is active or not.
 func (t *Token) IsEmpty() bool {
-	return t.ExpiresAt.IsZero() && t.NextAt.IsZero() && len(t.Hash) == 0
+	return t.ExpiresAt.Time.IsZero() && t.NextAt.Time.IsZero() &&
+		len(t.Hash) == 0
 }
 
 // init generates a new token. Provided values determine the expiration time
 // and the time when another token will be allowed to be generated.
 func (t *Token) init(tt TokenTimes) (string, error) {
-	if time.Now().Before(t.NextAt) {
+	if time.Now().Before(t.NextAt.Time) {
 		return "", ErrTooManyTokens
 	}
 
@@ -64,15 +66,15 @@ func (t *Token) init(tt TokenTimes) (string, error) {
 		return "", err
 	}
 
-	t.ExpiresAt = time.Now().Add(tt.Interval)
-	t.NextAt = time.Now().Add(tt.Cooldown)
+	t.ExpiresAt = null.TimeFrom(time.Now().Add(tt.Interval))
+	t.NextAt = null.TimeFrom(time.Now().Add(tt.Cooldown))
 	t.Hash = h
 	return v, nil
 }
 
 // Check determines whether the provided token is correct and non-expired.
 func (t *Token) Check(v string) error {
-	if time.Now().After(t.ExpiresAt) {
+	if time.Now().After(t.ExpiresAt.Time) {
 		return ErrInvalidToken
 	}
 
@@ -89,8 +91,8 @@ func (t *Token) Check(v string) error {
 
 // Clear resets all token data.
 func (t *Token) Clear() {
-	t.ExpiresAt = time.Time{}
-	t.NextAt = time.Time{}
+	t.ExpiresAt = null.TimeFrom(time.Time{})
+	t.NextAt = null.TimeFrom(time.Time{})
 	t.Hash = nil
 }
 

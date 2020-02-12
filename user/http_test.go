@@ -16,6 +16,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/swithek/httpflow"
 	"github.com/swithek/sessionup"
+	"gopkg.in/guregu/null.v3"
+	"gopkg.in/guregu/null.v3/zero"
 )
 
 func TestDefaultParser(t *testing.T) {
@@ -325,7 +327,7 @@ func TestHandlerLogIn(t *testing.T) {
 			}
 
 			assert.NotNil(t, ff[0].Ctx)
-			assert.Zero(t, ff[0].Usr.Core().Recovery)
+			assert.True(t, ff[0].Usr.Core().Recovery.IsEmpty())
 		}
 	}
 
@@ -652,7 +654,7 @@ func TestHandlerUpdate(t *testing.T) {
 			}
 
 			assert.NotNil(t, ff[0].Ctx)
-			assert.Equal(t, eml, ff[0].Usr.Core().UnverifiedEmail)
+			assert.Equal(t, eml, ff[0].Usr.Core().UnverifiedEmail.String)
 			assert.NotZero(t, ff[0].Usr.Core().PasswordHash)
 
 			if verif {
@@ -790,7 +792,7 @@ func TestHandlerUpdate(t *testing.T) {
 		"Error returned by Core.InitVerification": {
 			DB: dbStub(nil, nil, toPointer(func() Core {
 				tmp := inpUsr
-				tmp.Verification.NextAt = time.Now().Add(time.Hour)
+				tmp.Verification.NextAt = null.TimeFrom(time.Now().Add(time.Hour))
 				return tmp
 			}())),
 			Email:        emailStub(),
@@ -1493,7 +1495,7 @@ func TestHandlerResendVerification(t *testing.T) {
 		"Error returned by Core.InitVerification": {
 			DB: dbStub(nil, assert.AnError, toPointer(func() Core {
 				tmp := inpUsr
-				tmp.Verification.NextAt = time.Now().Add(time.Hour)
+				tmp.Verification.NextAt = null.TimeFrom(time.Now().Add(time.Hour))
 				return tmp
 			}())),
 			Email:   emailStub(),
@@ -1521,8 +1523,8 @@ func TestHandlerResendVerification(t *testing.T) {
 		"Successful email verification resend": {
 			DB: dbStub(nil, nil, toPointer(func() Core {
 				tmp := inpUsr
-				tmp.UnverifiedEmail = tmp.Email
-				tmp.ActivatedAt = time.Now()
+				tmp.UnverifiedEmail = zero.StringFrom(tmp.Email)
+				tmp.ActivatedAt = zero.TimeFrom(time.Now())
 				return tmp
 			}())),
 			Email:   emailStub(),
@@ -1598,7 +1600,7 @@ func TestHandlerVerify(t *testing.T) {
 			}
 
 			assert.NotNil(t, ff[0].Ctx)
-			assert.Zero(t, ff[0].Usr.Core().Verification)
+			assert.True(t, ff[0].Usr.Core().Verification.IsEmpty())
 		}
 	}
 
@@ -1634,10 +1636,10 @@ func TestHandlerVerify(t *testing.T) {
 	}
 
 	inpUsr := Core{
-		ActivatedAt:     time.Now(),
+		ActivatedAt:     zero.TimeFrom(time.Now()),
 		ID:              xid.New(),
 		Email:           "user@email.com",
-		UnverifiedEmail: "user123@email.com",
+		UnverifiedEmail: zero.StringFrom("user123@email.com"),
 	}
 
 	inpTok, _ := inpUsr.InitVerification(TokenTimes{time.Hour, time.Hour})
@@ -1661,7 +1663,7 @@ func TestHandlerVerify(t *testing.T) {
 		"Error returned by Core.Verify": {
 			DB: dbStub(nil, nil, toPointer(func() Core {
 				tmp := inpUsr
-				tmp.Verification.ExpiresAt = time.Time{}
+				tmp.Verification.ExpiresAt = null.TimeFrom(time.Time{})
 				return tmp
 			}())),
 			Email: emailStub(),
@@ -1685,7 +1687,7 @@ func TestHandlerVerify(t *testing.T) {
 		"Successful account activation": {
 			DB: dbStub(nil, nil, toPointer(func() Core {
 				tmp := inpUsr
-				tmp.ActivatedAt = time.Time{}
+				tmp.ActivatedAt = zero.TimeFrom(time.Time{})
 				return tmp
 			}())),
 			Email: emailStub(),
@@ -1703,7 +1705,7 @@ func TestHandlerVerify(t *testing.T) {
 			Checks: checks(
 				hasResp(false),
 				wasUpdateCalled(1),
-				wasSendEmailChangedCalled(1, inpUsr.Email, inpUsr.UnverifiedEmail),
+				wasSendEmailChangedCalled(1, inpUsr.Email, inpUsr.UnverifiedEmail.String),
 			),
 		},
 	}
@@ -1753,7 +1755,7 @@ func TestHandlerCancelVerification(t *testing.T) {
 			}
 
 			assert.NotNil(t, ff[0].Ctx)
-			assert.Zero(t, ff[0].Usr.Core().Verification)
+			assert.True(t, ff[0].Usr.Core().Verification.IsEmpty())
 		}
 	}
 
@@ -1769,10 +1771,10 @@ func TestHandlerCancelVerification(t *testing.T) {
 	}
 
 	inpUsr := Core{
-		ActivatedAt:     time.Now(),
+		ActivatedAt:     zero.TimeFrom(time.Now()),
 		ID:              xid.New(),
 		Email:           "user@email.com",
-		UnverifiedEmail: "user123@email.com",
+		UnverifiedEmail: zero.StringFrom("user123@email.com"),
 	}
 
 	inpTok, _ := inpUsr.InitVerification(TokenTimes{time.Hour, time.Hour})
@@ -1793,7 +1795,7 @@ func TestHandlerCancelVerification(t *testing.T) {
 		"Error returned by Core.CancelVerification": {
 			DB: dbStub(nil, nil, toPointer(func() Core {
 				tmp := inpUsr
-				tmp.Verification.ExpiresAt = time.Time{}
+				tmp.Verification.ExpiresAt = null.TimeFrom(time.Time{})
 				return tmp
 			}())),
 			Token: inpTok,
@@ -1959,7 +1961,7 @@ func TestHandlerInitRecovery(t *testing.T) {
 		"Error returned by Core.InitRecovery": {
 			DB: dbStub(nil, nil, toPointer(func() Core {
 				tmp := inpUsr
-				tmp.Recovery.NextAt = time.Now().Add(time.Hour)
+				tmp.Recovery.NextAt = null.TimeFrom(time.Now().Add(time.Hour))
 				return tmp
 			}())),
 			Email: emailStub(),
@@ -2040,7 +2042,7 @@ func TestHandlerRecover(t *testing.T) {
 			}
 
 			assert.NotNil(t, ff[0].Ctx)
-			assert.Zero(t, ff[0].Usr.Core().Recovery)
+			assert.True(t, ff[0].Usr.Core().Recovery.IsEmpty())
 			assert.NotZero(t, ff[0].Usr.Core().PasswordHash)
 		}
 	}
@@ -2085,7 +2087,7 @@ func TestHandlerRecover(t *testing.T) {
 	}
 
 	inpUsr := Core{
-		ActivatedAt: time.Now(),
+		ActivatedAt: zero.TimeFrom(time.Now()),
 		ID:          xid.New(),
 		Email:       "user@email.com",
 	}
@@ -2127,7 +2129,7 @@ func TestHandlerRecover(t *testing.T) {
 		"Error returned by Core.Recover": {
 			DB: dbStub(nil, nil, toPointer(func() Core {
 				tmp := inpUsr
-				tmp.Recovery.ExpiresAt = time.Time{}
+				tmp.Recovery.ExpiresAt = null.TimeFrom(time.Time{})
 				return tmp
 			}())),
 			Email:        emailStub(),
@@ -2226,7 +2228,7 @@ func TestHandlerPingRecovery(t *testing.T) {
 	}
 
 	inpUsr := Core{
-		ActivatedAt: time.Now(),
+		ActivatedAt: zero.TimeFrom(time.Now()),
 		ID:          xid.New(),
 		Email:       "user@email.com",
 	}
@@ -2249,7 +2251,7 @@ func TestHandlerPingRecovery(t *testing.T) {
 		"Error returned by Token.Check": {
 			DB: dbStub(nil, toPointer(func() Core {
 				tmp := inpUsr
-				tmp.Recovery.ExpiresAt = time.Time{}
+				tmp.Recovery.ExpiresAt = null.TimeFrom(time.Time{})
 				return tmp
 			}())),
 			Token: inpTok,
@@ -2309,7 +2311,7 @@ func TestHandlerCancelRecovery(t *testing.T) {
 			}
 
 			assert.NotNil(t, ff[0].Ctx)
-			assert.Zero(t, ff[0].Usr.Core().Recovery)
+			assert.True(t, ff[0].Usr.Core().Recovery.IsEmpty())
 		}
 	}
 
@@ -2325,7 +2327,7 @@ func TestHandlerCancelRecovery(t *testing.T) {
 	}
 
 	inpUsr := Core{
-		ActivatedAt: time.Now(),
+		ActivatedAt: zero.TimeFrom(time.Now()),
 		ID:          xid.New(),
 		Email:       "user@email.com",
 	}
@@ -2348,7 +2350,7 @@ func TestHandlerCancelRecovery(t *testing.T) {
 		"Error returned by Core.CancelRecovery": {
 			DB: dbStub(nil, nil, toPointer(func() Core {
 				tmp := inpUsr
-				tmp.Recovery.ExpiresAt = time.Time{}
+				tmp.Recovery.ExpiresAt = null.TimeFrom(time.Time{})
 				return tmp
 			}())),
 			Token: inpTok,

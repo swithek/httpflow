@@ -7,6 +7,8 @@ import (
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/guregu/null.v3"
+	"gopkg.in/guregu/null.v3/zero"
 )
 
 func TestCoreInit(t *testing.T) {
@@ -94,7 +96,7 @@ func TestCoreIsActivated(t *testing.T) {
 	cr := Core{}
 	assert.False(t, cr.IsActivated())
 
-	cr.ActivatedAt = time.Now()
+	cr.ActivatedAt = zero.TimeFrom(time.Now())
 	assert.True(t, cr.IsActivated())
 }
 
@@ -160,7 +162,7 @@ func TestCoreSetEmail(t *testing.T) {
 
 			if c.Applied {
 				if c.Unverified {
-					assert.Equal(t, c.New, cr.UnverifiedEmail)
+					assert.Equal(t, c.New, cr.UnverifiedEmail.String)
 				} else {
 					assert.Equal(t, c.New, cr.Email)
 				}
@@ -205,7 +207,7 @@ func TestCoreSetUnverifiedEmail(t *testing.T) {
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
 			cr := Core{}
-			cr.UnverifiedEmail = c.Current
+			cr.UnverifiedEmail = zero.StringFrom(c.Current)
 
 			res, err := cr.SetUnverifiedEmail(c.New)
 			if c.Err != nil {
@@ -220,10 +222,10 @@ func TestCoreSetUnverifiedEmail(t *testing.T) {
 			assert.Equal(t, c.Applied, res)
 
 			if c.Applied {
-				assert.Equal(t, c.New, cr.UnverifiedEmail)
+				assert.Equal(t, c.New, cr.UnverifiedEmail.String)
 				return
 			}
-			assert.Equal(t, c.Current, cr.UnverifiedEmail)
+			assert.Equal(t, c.Current, cr.UnverifiedEmail.String)
 		})
 	}
 }
@@ -300,7 +302,7 @@ func TestCoreInitVerification(t *testing.T) {
 	}{
 		"Too many requests": {
 			Err:   assert.AnError,
-			Token: Token{NextAt: time.Now().Add(time.Minute)},
+			Token: Token{NextAt: null.TimeFrom(time.Now().Add(time.Minute))},
 		},
 		"Successful init": {
 			Token: Token{},
@@ -343,7 +345,7 @@ func TestCoreVerify(t *testing.T) {
 			Core: Core{
 				Verification: func() Token {
 					tok := inp
-					tok.ExpiresAt = time.Time{}
+					tok.ExpiresAt = null.TimeFrom(time.Time{})
 					return tok
 				}(),
 			},
@@ -352,11 +354,11 @@ func TestCoreVerify(t *testing.T) {
 		"Unverified email matches active email": {
 			Core: func() Core {
 				cr := Core{
-					ActivatedAt:  time.Now(),
+					ActivatedAt:  zero.TimeFrom(time.Now()),
 					Verification: inp,
 				}
 				cr.Email = "user@email.com"
-				cr.UnverifiedEmail = "user@email.com"
+				cr.UnverifiedEmail = zero.StringFrom("user@email.com")
 				return cr
 			}(),
 			Token:           str,
@@ -371,10 +373,10 @@ func TestCoreVerify(t *testing.T) {
 		"Successful email verification": {
 			Core: func() Core {
 				cr := Core{
-					ActivatedAt:  time.Now(),
+					ActivatedAt:  zero.TimeFrom(time.Now()),
 					Verification: inp,
 				}
-				cr.UnverifiedEmail = "user@email.com"
+				cr.UnverifiedEmail = zero.StringFrom("user@email.com")
 				return cr
 			}(),
 			Token:           str,
@@ -396,7 +398,7 @@ func TestCoreVerify(t *testing.T) {
 				return
 			}
 
-			assert.Zero(t, c.Core.Verification)
+			assert.True(t, c.Core.Verification.IsEmpty())
 			if c.UnverifiedEmail {
 				assert.Zero(t, c.Core.UnverifiedEmail)
 				assert.NotZero(t, c.Core.Email)
@@ -421,7 +423,7 @@ func TestCoreCancelVerification(t *testing.T) {
 			Core: Core{
 				Verification: func() Token {
 					tok := inp
-					tok.ExpiresAt = time.Time{}
+					tok.ExpiresAt = null.TimeFrom(time.Time{})
 					return tok
 				}(),
 			},
@@ -448,7 +450,7 @@ func TestCoreCancelVerification(t *testing.T) {
 				}
 				return
 			}
-			assert.Zero(t, c.Core.Verification)
+			assert.True(t, c.Core.Verification.IsEmpty())
 		})
 	}
 }
@@ -460,7 +462,7 @@ func TestCoreInitRecovery(t *testing.T) {
 	}{
 		"Too many requests": {
 			Err:   assert.AnError,
-			Token: Token{NextAt: time.Now().Add(time.Minute)},
+			Token: Token{NextAt: null.TimeFrom(time.Now().Add(time.Minute))},
 		},
 		"Successful init": {
 			Token: Token{},
@@ -503,7 +505,7 @@ func TestCoreRecover(t *testing.T) {
 			Core: Core{
 				Recovery: func() Token {
 					tok := inp
-					tok.ExpiresAt = time.Time{}
+					tok.ExpiresAt = null.TimeFrom(time.Time{})
 					return tok
 				}(),
 			},
@@ -550,7 +552,7 @@ func TestCoreRecover(t *testing.T) {
 				return
 			}
 
-			assert.Zero(t, c.Core.Recovery)
+			assert.True(t, c.Core.Recovery.IsEmpty())
 			assert.Nil(t, bcrypt.CompareHashAndPassword(
 				c.Core.PasswordHash, []byte(c.Password)))
 		})
@@ -570,7 +572,7 @@ func TestCoreCancelRecovery(t *testing.T) {
 			Core: Core{
 				Recovery: func() Token {
 					tok := inp
-					tok.ExpiresAt = time.Time{}
+					tok.ExpiresAt = null.TimeFrom(time.Time{})
 					return tok
 				}(),
 			},
@@ -597,7 +599,7 @@ func TestCoreCancelRecovery(t *testing.T) {
 				}
 				return
 			}
-			assert.Zero(t, c.Core.Recovery)
+			assert.True(t, c.Core.Recovery.IsEmpty())
 		})
 	}
 }

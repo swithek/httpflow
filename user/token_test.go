@@ -8,6 +8,7 @@ import (
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/guregu/null.v3"
 )
 
 func TestTokenIsEmpty(t *testing.T) {
@@ -25,7 +26,7 @@ func TestTokenInit(t *testing.T) {
 	}{
 		"Too many requests": {
 			Token: Token{
-				NextAt: time.Now().Add(time.Hour),
+				NextAt: null.TimeFrom(time.Now().Add(time.Hour)),
 			},
 			Err: ErrTooManyTokens,
 		},
@@ -56,7 +57,7 @@ func TestTokenInit(t *testing.T) {
 
 func TestTokenCheck(t *testing.T) {
 	inp := Token{
-		ExpiresAt: time.Now().Add(time.Hour),
+		ExpiresAt: null.TimeFrom(time.Now().Add(time.Hour)),
 		Hash: func() []byte {
 			hash, _ := bcrypt.GenerateFromPassword([]byte("Token"), bcrypt.DefaultCost)
 			return hash
@@ -71,7 +72,7 @@ func TestTokenCheck(t *testing.T) {
 		"Expired Token": {
 			Token: func() Token {
 				tok := inp
-				tok.ExpiresAt = time.Time{}
+				tok.ExpiresAt = null.TimeFrom(time.Time{})
 				return tok
 			}(),
 			Err:   ErrInvalidToken,
@@ -109,13 +110,13 @@ func TestTokenCheck(t *testing.T) {
 
 func TestTokenClear(t *testing.T) {
 	tok := Token{
-		ExpiresAt: time.Now(),
-		NextAt:    time.Now(),
+		ExpiresAt: null.TimeFrom(time.Now()),
+		NextAt:    null.TimeFrom(time.Now()),
 		Hash:      []byte("10"),
 	}
 
 	tok.Clear()
-	assert.Equal(t, Token{}, tok)
+	assert.True(t, tok.IsEmpty())
 }
 
 func TestToFullToken(t *testing.T) {

@@ -315,7 +315,8 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if tok != "" {
-		go h.email.SendEmailVerification(ctx, usrC.UnverifiedEmail, tok)
+		go h.email.SendEmailVerification(ctx,
+			usrC.UnverifiedEmail.String, tok)
 	}
 
 	httpflow.Respond(w, r, nil, http.StatusNoContent, h.onError)
@@ -453,7 +454,8 @@ func (h *Handler) ResendVerification(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if usrC.IsActivated() {
-		go h.email.SendEmailVerification(ctx, usrC.UnverifiedEmail, tok)
+		go h.email.SendEmailVerification(ctx,
+			usrC.UnverifiedEmail.String, tok)
 	} else {
 		go h.email.SendAccountActivation(ctx, usrC.Email, tok)
 	}
@@ -667,18 +669,18 @@ type Database interface {
 	// data store.
 	Create(ctx context.Context, usr User) error
 
-	// FetchByID should retrieve the user from the underlying data store
+	// FetchByID should retrieve a user from the underlying data store
 	// by their ID.
 	FetchByID(ctx context.Context, id string) (User, error)
 
-	// FetchByEmail should retrieve the user from the underlying data store
+	// FetchByEmail should retrieve a user from the underlying data store
 	// by their email address.
 	FetchByEmail(ctx context.Context, eml string) (User, error)
 
 	// Update should update user's data in the underlying data store.
 	Update(ctx context.Context, usr User) error
 
-	// DeleteByID should delete the user from the underlying data store
+	// DeleteByID should delete a user from the underlying data store
 	// by their ID.
 	DeleteByID(ctx context.Context, id string) error
 }

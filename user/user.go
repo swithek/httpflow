@@ -8,6 +8,7 @@ import (
 	"github.com/rs/xid"
 	"github.com/swithek/httpflow"
 	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/guregu/null.v3/zero"
 )
 
 var (
@@ -49,34 +50,34 @@ type User interface {
 // Core holds core fields needed for user data types.
 type Core struct {
 	// ID is the primary and unique user identification key.
-	ID xid.ID `json:"id"`
+	ID xid.ID `json:"id" db:"id"`
 
 	// CreatedAt specifies the exact time when the user was created.
-	CreatedAt time.Time `json:"created_at"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
 
 	// UpdatedAt specifies the exact time when the user was last updated.
-	UpdatedAt time.Time `json:"updated_at"`
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 
 	// ActivatedAt specifies the exact time when user's account
 	// was activated.
-	ActivatedAt time.Time `json:"activated_at"`
+	ActivatedAt zero.Time `json:"activated_at" db:"activated_at"`
 
 	// Email is user's active email address.
-	Email string `json:"email"`
+	Email string `json:"email" db:"email"`
 
 	// UnverifiedEmail is a new email address yet to be verified by its
 	// owner. When verified this field is empty.
-	UnverifiedEmail string `json:"unverified_email"`
+	UnverifiedEmail zero.String `json:"unverified_email" db:"unverified_email"`
 
 	// PasswordHash is already hashed version of user's password.
-	PasswordHash []byte `json:"password_hash"`
+	PasswordHash []byte `json:"password_hash" db:"password_hash"`
 
 	// Verification holds data needed for account activation or email
 	// update.
-	Verification Token `json:"-"`
+	Verification Token `json:"-" db:"verification"`
 
 	// Recovery holds data needed for account recovery.
-	Recovery Token `json:"-"`
+	Recovery Token `json:"-" db:"recovery"`
 }
 
 // Init initializes all the values, user specified and default, needed for
@@ -160,7 +161,7 @@ func (c *Core) SetUnverifiedEmail(e string) (bool, error) {
 		return false, nil
 	}
 
-	if c.UnverifiedEmail == e {
+	if c.UnverifiedEmail.String == e {
 		return false, nil
 	}
 
@@ -168,7 +169,7 @@ func (c *Core) SetUnverifiedEmail(e string) (bool, error) {
 		return false, err
 	}
 
-	c.UnverifiedEmail = e
+	c.UnverifiedEmail = zero.StringFrom(e)
 	return true, nil
 }
 
@@ -225,12 +226,12 @@ func (c *Core) Verify(t string) error {
 	}
 
 	if !c.IsActivated() {
-		c.ActivatedAt = time.Now()
-	} else if c.UnverifiedEmail != "" {
-		if c.UnverifiedEmail != c.Email {
-			c.Email = c.UnverifiedEmail
+		c.ActivatedAt = zero.TimeFrom(time.Now())
+	} else if c.UnverifiedEmail.String != "" {
+		if c.UnverifiedEmail.String != c.Email {
+			c.Email = c.UnverifiedEmail.String
 		}
-		c.UnverifiedEmail = ""
+		c.UnverifiedEmail = zero.StringFrom("")
 	}
 
 	c.Verification.Clear()
