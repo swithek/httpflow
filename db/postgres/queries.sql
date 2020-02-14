@@ -38,7 +38,7 @@ DELETE FROM users WHERE id = $1;
 -- name: delete_inactive_users
 DELETE FROM users WHERE activated_at = NULL AND verification_expires_at < NOW();
 
--- name: select_customer_by_id
+-- name: select_user_by_id
 SELECT id, 
 created_at,
 updated_at,
@@ -46,15 +46,15 @@ activated_at,
 email,
 unverified_email,
 password_hash,
-verification_token_hash AS verification.token_hash,
+verification_token_hash AS verification.hash,
 verification_next_at AS verification.next_at,
 verification_expires_at AS verification.expires_at,
-recovery_token_hash AS recovery.token_hash,
+recovery_token_hash AS recovery.hash,
 recovery_next_at AS recovery.next_at,
 recovery_expires_at AS recovery.expires_at
 FROM users WHERE id = $1 LIMIT 1;
 
--- name: select_customer_by_email
+-- name: select_user_by_email
 SELECT id, 
 created_at,
 updated_at,
@@ -62,10 +62,10 @@ activated_at,
 email,
 unverified_email,
 password_hash,
-verification_token_hash AS verification.token_hash,
+verification_token_hash AS verification.hash,
 verification_next_at AS verification.next_at,
 verification_expires_at AS verification.expires_at,
-recovery_token_hash AS recovery.token_hash,
+recovery_token_hash AS recovery.hash,
 recovery_next_at AS recovery.next_at,
 recovery_expires_at AS recovery.expires_at
 FROM users WHERE email = $1 LIMIT 1;

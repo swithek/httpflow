@@ -18,34 +18,41 @@ import (
 // communication with the postgres data store.
 //go:generate esc -o queries.go -pkg postgres -private ./queries.sql
 type Store struct {
-	db      *sqlx.DB
-	q       *dotsql.DotSql
-	onError httpflow.ErrorExec
+	db *sqlx.DB
+	q  *dotsql.DotSql
 }
 
 // New creates a fresh instance of the store.
 // Last parameter specifies how often should the inactive users' cleanup
 // operation execute. 0 disables cleanup.
-func New(db *sqlx.DB, q *dotsql.DotSql, onError httpflow.ErrorExec,
-	d time.Duration) (*Store, error) {
-	q, err := dotsql.LoadFromString(_escFSMustString(false, "/queries.sql"))
-	if err != nil {
+func New(db *sqlx.DB, d time.Duration, onError httpflow.ErrorExec) (*Store, error) {
+	s := &Store{db: db}
+	if err := s.initSQL(); err != nil {
 		return nil, err
 	}
 
-	s := &Store{db: db, q: q, onError: onError}
-
-	if _, err = s.q.Exec(db, "create_users_table"); err != nil {
+	if _, err := s.q.Exec(db, "create_users_table"); err != nil {
 		return nil, err
 	}
 
-	go s.startCleanup(d)
+	go s.startCleanup(d, onError)
 
 	return s, nil
 }
 
+// initSQL loads all the required SQL queries.
+func (s *Store) initSQL() error {
+	q, err := dotsql.LoadFromString(_escFSMustString(false, "/queries.sql"))
+	if err != nil {
+		return err
+	}
+
+	s.q = q
+	return nil
+}
+
 // startCleanup initiates a non-stopping cleanup cycle.
-func (s *Store) startCleanup(d time.Duration) {
+func (s *Store) startCleanup(d time.Duration, onError httpflow.ErrorExec) {
 	if d == 0 {
 		return
 	}
@@ -53,7 +60,7 @@ func (s *Store) startCleanup(d time.Duration) {
 	t := time.NewTicker(d)
 	for {
 		if err := s.deleteInactive(); err != nil {
-			s.onError(err)
+			onError(err)
 		}
 		<-t.C
 	}
@@ -62,7 +69,11 @@ func (s *Store) startCleanup(d time.Duration) {
 // deleteInactive deletes all inactive users from the data store.
 func (s *Store) deleteInactive() error {
 	_, err := s.q.Exec(s.db, "delete_inactive_users")
-	return fmt.Errorf("inactive users deletion: %w", err)
+	if err != nil {
+		return fmt.Errorf("inactive users deletion: %w", err)
+	}
+
+	return nil
 }
 
 // Create inserts the freshly created user into the underlying
