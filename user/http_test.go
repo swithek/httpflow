@@ -61,6 +61,7 @@ func TestNewHandler(t *testing.T) {
 	assert.NotZero(t, hdl.recov)
 
 	assert.NotZero(t, hdl.ServeHTTP())
+	assert.NotZero(t, hdl.Routes(true))
 }
 
 func TestSetupLinks(t *testing.T) {

@@ -79,11 +79,23 @@ func NewHandler(sm *sessionup.Manager, sd time.Duration, db Database,
 }
 
 // ServeHTTP returns a handler with all core user routes.
+// Registration is disallowed (use Routes method to override this).
 func (h *Handler) ServeHTTP() http.Handler {
+	return h.Routes(false)
+}
+
+// Routes returnes chi router instance with all core user
+// routes. Bool parameter determines whether registration is allowed or
+// not (useful for application where users are invited rather than allowed
+// to register themselves).
+func (h *Handler) Routes(open bool) chi.Router {
 	r := chi.NewRouter()
 	r.Use(middleware.AllowContentType("application/json"))
 
-	r.Post("/new", h.Register)
+	if open {
+		r.Post("/new", h.Register)
+	}
+
 	r.Route("/auth", func(sr chi.Router) {
 		sr.Post("/", h.LogIn)
 		sr.With(h.sessions.Auth).Delete("/", h.LogOut)
@@ -101,6 +113,12 @@ func (h *Handler) ServeHTTP() http.Handler {
 		sr.Get("/", h.FetchSessions)
 		sr.Delete("/{id}", h.RevokeSession)
 		sr.Delete("/", h.RevokeOtherSessions)
+	})
+
+	r.Route("/activ", func(sr chi.Router) {
+		sr.With(h.sessions.Auth).Put("/", h.ResendVerification)
+		sr.Post("/{token}", h.Verify)
+		sr.Get("/{token}/cancel", h.CancelVerification)
 	})
 
 	r.Route("/verif", func(sr chi.Router) {
