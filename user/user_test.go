@@ -667,12 +667,12 @@ func TestCheckPassword(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestCoreInputCore(t *testing.T) {
+func TestCoreInputExposeCore(t *testing.T) {
 	cInp := CoreInput{Email: "user@email.com"}
 	assert.Equal(t, cInp, cInp.ExposeCore())
 }
 
-func TestCoreSummaryCore(t *testing.T) {
+func TestCoreSummaryExposeCore(t *testing.T) {
 	cSum := CoreSummary{Email: true}
 	assert.Equal(t, cSum, cSum.ExposeCore())
 }
