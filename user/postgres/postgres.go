@@ -79,7 +79,7 @@ func (s *Store) deleteInactive() error {
 // Create inserts the freshly created user into the underlying
 // data store.
 func (s *Store) Create(ctx context.Context, usr user.User) error {
-	usrC := usr.Core()
+	usrC := usr.ExposeCore()
 	_, err := s.q.ExecContext(ctx, s.db, "insert_user",
 		usrC.ID,
 		usrC.CreatedAt,
@@ -133,7 +133,7 @@ func (s *Store) FetchByEmail(ctx context.Context, eml string) (user.User, error)
 
 // Update updates user's data in the underlying data store.
 func (s *Store) Update(ctx context.Context, usr user.User) error {
-	usrC := usr.Core()
+	usrC := usr.ExposeCore()
 	_, err := s.q.ExecContext(ctx, s.db, "update_user_by_id",
 		usrC.UpdatedAt,
 		usrC.ActivatedAt,

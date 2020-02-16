@@ -32,8 +32,8 @@ func TestDefaultParser(t *testing.T) {
 	inp, err = DefaultParser(req)
 	assert.Nil(t, err)
 	require.NotNil(t, inp)
-	assert.Equal(t, "user@email.com", inp.Core().Email)
-	assert.Equal(t, "password1", inp.Core().Password)
+	assert.Equal(t, "user@email.com", inp.ExposeCore().Email)
+	assert.Equal(t, "password1", inp.ExposeCore().Password)
 }
 
 func TestDefaultCreator(t *testing.T) {
@@ -41,8 +41,8 @@ func TestDefaultCreator(t *testing.T) {
 		Password: "password1"})
 	assert.Nil(t, err)
 	require.NotNil(t, usr)
-	assert.Equal(t, "user@email.com", usr.Core().Email)
-	assert.NotZero(t, usr.Core().PasswordHash)
+	assert.Equal(t, "user@email.com", usr.ExposeCore().Email)
+	assert.NotZero(t, usr.ExposeCore().PasswordHash)
 }
 
 func TestNewHandler(t *testing.T) {
@@ -114,9 +114,9 @@ func TestHandlerRegister(t *testing.T) {
 			}
 
 			assert.NotNil(t, ff[0].Ctx)
-			assert.Equal(t, eml, ff[0].Usr.Core().Email)
-			assert.NotNil(t, ff[0].Usr.Core().PasswordHash)
-			assert.NotNil(t, ff[0].Usr.Core().ID)
+			assert.Equal(t, eml, ff[0].Usr.ExposeCore().Email)
+			assert.NotNil(t, ff[0].Usr.ExposeCore().PasswordHash)
+			assert.NotNil(t, ff[0].Usr.ExposeCore().ID)
 		}
 	}
 
@@ -200,7 +200,7 @@ func TestHandlerRegister(t *testing.T) {
 			Creator: func(inp Inputer) (User, error) {
 				usr := &Core{}
 				usr.Init(inp)
-				usr.Core().InitVerification(
+				usr.ExposeCore().InitVerification(
 					TokenTimes{time.Hour, time.Hour})
 				return usr, nil
 			},
@@ -328,7 +328,7 @@ func TestHandlerLogIn(t *testing.T) {
 			}
 
 			assert.NotNil(t, ff[0].Ctx)
-			assert.True(t, ff[0].Usr.Core().Recovery.IsEmpty())
+			assert.True(t, ff[0].Usr.ExposeCore().Recovery.IsEmpty())
 		}
 	}
 
@@ -655,11 +655,11 @@ func TestHandlerUpdate(t *testing.T) {
 			}
 
 			assert.NotNil(t, ff[0].Ctx)
-			assert.Equal(t, eml, ff[0].Usr.Core().UnverifiedEmail.String)
-			assert.NotZero(t, ff[0].Usr.Core().PasswordHash)
+			assert.Equal(t, eml, ff[0].Usr.ExposeCore().UnverifiedEmail.String)
+			assert.NotZero(t, ff[0].Usr.ExposeCore().PasswordHash)
 
 			if verif {
-				assert.NotZero(t, ff[0].Usr.Core().Verification)
+				assert.NotZero(t, ff[0].Usr.ExposeCore().Verification)
 			}
 		}
 	}
@@ -1388,7 +1388,7 @@ func TestHandlerResendVerification(t *testing.T) {
 			}
 
 			assert.NotNil(t, ff[0].Ctx)
-			assert.NotZero(t, ff[0].Usr.Core().Verification)
+			assert.NotZero(t, ff[0].Usr.ExposeCore().Verification)
 		}
 	}
 
@@ -1601,7 +1601,7 @@ func TestHandlerVerify(t *testing.T) {
 			}
 
 			assert.NotNil(t, ff[0].Ctx)
-			assert.True(t, ff[0].Usr.Core().Verification.IsEmpty())
+			assert.True(t, ff[0].Usr.ExposeCore().Verification.IsEmpty())
 		}
 	}
 
@@ -1756,7 +1756,7 @@ func TestHandlerCancelVerification(t *testing.T) {
 			}
 
 			assert.NotNil(t, ff[0].Ctx)
-			assert.True(t, ff[0].Usr.Core().Verification.IsEmpty())
+			assert.True(t, ff[0].Usr.ExposeCore().Verification.IsEmpty())
 		}
 	}
 
@@ -1880,7 +1880,7 @@ func TestHandlerInitRecovery(t *testing.T) {
 			}
 
 			assert.NotNil(t, ff[0].Ctx)
-			assert.NotZero(t, ff[0].Usr.Core().Recovery)
+			assert.NotZero(t, ff[0].Usr.ExposeCore().Recovery)
 		}
 	}
 
@@ -2043,8 +2043,8 @@ func TestHandlerRecover(t *testing.T) {
 			}
 
 			assert.NotNil(t, ff[0].Ctx)
-			assert.True(t, ff[0].Usr.Core().Recovery.IsEmpty())
-			assert.NotZero(t, ff[0].Usr.Core().PasswordHash)
+			assert.True(t, ff[0].Usr.ExposeCore().Recovery.IsEmpty())
+			assert.NotZero(t, ff[0].Usr.ExposeCore().PasswordHash)
 		}
 	}
 
@@ -2312,7 +2312,7 @@ func TestHandlerCancelRecovery(t *testing.T) {
 			}
 
 			assert.NotNil(t, ff[0].Ctx)
-			assert.True(t, ff[0].Usr.Core().Recovery.IsEmpty())
+			assert.True(t, ff[0].Usr.ExposeCore().Recovery.IsEmpty())
 		}
 	}
 

@@ -68,18 +68,18 @@ func TestCoreApplyInput(t *testing.T) {
 			}
 
 			if c.Input.Email != "" {
-				assert.True(t, res.Core().Email)
+				assert.True(t, res.ExposeCore().Email)
 				assert.Equal(t, c.Input.Email, cr.Email)
 			} else {
-				assert.False(t, res.Core().Email)
+				assert.False(t, res.ExposeCore().Email)
 				assert.Zero(t, cr.Email)
 			}
 
 			if c.Input.Password != "" {
-				assert.True(t, res.Core().Password)
+				assert.True(t, res.ExposeCore().Password)
 				assert.NotZero(t, cr.PasswordHash)
 			} else {
-				assert.False(t, res.Core().Password)
+				assert.False(t, res.ExposeCore().Password)
 				assert.Zero(t, cr.PasswordHash)
 			}
 
@@ -87,9 +87,9 @@ func TestCoreApplyInput(t *testing.T) {
 	}
 }
 
-func TestCoreCore(t *testing.T) {
+func TestCoreExposeCore(t *testing.T) {
 	cr := Core{Email: "user@email.com"}
-	assert.Equal(t, &cr, cr.Core())
+	assert.Equal(t, &cr, cr.ExposeCore())
 }
 
 func TestCoreIsActivated(t *testing.T) {
@@ -669,10 +669,10 @@ func TestCheckPassword(t *testing.T) {
 
 func TestCoreInputCore(t *testing.T) {
 	cInp := CoreInput{Email: "user@email.com"}
-	assert.Equal(t, cInp, cInp.Core())
+	assert.Equal(t, cInp, cInp.ExposeCore())
 }
 
 func TestCoreSummaryCore(t *testing.T) {
 	cSum := CoreSummary{Email: true}
-	assert.Equal(t, cSum, cSum.Core())
+	assert.Equal(t, cSum, cSum.ExposeCore())
 }

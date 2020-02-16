@@ -168,7 +168,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	usrC := usr.Core()
+	usrC := usr.ExposeCore()
 
 	tok, err := usrC.InitVerification(h.verif)
 	if err != nil {
@@ -184,7 +184,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessions := h.sessions
-	if inp.Core().RememberMe {
+	if inp.ExposeCore().RememberMe {
 		sessions = sessions.Clone(sessionup.ExpiresIn(h.sesDur))
 	}
 
@@ -220,7 +220,7 @@ func (h *Handler) LogIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	usrC := usr.Core()
+	usrC := usr.ExposeCore()
 
 	if !usrC.IsPasswordCorrect(cInp.Password) {
 		httpflow.RespondError(w, r, ErrInvalidCredentials, h.onError)
@@ -305,8 +305,8 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	usrC := usr.Core()
-	updC := upd.Core()
+	usrC := usr.ExposeCore()
+	updC := upd.ExposeCore()
 
 	var tok string
 
@@ -362,7 +362,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	usrC := usr.Core()
+	usrC := usr.ExposeCore()
 
 	if !usrC.IsPasswordCorrect(cInp.Password) {
 		httpflow.RespondError(w, r, ErrInvalidCredentials, h.onError)
@@ -451,7 +451,7 @@ func (h *Handler) ResendVerification(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	usrC := usr.Core()
+	usrC := usr.ExposeCore()
 
 	if usrC.Verification.IsEmpty() {
 		httpflow.RespondError(w, r, httpflow.NewError(nil,
@@ -492,7 +492,7 @@ func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	usrC := usr.Core()
+	usrC := usr.ExposeCore()
 	oEml := usrC.Email
 
 	if err = usrC.Verify(tok); err != nil {
@@ -523,7 +523,7 @@ func (h *Handler) CancelVerification(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = usr.Core().CancelVerification(tok); err != nil {
+	if err = usr.ExposeCore().CancelVerification(tok); err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}
@@ -560,7 +560,7 @@ func (h *Handler) InitRecovery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	usrC := usr.Core()
+	usrC := usr.ExposeCore()
 
 	tok, err := usrC.InitRecovery(h.recov)
 	if err != nil {
@@ -596,7 +596,7 @@ func (h *Handler) Recover(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
-	usrC := usr.Core()
+	usrC := usr.ExposeCore()
 
 	if err = usrC.Recover(tok, cInp.Password); err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
@@ -627,7 +627,7 @@ func (h *Handler) PingRecovery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = usr.Core().Recovery.Check(tok); err != nil {
+	if err = usr.ExposeCore().Recovery.Check(tok); err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}
@@ -644,7 +644,7 @@ func (h *Handler) CancelRecovery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = usr.Core().CancelRecovery(tok); err != nil {
+	if err = usr.ExposeCore().CancelRecovery(tok); err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}

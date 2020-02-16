@@ -43,8 +43,8 @@ type User interface {
 	// ApplyInput should set values from provided data structure.
 	ApplyInput(i Inputer) (Summary, error)
 
-	// Core should expose the user's core fields.
-	Core() *Core
+	// ExposeCore should return user's core fields.
+	ExposeCore() *Core
 }
 
 // Core holds core fields needed for user data types.
@@ -98,7 +98,7 @@ func (c *Core) Init(inp Inputer) error {
 // ApplyInput applies modification to user's core fields and sets new update
 // time.
 func (c *Core) ApplyInput(inp Inputer) (Summary, error) {
-	cInp := inp.Core()
+	cInp := inp.ExposeCore()
 
 	eml, err := c.SetEmail(cInp.Email)
 	if err != nil {
@@ -118,12 +118,12 @@ func (c *Core) ApplyInput(inp Inputer) (Summary, error) {
 	}, nil
 }
 
-// Core exposes the user's core fields.
-func (c *Core) Core() *Core {
+// ExposeCore returns user's core fields.
+func (c *Core) ExposeCore() *Core {
 	return c
 }
 
-// IsActivated checks whether the user's account is activated.
+// IsActivated checks whether user's account is activated.
 func (c *Core) IsActivated() bool {
 	return !c.ActivatedAt.IsZero()
 }
@@ -219,7 +219,7 @@ func (c *Core) InitVerification(tt TokenTimes) (string, error) {
 // the account (if it wasn't already) or, if unverified email address exists,
 // confirms it as the main email address.
 // NOTE: provided Token must in its original / raw form - not combined with
-// the user's ID (as InitVerification method returns).
+// user's ID (as InitVerification method returns).
 func (c *Core) Verify(t string) error {
 	if err := c.Verification.Check(t); err != nil {
 		return err
@@ -241,7 +241,7 @@ func (c *Core) Verify(t string) error {
 // CancelVerification checks whether the provided Token is valid and clears
 // the active verification Token data.
 // NOTE: provided Token must in its original / raw form - not combined with
-// the user's ID (as InitVerification method returns).
+// user's ID (as InitVerification method returns).
 func (c *Core) CancelVerification(t string) error {
 	if err := c.Verification.Check(t); err != nil {
 		return err
@@ -266,7 +266,7 @@ func (c *Core) InitRecovery(tt TokenTimes) (string, error) {
 // Recover checks whether the provided Token is valid and sets the provided
 // password as the new account password.
 // NOTE: provided Token must in its original / raw form - not combined with
-// the user's ID (as InitRecovery method returns).
+// user's ID (as InitRecovery method returns).
 func (c *Core) Recover(t, p string) error {
 	if err := c.Recovery.Check(t); err != nil {
 		return err
@@ -288,7 +288,7 @@ func (c *Core) Recover(t, p string) error {
 // CancelRecovery checks whether the provided Token is valid and clears all
 // active recovery Token data.
 // NOTE: provided Token must in its original / raw form - not combined with
-// the user's ID (as InitRecovery method returns).
+// user's ID (as InitRecovery method returns).
 func (c *Core) CancelRecovery(t string) error {
 	if err := c.Recovery.Check(t); err != nil {
 		return err
@@ -319,16 +319,16 @@ func CheckPassword(p string) error {
 // Inputer is an interface which should be implemented by every user
 // input data type.
 type Inputer interface {
-	// Core should expose the user's core input fields.
-	Core() CoreInput
+	// ExposeCore should return user's core input fields.
+	ExposeCore() CoreInput
 }
 
 // CoreInput holds core fields needed for every user's Init/ApplyInput calls.
 type CoreInput struct {
-	// Email is the user's email address submitted for further processing.
+	// Email is user's email address submitted for further processing.
 	Email string `json:"email"`
 
-	// Password is the user's plain-text password version submitted for
+	// Password is user's plain-text password version submitted for
 	// futher processing.
 	Password string `json:"password"`
 
@@ -337,16 +337,16 @@ type CoreInput struct {
 	RememberMe bool `json:"remember_me"`
 }
 
-// Core exposes the user's core input fields.
-func (c CoreInput) Core() CoreInput {
+// ExposeCore returns user's core input fields.
+func (c CoreInput) ExposeCore() CoreInput {
 	return c
 }
 
 // Summary is an interface which should be implemented by every user
 // data type describing modifications during updates.
 type Summary interface {
-	// Core should expose the user's core fields' modification status.
-	Core() CoreSummary
+	// ExposeCore should return user's core fields' modification status.
+	ExposeCore() CoreSummary
 }
 
 // CoreSummary holds core fields' information about whether or not they
@@ -361,7 +361,7 @@ type CoreSummary struct {
 	Password bool
 }
 
-// Core exposes the user's core input fields' modification status.
-func (c CoreSummary) Core() CoreSummary {
+// ExposeCore returns user's core input fields' modification status.
+func (c CoreSummary) ExposeCore() CoreSummary {
 	return c
 }
