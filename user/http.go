@@ -77,9 +77,9 @@ func NewHandler(sm *sessionup.Manager, sd time.Duration, db Database,
 }
 
 // ServeHTTP returns a handler with all core user routes.
-// Registration is disallowed (use Routes method to override this).
+// Registration is allowed (use Routes method to override this).
 func (h *Handler) ServeHTTP() http.Handler {
-	return h.Routes(false)
+	return h.Routes(true)
 }
 
 // Routes returnes chi router instance with all core user
