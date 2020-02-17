@@ -56,9 +56,7 @@ type Creator func(inp Inputer) (User, error)
 // DefaultCreator creates a new user with only core data fields from the
 // provided input.
 func DefaultCreator(inp Inputer) (User, error) {
-	usr := &Core{}
-	usr.Init(inp)
-	return usr, nil
+	return NewCore(inp)
 }
 
 // NewHandler creates a new user http handler.

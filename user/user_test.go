@@ -11,13 +11,11 @@ import (
 	"gopkg.in/guregu/null.v3/zero"
 )
 
-func TestCoreInit(t *testing.T) {
-	cr := Core{}
-	err := cr.Init(CoreInput{})
+func TestNewCore(t *testing.T) {
+	cr, err := NewCore(CoreInput{})
 	assert.NotNil(t, err)
 
-	cr = Core{}
-	err = cr.Init(CoreInput{Email: "user@email.com", Password: "password"})
+	cr, err = NewCore(CoreInput{Email: "user@email.com", Password: "password"})
 	assert.Nil(t, err)
 	assert.NotZero(t, cr.ID)
 	assert.Equal(t, "user@email.com", cr.Email)

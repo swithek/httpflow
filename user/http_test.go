@@ -198,8 +198,7 @@ func TestHandlerRegister(t *testing.T) {
 			Email:        emailStub(),
 			Body:         toJSON(inpEml, "password1", false),
 			Creator: func(inp Inputer) (User, error) {
-				usr := &Core{}
-				usr.Init(inp)
+				usr, _ := NewCore(inp)
 				usr.ExposeCore().InitVerification(
 					TokenTimes{time.Hour, time.Hour})
 				return usr, nil

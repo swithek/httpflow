@@ -35,12 +35,9 @@ var (
 
 // User is an interface every user data type should implement.
 type User interface {
-	// Init should initialize default and other values needed for
-	// user data type to be inserted into the data store for the first
-	// time.
-	Init(i Inputer) error
-
 	// ApplyInput should set values from provided data structure.
+	// If certain input fields are empty, their destination fields
+	// in the underlying user's structure should not be modified.
 	ApplyInput(i Inputer) (Summary, error)
 
 	// ExposeCore should return user's core fields.
@@ -80,19 +77,19 @@ type Core struct {
 	Recovery Token `json:"-" db:"recovery"`
 }
 
-// Init initializes all the values, user specified and default, needed for
-// user's core to be usable.
-func (c *Core) Init(inp Inputer) error {
-	*c = Core{
+// NewCore initializes all the values, user specified and default, needed for
+// user's core to be usable and returns it.
+func NewCore(inp Inputer) (*Core, error) {
+	c := &Core{
 		ID:        xid.New(),
 		CreatedAt: time.Now(),
 	}
 
 	if _, err := c.ApplyInput(inp); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return c, nil
 }
 
 // ApplyInput applies modification to user's core fields and sets new update
@@ -323,7 +320,7 @@ type Inputer interface {
 	ExposeCore() CoreInput
 }
 
-// CoreInput holds core fields needed for every user's Init/ApplyInput calls.
+// CoreInput holds core fields needed for every user's Init/ApplyInput call.
 type CoreInput struct {
 	// Email is user's email address submitted for further processing.
 	Email string `json:"email"`
@@ -349,7 +346,7 @@ type Summary interface {
 	ExposeCore() CoreSummary
 }
 
-// CoreSummary holds core fields' information about whether or not they
+// CoreSummary holds core fields' information about whether they
 // were modified.
 type CoreSummary struct {
 	// Email specifies whether the email was modified during
