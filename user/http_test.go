@@ -114,6 +114,7 @@ func TestHandlerRegister(t *testing.T) {
 			}
 
 			assert.NotNil(t, ff[0].Ctx)
+			require.NotNil(t, ff[0].Usr)
 			assert.Equal(t, eml, ff[0].Usr.ExposeCore().Email)
 			assert.NotNil(t, ff[0].Usr.ExposeCore().PasswordHash)
 			assert.NotNil(t, ff[0].Usr.ExposeCore().ID)
@@ -327,6 +328,7 @@ func TestHandlerLogIn(t *testing.T) {
 			}
 
 			assert.NotNil(t, ff[0].Ctx)
+			require.NotNil(t, ff[0].Usr)
 			assert.True(t, ff[0].Usr.ExposeCore().Recovery.IsEmpty())
 		}
 	}
@@ -654,6 +656,7 @@ func TestHandlerUpdate(t *testing.T) {
 			}
 
 			assert.NotNil(t, ff[0].Ctx)
+			require.NotNil(t, ff[0].Usr)
 			assert.Equal(t, eml, ff[0].Usr.ExposeCore().UnverifiedEmail.String)
 			assert.NotZero(t, ff[0].Usr.ExposeCore().PasswordHash)
 
@@ -1387,6 +1390,7 @@ func TestHandlerResendVerification(t *testing.T) {
 			}
 
 			assert.NotNil(t, ff[0].Ctx)
+			require.NotNil(t, ff[0].Usr)
 			assert.NotZero(t, ff[0].Usr.ExposeCore().Verification)
 		}
 	}
@@ -1600,6 +1604,8 @@ func TestHandlerVerify(t *testing.T) {
 			}
 
 			assert.NotNil(t, ff[0].Ctx)
+			require.NotNil(t, ff[0].Usr)
+			assert.NotZero(t, ff[0].Usr.ExposeCore().ActivatedAt)
 			assert.True(t, ff[0].Usr.ExposeCore().Verification.IsEmpty())
 		}
 	}
@@ -1688,6 +1694,7 @@ func TestHandlerVerify(t *testing.T) {
 			DB: dbStub(nil, nil, toPointer(func() Core {
 				tmp := inpUsr
 				tmp.ActivatedAt = zero.TimeFrom(time.Time{})
+				tmp.UnverifiedEmail = zero.StringFrom("")
 				return tmp
 			}())),
 			Email: emailStub(),
@@ -1696,6 +1703,20 @@ func TestHandlerVerify(t *testing.T) {
 				hasResp(false),
 				wasUpdateCalled(1),
 				wasSendEmailChangedCalled(0, "", ""),
+			),
+		},
+		"Successful email verification and account activation": {
+			DB: dbStub(nil, nil, toPointer(func() Core {
+				tmp := inpUsr
+				tmp.ActivatedAt = zero.TimeFrom(time.Time{})
+				return tmp
+			}())),
+			Email: emailStub(),
+			Token: inpTok,
+			Checks: checks(
+				hasResp(false),
+				wasUpdateCalled(1),
+				wasSendEmailChangedCalled(1, inpUsr.Email, inpUsr.UnverifiedEmail.String),
 			),
 		},
 		"Successful email verification": {
@@ -1755,6 +1776,7 @@ func TestHandlerCancelVerification(t *testing.T) {
 			}
 
 			assert.NotNil(t, ff[0].Ctx)
+			require.NotNil(t, ff[0].Usr)
 			assert.True(t, ff[0].Usr.ExposeCore().Verification.IsEmpty())
 		}
 	}
@@ -1879,6 +1901,7 @@ func TestHandlerInitRecovery(t *testing.T) {
 			}
 
 			assert.NotNil(t, ff[0].Ctx)
+			require.NotNil(t, ff[0].Usr)
 			assert.NotZero(t, ff[0].Usr.ExposeCore().Recovery)
 		}
 	}
@@ -2042,6 +2065,7 @@ func TestHandlerRecover(t *testing.T) {
 			}
 
 			assert.NotNil(t, ff[0].Ctx)
+			require.NotNil(t, ff[0].Usr)
 			assert.True(t, ff[0].Usr.ExposeCore().Recovery.IsEmpty())
 			assert.NotZero(t, ff[0].Usr.ExposeCore().PasswordHash)
 		}
@@ -2311,6 +2335,7 @@ func TestHandlerCancelRecovery(t *testing.T) {
 			}
 
 			assert.NotNil(t, ff[0].Ctx)
+			require.NotNil(t, ff[0].Usr)
 			assert.True(t, ff[0].Usr.ExposeCore().Recovery.IsEmpty())
 		}
 	}

@@ -212,8 +212,8 @@ func (c *Core) InitVerification(tt TokenTimes) (string, error) {
 	return toFullToken(t, c.ID), nil
 }
 
-// Verify checks whether the provided token is valid and either activates
-// the account (if it wasn't already) or, if unverified email address exists,
+// Verify checks whether the provided token is valid and activates
+// the account (if it wasn't already) and/or, if unverified email address exists,
 // confirms it as the main email address.
 // NOTE: provided Token must in its original / raw form - not combined with
 // user's ID (as InitVerification method returns).
@@ -222,9 +222,16 @@ func (c *Core) Verify(t string) error {
 		return err
 	}
 
+	// New email verification and account activation is allowed at the
+	// same time to allow the user to change their email when the account
+	// is not activated. Account will be activated even during email
+	// verification.
+
 	if !c.IsActivated() {
 		c.ActivatedAt = zero.TimeFrom(time.Now())
-	} else if c.UnverifiedEmail.String != "" {
+	}
+
+	if c.UnverifiedEmail.String != "" {
 		if c.UnverifiedEmail.String != c.Email {
 			c.Email = c.UnverifiedEmail.String
 		}

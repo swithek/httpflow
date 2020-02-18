@@ -362,11 +362,23 @@ func TestCoreVerify(t *testing.T) {
 			Token:           str,
 			UnverifiedEmail: true,
 		},
-		"Successful verification and activation": {
+		"Successful activation": {
 			Core: Core{
 				Verification: inp,
 			},
 			Token: str,
+		},
+		"Successful verification and activation": {
+			Core: func() Core {
+				cr := Core{
+					ActivatedAt:  zero.TimeFrom(time.Time{}),
+					Verification: inp,
+				}
+				cr.UnverifiedEmail = zero.StringFrom("user@email.com")
+				return cr
+			}(),
+			Token:           str,
+			UnverifiedEmail: true,
 		},
 		"Successful email verification": {
 			Core: func() Core {
