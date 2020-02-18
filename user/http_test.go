@@ -37,8 +37,8 @@ func TestDefaultParser(t *testing.T) {
 }
 
 func TestDefaultCreator(t *testing.T) {
-	usr, err := DefaultCreator(CoreInput{Email: "user@email.com",
-		Password: "password1"})
+	usr, err := DefaultCreator(context.Background(),
+		CoreInput{Email: "user@email.com", Password: "password1"})
 	assert.Nil(t, err)
 	require.NotNil(t, usr)
 	assert.Equal(t, "user@email.com", usr.ExposeCore().Email)
@@ -184,7 +184,7 @@ func TestHandlerRegister(t *testing.T) {
 			DB:           dbStub(nil),
 			Email:        emailStub(),
 			Body:         toJSON(inpEml, "password1", false),
-			Creator: func(inp Inputer) (User, error) {
+			Creator: func(ctx context.Context, inp Inputer) (User, error) {
 				return nil, assert.AnError
 			},
 			Checks: checks(
@@ -198,7 +198,7 @@ func TestHandlerRegister(t *testing.T) {
 			DB:           dbStub(nil),
 			Email:        emailStub(),
 			Body:         toJSON(inpEml, "password1", false),
-			Creator: func(inp Inputer) (User, error) {
+			Creator: func(ctx context.Context, inp Inputer) (User, error) {
 				usr, _ := NewCore(inp)
 				usr.ExposeCore().InitVerification(
 					TokenTimes{time.Hour, time.Hour})

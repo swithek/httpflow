@@ -51,11 +51,11 @@ func DefaultParser(r *http.Request) (Inputer, error) {
 
 // Creator is a function that should be used for custom user creation.
 // Used only during registration.
-type Creator func(inp Inputer) (User, error)
+type Creator func(ctx context.Context, inp Inputer) (User, error)
 
 // DefaultCreator creates a new user with only core data fields from the
 // provided input.
-func DefaultCreator(inp Inputer) (User, error) {
+func DefaultCreator(_ context.Context, inp Inputer) (User, error) {
 	return NewCore(inp)
 }
 
@@ -160,7 +160,9 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	usr, err := h.create(inp)
+	ctx := r.Context()
+
+	usr, err := h.create(ctx, inp)
 	if err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
@@ -173,8 +175,6 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}
-
-	ctx := r.Context()
 
 	if err = h.db.Create(ctx, usr); err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
