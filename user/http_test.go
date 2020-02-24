@@ -2525,7 +2525,7 @@ func TestHandlerFetchByToken(t *testing.T) {
 			req := httptest.NewRequest("GET", "http://test.com/", nil)
 			hdl := newHandler()
 			hdl.db = c.DB
-			usr, tok, err := hdl.fetchByToken(req.WithContext(
+			usr, tok, err := hdl.FetchByToken(req.WithContext(
 				addChiCtx(nil, "token", c.Token)))
 
 			for _, ch := range c.Checks {

@@ -484,7 +484,7 @@ func (h *Handler) ResendVerification(w http.ResponseWriter, r *http.Request) {
 // If new email was changed and verified, an email will be sent to the old
 // address about the change.
 func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
-	usr, tok, err := h.fetchByToken(r)
+	usr, tok, err := h.FetchByToken(r)
 	if err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
@@ -515,7 +515,7 @@ func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
 // CancelVerification checks whether the token in the URL is valid and stops
 // active verification token from further processing.
 func (h *Handler) CancelVerification(w http.ResponseWriter, r *http.Request) {
-	usr, tok, err := h.fetchByToken(r)
+	usr, tok, err := h.FetchByToken(r)
 	if err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
@@ -581,7 +581,7 @@ func (h *Handler) InitRecovery(w http.ResponseWriter, r *http.Request) {
 // On successful execution, an email will be sent notifying about password
 // change.
 func (h *Handler) Recover(w http.ResponseWriter, r *http.Request) {
-	usr, tok, err := h.fetchByToken(r)
+	usr, tok, err := h.FetchByToken(r)
 	if err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
@@ -619,7 +619,7 @@ func (h *Handler) Recover(w http.ResponseWriter, r *http.Request) {
 // PingRecovery only checks whether the token in the URL is valid, no
 // writable modifications are being done.
 func (h *Handler) PingRecovery(w http.ResponseWriter, r *http.Request) {
-	usr, tok, err := h.fetchByToken(r)
+	usr, tok, err := h.FetchByToken(r)
 	if err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
@@ -636,7 +636,7 @@ func (h *Handler) PingRecovery(w http.ResponseWriter, r *http.Request) {
 // CancelRecovery checks whether the token in the URL is valid and stops
 // active verification token from further processing.
 func (h *Handler) CancelRecovery(w http.ResponseWriter, r *http.Request) {
-	usr, tok, err := h.fetchByToken(r)
+	usr, tok, err := h.FetchByToken(r)
 	if err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
@@ -655,10 +655,10 @@ func (h *Handler) CancelRecovery(w http.ResponseWriter, r *http.Request) {
 	httpflow.Respond(w, r, nil, http.StatusNoContent, h.onError)
 }
 
-// fetchByToken extracts the token from request's URL, retrieves a user by ID
+// FetchByToken extracts the token from request's URL, retrieves a user by ID
 // embedded in the token and returns user's account instance, raw token and
 // optionally an error.
-func (h *Handler) fetchByToken(r *http.Request) (User, string, error) {
+func (h *Handler) FetchByToken(r *http.Request) (User, string, error) {
 	tok := chi.URLParam(r, "token")
 	if tok == "" {
 		return nil, "", httpflow.NewError(nil, http.StatusBadRequest,
