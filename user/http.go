@@ -412,6 +412,12 @@ func (h *Handler) RevokeSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id := chi.URLParam(r, "id")
+	if id == "" {
+		httpflow.RespondError(w, r, httpflow.NewError(nil,
+			http.StatusBadRequest,
+			"id not found"), h.onError)
+		return
+	}
 
 	if ses.ID == id { // FIXME need to check user key
 		httpflow.RespondError(w, r, httpflow.NewError(nil,

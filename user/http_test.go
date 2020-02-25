@@ -1237,6 +1237,14 @@ func TestHandlerRevokeSession(t *testing.T) {
 				hasResp(true),
 			),
 		},
+		"No id provided": {
+			SessionStore: sessionStoreStub(nil),
+			ID:           "",
+			Session:      true,
+			Checks: checks(
+				hasResp(true),
+			),
+		},
 		"Matching session ID": {
 			SessionStore: sessionStoreStub(nil),
 			ID:           "123456",
