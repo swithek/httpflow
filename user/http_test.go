@@ -2535,6 +2535,17 @@ func TestHandlerFetchByToken(t *testing.T) {
 	}
 }
 
+func TestExtractSession(t *testing.T) {
+	s, err := ExtractSession(context.Background())
+	assert.Zero(t, s)
+	assert.NotNil(t, err)
+
+	s, err = ExtractSession(sessionup.NewContext(context.Background(),
+		sessionup.Session{UserKey: "123"}))
+	assert.NotZero(t, s)
+	assert.Nil(t, err)
+}
+
 func toJSON(eml, pass string, rem bool) *bytes.Buffer {
 	b := &bytes.Buffer{}
 	json.NewEncoder(b).Encode(CoreInput{Email: eml, Password: pass,

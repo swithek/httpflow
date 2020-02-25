@@ -258,9 +258,10 @@ func (h *Handler) LogOut(w http.ResponseWriter, r *http.Request) {
 // Fetch handles user's data retrieval.
 func (h *Handler) Fetch(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	ses, ok := sessionup.FromContext(ctx)
-	if !ok {
-		httpflow.RespondError(w, r, ErrUnauthorized, h.onError)
+
+	ses, err := ExtractSession(ctx)
+	if err != nil {
+		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}
 
@@ -279,9 +280,9 @@ func (h *Handler) Fetch(w http.ResponseWriter, r *http.Request) {
 // On password change, all other sessions will be destroyed and email sent.
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	ses, ok := sessionup.FromContext(ctx)
-	if !ok {
-		httpflow.RespondError(w, r, ErrUnauthorized, h.onError)
+	ses, err := ExtractSession(ctx)
+	if err != nil {
+		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}
 
@@ -342,9 +343,9 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 // On successful deletion, an email will be sent.
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	ses, ok := sessionup.FromContext(ctx)
-	if !ok {
-		httpflow.RespondError(w, r, ErrUnauthorized, h.onError)
+	ses, err := ExtractSession(ctx)
+	if err != nil {
+		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}
 
@@ -403,9 +404,16 @@ func (h *Handler) FetchSessions(w http.ResponseWriter, r *http.Request) {
 // active session in the request's context.
 func (h *Handler) RevokeSession(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+
+	ses, err := ExtractSession(ctx)
+	if err != nil {
+		httpflow.RespondError(w, r, err, h.onError)
+		return
+	}
+
 	id := chi.URLParam(r, "id")
 
-	if ses, ok := sessionup.FromContext(ctx); !ok || ses.ID == id {
+	if ses.ID == id { // FIXME need to check user key
 		httpflow.RespondError(w, r, httpflow.NewError(nil,
 			http.StatusBadRequest,
 			"current session cannot be revoked"), h.onError)
@@ -676,6 +684,16 @@ func (h *Handler) FetchByToken(r *http.Request) (User, string, error) {
 	}
 
 	return usr, tok, nil
+}
+
+// ExtractSession checks whether the session is present and returns it.
+func ExtractSession(ctx context.Context) (sessionup.Session, error) {
+	ses, ok := sessionup.FromContext(ctx)
+	if !ok {
+		return sessionup.Session{}, ErrUnauthorized
+	}
+
+	return ses, nil
 }
 
 // Database is an interface which should be implemented by the user data
