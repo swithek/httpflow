@@ -350,7 +350,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var cInp CoreInput
-	if err := httpflow.DecodeJSON(r, &cInp); err != nil {
+	if err = httpflow.DecodeJSON(r, &cInp); err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}
@@ -420,7 +420,7 @@ func (h *Handler) RevokeSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.sessions.RevokeByID(ctx, id); err != nil {
+	if err = h.sessions.RevokeByID(ctx, id); err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}
