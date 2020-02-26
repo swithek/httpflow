@@ -196,6 +196,322 @@ func TestStoreCreate(t *testing.T) {
 	}
 }
 
+func TestStoryFetchMany(t *testing.T) {
+	db, mock := newDB(t)
+	dbx := sqlx.NewDb(db, "postgres")
+	s := Store{db: dbx}
+	err := s.initSQL()
+	require.Nil(t, err)
+
+	inpUsrs := []user.User{
+		toPointer(newFullUser()),
+		toPointer(newFullUser()),
+		toPointer(newFullUser()),
+	}
+
+	inpEml := "1@em"
+
+	cc := map[string]struct {
+		Expect func()
+		Query  httpflow.Query
+		Users  []user.User
+		Err    error
+	}{
+		"Invalid query data": {
+			Expect: func() {},
+			Query: httpflow.Query{
+				Count:     5,
+				Page:      10,
+				FilterBy:  "email123",
+				FilterVal: inpEml,
+				SortBy:    "created_at",
+				Desc:      true,
+			},
+			Err: assert.AnError,
+		},
+		"Error returned during users select": {
+			Expect: func() {
+				mock.ExpectQuery(`SELECT id, 
+created_at,
+updated_at,
+activated_at,
+email,
+unverified_email,
+password_hash,
+verification_token_hash AS verification.hash,
+verification_next_at AS verification.next_at,
+verification_expires_at AS verification.expires_at,
+recovery_token_hash AS recovery.hash,
+recovery_next_at AS recovery.next_at,
+recovery_expires_at AS recovery.expires_at
+FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY created_at DESC LIMIT $2 OFFSET $3;`).
+					WithArgs(inpEml, 5, 45).
+					WillReturnError(assert.AnError)
+			},
+			Query: httpflow.Query{
+				Count:     5,
+				Page:      10,
+				FilterBy:  "email",
+				FilterVal: inpEml,
+				SortBy:    "created_at",
+				Desc:      true,
+			},
+			Err: assert.AnError,
+		},
+		"Successful users select by email in desc order of creation date": {
+			Expect: func() {
+				mock.ExpectQuery(`SELECT id, 
+created_at,
+updated_at,
+activated_at,
+email,
+unverified_email,
+password_hash,
+verification_token_hash AS verification.hash,
+verification_next_at AS verification.next_at,
+verification_expires_at AS verification.expires_at,
+recovery_token_hash AS recovery.hash,
+recovery_next_at AS recovery.next_at,
+recovery_expires_at AS recovery.expires_at
+FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY created_at DESC LIMIT $2 OFFSET $3;`).
+					WithArgs(inpEml, 5, 45).
+					WillReturnRows(usrsToRows(inpUsrs...))
+			},
+			Query: httpflow.Query{
+				Count:     5,
+				Page:      10,
+				FilterBy:  "email",
+				FilterVal: inpEml,
+				SortBy:    "created_at",
+				Desc:      true,
+			},
+			Users: inpUsrs,
+		},
+		"Successful users select by email in asc order of creation date": {
+			Expect: func() {
+				mock.ExpectQuery(`SELECT id, 
+created_at,
+updated_at,
+activated_at,
+email,
+unverified_email,
+password_hash,
+verification_token_hash AS verification.hash,
+verification_next_at AS verification.next_at,
+verification_expires_at AS verification.expires_at,
+recovery_token_hash AS recovery.hash,
+recovery_next_at AS recovery.next_at,
+recovery_expires_at AS recovery.expires_at
+FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY created_at ASC LIMIT $2 OFFSET $3;`).
+					WithArgs(inpEml, 5, 45).
+					WillReturnRows(usrsToRows(inpUsrs...))
+			},
+			Query: httpflow.Query{
+				Count:     5,
+				Page:      10,
+				FilterBy:  "email",
+				FilterVal: inpEml,
+				SortBy:    "created_at",
+				Desc:      false,
+			},
+			Users: inpUsrs,
+		},
+		"Successful users select by email in desc order of last update date": {
+			Expect: func() {
+				mock.ExpectQuery(`SELECT id, 
+created_at,
+updated_at,
+activated_at,
+email,
+unverified_email,
+password_hash,
+verification_token_hash AS verification.hash,
+verification_next_at AS verification.next_at,
+verification_expires_at AS verification.expires_at,
+recovery_token_hash AS recovery.hash,
+recovery_next_at AS recovery.next_at,
+recovery_expires_at AS recovery.expires_at
+FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY updated_at DESC LIMIT $2 OFFSET $3;`).
+					WithArgs(inpEml, 5, 45).
+					WillReturnRows(usrsToRows(inpUsrs...))
+			},
+			Query: httpflow.Query{
+				Count:     5,
+				Page:      10,
+				FilterBy:  "email",
+				FilterVal: inpEml,
+				SortBy:    "updated_at",
+				Desc:      true,
+			},
+			Users: inpUsrs,
+		},
+		"Successful users select by email in asc order of last update date": {
+			Expect: func() {
+				mock.ExpectQuery(`SELECT id, 
+created_at,
+updated_at,
+activated_at,
+email,
+unverified_email,
+password_hash,
+verification_token_hash AS verification.hash,
+verification_next_at AS verification.next_at,
+verification_expires_at AS verification.expires_at,
+recovery_token_hash AS recovery.hash,
+recovery_next_at AS recovery.next_at,
+recovery_expires_at AS recovery.expires_at
+FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY updated_at ASC LIMIT $2 OFFSET $3;`).
+					WithArgs(inpEml, 5, 45).
+					WillReturnRows(usrsToRows(inpUsrs...))
+			},
+			Query: httpflow.Query{
+				Count:     5,
+				Page:      10,
+				FilterBy:  "email",
+				FilterVal: inpEml,
+				SortBy:    "updated_at",
+				Desc:      false,
+			},
+			Users: inpUsrs,
+		},
+		"Successful users select by email in desc order of activation date": {
+			Expect: func() {
+				mock.ExpectQuery(`SELECT id, 
+created_at,
+updated_at,
+activated_at,
+email,
+unverified_email,
+password_hash,
+verification_token_hash AS verification.hash,
+verification_next_at AS verification.next_at,
+verification_expires_at AS verification.expires_at,
+recovery_token_hash AS recovery.hash,
+recovery_next_at AS recovery.next_at,
+recovery_expires_at AS recovery.expires_at
+FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY activated_at DESC LIMIT $2 OFFSET $3;`).
+					WithArgs(inpEml, 5, 45).
+					WillReturnRows(usrsToRows(inpUsrs...))
+			},
+			Query: httpflow.Query{
+				Count:     5,
+				Page:      10,
+				FilterBy:  "email",
+				FilterVal: inpEml,
+				SortBy:    "activated_at",
+				Desc:      true,
+			},
+			Users: inpUsrs,
+		},
+		"Successful users select by email in asc order of activation date": {
+			Expect: func() {
+				mock.ExpectQuery(`SELECT id, 
+created_at,
+updated_at,
+activated_at,
+email,
+unverified_email,
+password_hash,
+verification_token_hash AS verification.hash,
+verification_next_at AS verification.next_at,
+verification_expires_at AS verification.expires_at,
+recovery_token_hash AS recovery.hash,
+recovery_next_at AS recovery.next_at,
+recovery_expires_at AS recovery.expires_at
+FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY activated_at ASC LIMIT $2 OFFSET $3;`).
+					WithArgs(inpEml, 5, 45).
+					WillReturnRows(usrsToRows(inpUsrs...))
+			},
+			Query: httpflow.Query{
+				Count:     5,
+				Page:      10,
+				FilterBy:  "email",
+				FilterVal: inpEml,
+				SortBy:    "activated_at",
+				Desc:      false,
+			},
+			Users: inpUsrs,
+		},
+		"Successful users select by email in desc order of email": {
+			Expect: func() {
+				mock.ExpectQuery(`SELECT id, 
+created_at,
+updated_at,
+activated_at,
+email,
+unverified_email,
+password_hash,
+verification_token_hash AS verification.hash,
+verification_next_at AS verification.next_at,
+verification_expires_at AS verification.expires_at,
+recovery_token_hash AS recovery.hash,
+recovery_next_at AS recovery.next_at,
+recovery_expires_at AS recovery.expires_at
+FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY email DESC LIMIT $2 OFFSET $3;`).
+					WithArgs(inpEml, 5, 45).
+					WillReturnRows(usrsToRows(inpUsrs...))
+			},
+			Query: httpflow.Query{
+				Count:     5,
+				Page:      10,
+				FilterBy:  "email",
+				FilterVal: inpEml,
+				SortBy:    "email",
+				Desc:      true,
+			},
+			Users: inpUsrs,
+		},
+		"Successful users select by email in asc order of email": {
+			Expect: func() {
+				mock.ExpectQuery(`SELECT id, 
+created_at,
+updated_at,
+activated_at,
+email,
+unverified_email,
+password_hash,
+verification_token_hash AS verification.hash,
+verification_next_at AS verification.next_at,
+verification_expires_at AS verification.expires_at,
+recovery_token_hash AS recovery.hash,
+recovery_next_at AS recovery.next_at,
+recovery_expires_at AS recovery.expires_at
+FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY email ASC LIMIT $2 OFFSET $3;`).
+					WithArgs(inpEml, 5, 45).
+					WillReturnRows(usrsToRows(inpUsrs...))
+			},
+			Query: httpflow.Query{
+				Count:     5,
+				Page:      10,
+				FilterBy:  "email",
+				FilterVal: inpEml,
+				SortBy:    "email",
+				Desc:      false,
+			},
+			Users: inpUsrs,
+		},
+	}
+
+	for cn, c := range cc {
+		t.Run(cn, func(t *testing.T) {
+			c.Expect()
+			usrs, err := s.FetchMany(context.Background(), c.Query)
+			if c.Err != nil {
+				if c.Err == assert.AnError {
+					assert.NotNil(t, err)
+				} else {
+					assert.Equal(t, c.Err, err)
+				}
+			} else {
+				assert.Nil(t, err)
+			}
+
+			assert.Equal(t, c.Users, usrs)
+			assert.Nil(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
 func TestStoreFetchByID(t *testing.T) {
 	db, mock := newDB(t)
 	dbx := sqlx.NewDb(db, "postgres")
@@ -203,7 +519,7 @@ func TestStoreFetchByID(t *testing.T) {
 	err := s.initSQL()
 	require.Nil(t, err)
 
-	inpUsr := newFullUser()
+	inpUsr := toPointer(newFullUser())
 
 	cc := map[string]struct {
 		Expect func()
@@ -229,7 +545,7 @@ FROM users WHERE id = $1 LIMIT 1;`).
 					WithArgs(inpUsr.ID).
 					WillReturnError(assert.AnError)
 			},
-			User: toPointer(inpUsr),
+			User: inpUsr,
 			Err:  assert.AnError,
 		},
 		"Successful user selection": {
@@ -249,9 +565,9 @@ recovery_next_at AS recovery.next_at,
 recovery_expires_at AS recovery.expires_at
 FROM users WHERE id = $1 LIMIT 1;`).
 					WithArgs(inpUsr.ID).
-					WillReturnRows(usrToRows(inpUsr))
+					WillReturnRows(usrsToRows(inpUsr))
 			},
-			User: toPointer(inpUsr),
+			User: inpUsr,
 		},
 	}
 
@@ -267,6 +583,7 @@ FROM users WHERE id = $1 LIMIT 1;`).
 				}
 				return
 			}
+
 			assert.Nil(t, err)
 			assert.Equal(t, c.User, usr)
 			assert.Nil(t, mock.ExpectationsWereMet())
@@ -281,7 +598,7 @@ func TestStoreFetchByEmail(t *testing.T) {
 	err := s.initSQL()
 	require.Nil(t, err)
 
-	inpUsr := newFullUser()
+	inpUsr := toPointer(newFullUser())
 
 	cc := map[string]struct {
 		Expect func()
@@ -307,7 +624,7 @@ FROM users WHERE email = $1 LIMIT 1;`).
 					WithArgs(inpUsr.Email).
 					WillReturnError(assert.AnError)
 			},
-			User: toPointer(inpUsr),
+			User: inpUsr,
 			Err:  assert.AnError,
 		},
 		"Successful user selection": {
@@ -327,9 +644,9 @@ recovery_next_at AS recovery.next_at,
 recovery_expires_at AS recovery.expires_at
 FROM users WHERE email = $1 LIMIT 1;`).
 					WithArgs(inpUsr.Email).
-					WillReturnRows(usrToRows(inpUsr))
+					WillReturnRows(usrsToRows(inpUsr))
 			},
-			User: toPointer(inpUsr),
+			User: inpUsr,
 		},
 	}
 
@@ -520,7 +837,11 @@ func toPointer(c user.Core) *user.Core {
 	return &c
 }
 
-func usrToRows(usr user.Core) *sqlmock.Rows {
+func usrsToRows(usrs ...user.User) *sqlmock.Rows {
+	if len(usrs) == 0 {
+		return nil
+	}
+
 	rows := sqlmock.NewRows([]string{
 		"id",
 		"created_at",
@@ -536,11 +857,15 @@ func usrToRows(usr user.Core) *sqlmock.Rows {
 		"recovery.next_at",
 		"recovery.expires_at",
 	})
-	rows.AddRow(usr.ID, usr.CreatedAt, usr.UpdatedAt, usr.ActivatedAt,
-		usr.Email, usr.UnverifiedEmail, usr.PasswordHash,
-		usr.Verification.Hash, usr.Verification.NextAt,
-		usr.Verification.ExpiresAt, usr.Recovery.Hash,
-		usr.Recovery.NextAt, usr.Recovery.ExpiresAt)
+
+	for _, usr := range usrs {
+		cr := usr.ExposeCore()
+		rows.AddRow(cr.ID, cr.CreatedAt, cr.UpdatedAt, cr.ActivatedAt,
+			cr.Email, cr.UnverifiedEmail, cr.PasswordHash,
+			cr.Verification.Hash, cr.Verification.NextAt,
+			cr.Verification.ExpiresAt, cr.Recovery.Hash,
+			cr.Recovery.NextAt, cr.Recovery.ExpiresAt)
+	}
 
 	return rows
 }

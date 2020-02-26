@@ -84,7 +84,7 @@ verification_expires_at AS verification.expires_at,
 recovery_token_hash AS recovery.hash,
 recovery_next_at AS recovery.next_at,
 recovery_expires_at AS recovery.expires_at
-FROM users WHERE email LIKE $1 || '%' ORDER BY created_at DESC LIMIT $2 OFFSET $3;
+FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY created_at DESC LIMIT $2 OFFSET $3;
 
 -- name: select_users_by_email_asc_created_at
 SELECT id, 
@@ -100,7 +100,7 @@ verification_expires_at AS verification.expires_at,
 recovery_token_hash AS recovery.hash,
 recovery_next_at AS recovery.next_at,
 recovery_expires_at AS recovery.expires_at
-FROM users WHERE email LIKE $1 || '%' ORDER BY created_at ASC LIMIT $2 OFFSET $3;
+FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY created_at ASC LIMIT $2 OFFSET $3;
 
 -- name: select_users_by_email_desc_updated_at
 SELECT id, 
@@ -116,7 +116,7 @@ verification_expires_at AS verification.expires_at,
 recovery_token_hash AS recovery.hash,
 recovery_next_at AS recovery.next_at,
 recovery_expires_at AS recovery.expires_at
-FROM users WHERE email LIKE $1 || '%' ORDER BY updated_at DESC LIMIT $2 OFFSET $3;
+FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY updated_at DESC LIMIT $2 OFFSET $3;
 
 -- name: select_users_by_email_asc_updated_at
 SELECT id, 
@@ -132,7 +132,7 @@ verification_expires_at AS verification.expires_at,
 recovery_token_hash AS recovery.hash,
 recovery_next_at AS recovery.next_at,
 recovery_expires_at AS recovery.expires_at
-FROM users WHERE email LIKE $1 || '%' ORDER BY updated_at ASC LIMIT $2 OFFSET $3;
+FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY updated_at ASC LIMIT $2 OFFSET $3;
 
 -- name: select_users_by_email_desc_activated_at
 SELECT id, 
@@ -148,7 +148,7 @@ verification_expires_at AS verification.expires_at,
 recovery_token_hash AS recovery.hash,
 recovery_next_at AS recovery.next_at,
 recovery_expires_at AS recovery.expires_at
-FROM users WHERE email LIKE $1 || '%' ORDER BY activated_at DESC LIMIT $2 OFFSET $3;
+FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY activated_at DESC LIMIT $2 OFFSET $3;
 
 -- name: select_users_by_email_asc_activated_at
 SELECT id, 
@@ -164,7 +164,7 @@ verification_expires_at AS verification.expires_at,
 recovery_token_hash AS recovery.hash,
 recovery_next_at AS recovery.next_at,
 recovery_expires_at AS recovery.expires_at
-FROM users WHERE email LIKE $1 || '%' ORDER BY activated_at ASC LIMIT $2 OFFSET $3;
+FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY activated_at ASC LIMIT $2 OFFSET $3;
 
 -- name: select_users_by_email_desc_email
 SELECT id, 
@@ -180,7 +180,7 @@ verification_expires_at AS verification.expires_at,
 recovery_token_hash AS recovery.hash,
 recovery_next_at AS recovery.next_at,
 recovery_expires_at AS recovery.expires_at
-FROM users WHERE email LIKE $1 || '%' ORDER BY email DESC LIMIT $2 OFFSET $3;
+FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY email DESC LIMIT $2 OFFSET $3;
 
 -- name: select_users_by_email_asc_email
 SELECT id, 
@@ -196,4 +196,4 @@ verification_expires_at AS verification.expires_at,
 recovery_token_hash AS recovery.hash,
 recovery_next_at AS recovery.next_at,
 recovery_expires_at AS recovery.expires_at
-FROM users WHERE email LIKE $1 || '%' ORDER BY email ASC LIMIT $2 OFFSET $3;
+FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY email ASC LIMIT $2 OFFSET $3;
