@@ -5,6 +5,7 @@ package user
 
 import (
 	"context"
+	"github.com/swithek/httpflow"
 	"sync"
 )
 
@@ -13,6 +14,7 @@ var (
 	lockDatabaseMockDeleteByID   sync.RWMutex
 	lockDatabaseMockFetchByEmail sync.RWMutex
 	lockDatabaseMockFetchByID    sync.RWMutex
+	lockDatabaseMockFetchMany    sync.RWMutex
 	lockDatabaseMockUpdate       sync.RWMutex
 )
 
@@ -38,6 +40,9 @@ var _ Database = &DatabaseMock{}
 //             FetchByIDFunc: func(ctx context.Context, id string) (User, error) {
 // 	               panic("mock out the FetchByID method")
 //             },
+//             FetchManyFunc: func(ctx context.Context, qr httpflow.Query) ([]User, error) {
+// 	               panic("mock out the FetchMany method")
+//             },
 //             UpdateFunc: func(ctx context.Context, usr User) error {
 // 	               panic("mock out the Update method")
 //             },
@@ -59,6 +64,9 @@ type DatabaseMock struct {
 
 	// FetchByIDFunc mocks the FetchByID method.
 	FetchByIDFunc func(ctx context.Context, id string) (User, error)
+
+	// FetchManyFunc mocks the FetchMany method.
+	FetchManyFunc func(ctx context.Context, qr httpflow.Query) ([]User, error)
 
 	// UpdateFunc mocks the Update method.
 	UpdateFunc func(ctx context.Context, usr User) error
@@ -92,6 +100,13 @@ type DatabaseMock struct {
 			Ctx context.Context
 			// ID is the id argument value.
 			ID string
+		}
+		// FetchMany holds details about calls to the FetchMany method.
+		FetchMany []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Qr is the qr argument value.
+			Qr httpflow.Query
 		}
 		// Update holds details about calls to the Update method.
 		Update []struct {
@@ -240,6 +255,41 @@ func (mock *DatabaseMock) FetchByIDCalls() []struct {
 	lockDatabaseMockFetchByID.RLock()
 	calls = mock.calls.FetchByID
 	lockDatabaseMockFetchByID.RUnlock()
+	return calls
+}
+
+// FetchMany calls FetchManyFunc.
+func (mock *DatabaseMock) FetchMany(ctx context.Context, qr httpflow.Query) ([]User, error) {
+	if mock.FetchManyFunc == nil {
+		panic("DatabaseMock.FetchManyFunc: method is nil but Database.FetchMany was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+		Qr  httpflow.Query
+	}{
+		Ctx: ctx,
+		Qr:  qr,
+	}
+	lockDatabaseMockFetchMany.Lock()
+	mock.calls.FetchMany = append(mock.calls.FetchMany, callInfo)
+	lockDatabaseMockFetchMany.Unlock()
+	return mock.FetchManyFunc(ctx, qr)
+}
+
+// FetchManyCalls gets all the calls that were made to FetchMany.
+// Check the length with:
+//     len(mockedDatabase.FetchManyCalls())
+func (mock *DatabaseMock) FetchManyCalls() []struct {
+	Ctx context.Context
+	Qr  httpflow.Query
+} {
+	var calls []struct {
+		Ctx context.Context
+		Qr  httpflow.Query
+	}
+	lockDatabaseMockFetchMany.RLock()
+	calls = mock.calls.FetchMany
+	lockDatabaseMockFetchMany.RUnlock()
 	return calls
 }
 

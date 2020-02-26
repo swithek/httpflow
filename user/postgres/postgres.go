@@ -99,6 +99,50 @@ func (s *Store) Create(ctx context.Context, usr user.User) error {
 	return detectErr(err)
 }
 
+// FetchMany retrieves multiple users from the underlying data store by
+// the provided query.
+func (s *Store) FetchMany(ctx context.Context, qr httpflow.Query) ([]user.User, error) {
+	err := qr.Validate(user.CheckFilterKey, user.CheckSortKey)
+	if err != nil {
+		return nil, err
+	}
+
+	ord := "asc"
+	if qr.Desc {
+		ord = "desc"
+	}
+
+	q, err := s.q.Raw(fmt.Sprintf("select_users_by_%s_%s_%s", qr.FilterBy,
+		ord, qr.SortBy))
+	if err != nil {
+		return nil, err
+	}
+
+	rr, err := s.db.QueryxContext(ctx, q, qr.FilterVal, qr.Count,
+		qr.Count*(qr.Page-1))
+	if err != nil {
+		return nil, detectErr(err)
+	}
+
+	var usrs []user.User
+	for rr.Next() {
+		cr := &user.Core{}
+		err = rr.StructScan(cr)
+		if err != nil {
+			rr.Close()
+			return nil, detectErr(err)
+		}
+
+		usrs = append(usrs, cr)
+	}
+
+	if err = rr.Err(); err != nil {
+		return nil, detectErr(err)
+	}
+
+	return usrs, nil
+}
+
 // FetchByID retrieves a user from the underlying data store
 // by their ID.
 func (s *Store) FetchByID(ctx context.Context, id string) (user.User, error) {

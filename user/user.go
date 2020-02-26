@@ -369,3 +369,25 @@ type CoreSummary struct {
 func (c CoreSummary) ExposeCore() CoreSummary {
 	return c
 }
+
+// CheckFilterKey determines whether the filter key is valid
+func CheckFilterKey(fk string) error {
+	switch fk {
+	case "email":
+		return nil
+	}
+
+	return httpflow.NewError(nil, http.StatusBadRequest,
+		"invalid filter key")
+}
+
+// CheckSortKey determines whether the sort key is valid.
+func CheckSortKey(sk string) error {
+	switch sk {
+	case "created_at", "updated_at", "activated_at", "email":
+		return nil
+	}
+
+	return httpflow.NewError(nil, http.StatusBadRequest,
+		"invalid sort key")
+}

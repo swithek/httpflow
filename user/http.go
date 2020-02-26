@@ -709,6 +709,10 @@ type Database interface {
 	// data store.
 	Create(ctx context.Context, usr User) error
 
+	// FetchMany should retrieve multiple users from the underlying data
+	// store by the provided query.
+	FetchMany(ctx context.Context, qr httpflow.Query) ([]User, error)
+
 	// FetchByID should retrieve a user from the underlying data store
 	// by their ID.
 	FetchByID(ctx context.Context, id string) (User, error)

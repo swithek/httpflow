@@ -686,3 +686,16 @@ func TestCoreSummaryExposeCore(t *testing.T) {
 	cSum := CoreSummary{Email: true}
 	assert.Equal(t, cSum, cSum.ExposeCore())
 }
+
+func TestCheckFilterKey(t *testing.T) {
+	assert.Nil(t, CheckFilterKey("email"))
+	assert.NotNil(t, CheckFilterKey("email1"))
+}
+
+func TestCheckSortKey(t *testing.T) {
+	assert.Nil(t, CheckSortKey("created_at"))
+	assert.Nil(t, CheckSortKey("updated_at"))
+	assert.Nil(t, CheckSortKey("activated_at"))
+	assert.Nil(t, CheckSortKey("email"))
+	assert.NotNil(t, CheckSortKey("email1"))
+}
