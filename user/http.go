@@ -419,14 +419,14 @@ func (h *Handler) RevokeSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if ses.ID == id { // FIXME need to check user key
+	if ses.ID == id {
 		httpflow.RespondError(w, r, httpflow.NewError(nil,
 			http.StatusBadRequest,
 			"current session cannot be revoked"), h.onError)
 		return
 	}
 
-	if err = h.sessions.RevokeByID(ctx, id); err != nil {
+	if err = h.sessions.RevokeByIDExt(ctx, id); err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}

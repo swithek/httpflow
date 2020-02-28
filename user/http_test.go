@@ -1214,15 +1214,18 @@ func TestHandlerRevokeSession(t *testing.T) {
 		}
 	}
 
-	sessionStoreStub := func(err error) *StoreMock {
+	sessionStoreStub := func(ses sessionup.Session, isSes bool, err1, err2 error) *StoreMock {
 		return &StoreMock{
+			FetchByIDFunc: func(_ context.Context, _ string) (sessionup.Session, bool, error) {
+				return ses, isSes, err1
+			},
 			DeleteByIDFunc: func(_ context.Context, _ string) error {
-				return err
+				return err2
 			},
 		}
 	}
 
-	inpID := "12345"
+	inpSes := sessionup.Session{ID: "123456", UserKey: "user123"}
 
 	cc := map[string]struct {
 		SessionStore *StoreMock
@@ -1231,14 +1234,14 @@ func TestHandlerRevokeSession(t *testing.T) {
 		Checks       []check
 	}{
 		"No active session": {
-			SessionStore: sessionStoreStub(nil),
-			ID:           inpID,
+			SessionStore: sessionStoreStub(inpSes, true, nil, nil),
+			ID:           inpSes.ID,
 			Checks: checks(
 				hasResp(true),
 			),
 		},
 		"No id provided": {
-			SessionStore: sessionStoreStub(nil),
+			SessionStore: sessionStoreStub(inpSes, true, nil, nil),
 			ID:           "",
 			Session:      true,
 			Checks: checks(
@@ -1246,24 +1249,24 @@ func TestHandlerRevokeSession(t *testing.T) {
 			),
 		},
 		"Matching session ID": {
-			SessionStore: sessionStoreStub(nil),
-			ID:           "123456",
+			SessionStore: sessionStoreStub(inpSes, true, nil, nil),
+			ID:           "12345",
 			Session:      true,
 			Checks: checks(
 				hasResp(true),
 			),
 		},
 		"Session revokation error": {
-			SessionStore: sessionStoreStub(assert.AnError),
-			ID:           inpID,
+			SessionStore: sessionStoreStub(inpSes, true, nil, assert.AnError),
+			ID:           inpSes.ID,
 			Session:      true,
 			Checks: checks(
 				hasResp(true),
 			),
 		},
 		"Successful session revokation": {
-			SessionStore: sessionStoreStub(nil),
-			ID:           inpID,
+			SessionStore: sessionStoreStub(inpSes, true, nil, nil),
+			ID:           inpSes.ID,
 			Session:      true,
 			Checks: checks(
 				hasResp(false),
@@ -1284,7 +1287,9 @@ func TestHandlerRevokeSession(t *testing.T) {
 			if c.Session {
 				req = req.WithContext(sessionup.NewContext(
 					context.Background(), sessionup.Session{
-						ID: "123456"}))
+						ID:      "12345",
+						UserKey: inpSes.UserKey,
+					}))
 			}
 
 			req = req.WithContext(addChiCtx(req.Context(), "id", c.ID))
