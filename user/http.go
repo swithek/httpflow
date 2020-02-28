@@ -577,11 +577,22 @@ func (h *Handler) InitRecovery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// if email is not found, etc. we don't want the user or attacker
+	// know this.
+	respErr := func(err error) {
+		if httpflow.ErrorCode(err) < 500 {
+			httpflow.Respond(w, r, nil, http.StatusAccepted,
+				h.onError)
+			return
+		}
+		httpflow.RespondError(w, r, err, h.onError)
+	}
+
 	ctx := r.Context()
 
 	usr, err := h.db.FetchByEmail(ctx, cInp.Email)
 	if err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		respErr(err)
 		return
 	}
 
@@ -594,7 +605,7 @@ func (h *Handler) InitRecovery(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err = h.db.Update(ctx, usr); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		respErr(err)
 		return
 	}
 

@@ -2033,6 +2033,17 @@ func TestHandlerInitRecovery(t *testing.T) {
 				wasSendRecoveryCalled(0, ""),
 			),
 		},
+		"User error returned by Database.FetchByEmail": {
+			DB:    dbStub(httpflow.NewError(nil, 400, "123"), nil, nil),
+			Email: emailStub(),
+			Body:  toJSON("user@email.com", "", false),
+			Checks: checks(
+				hasResp(false),
+				wasFetchByEmailCalled(1, inpUsr.Email),
+				wasUpdateCalled(0),
+				wasSendRecoveryCalled(0, ""),
+			),
+		},
 		"Error returned by Database.FetchByEmail": {
 			DB:    dbStub(assert.AnError, nil, nil),
 			Email: emailStub(),
@@ -2056,6 +2067,18 @@ func TestHandlerInitRecovery(t *testing.T) {
 				hasResp(true),
 				wasFetchByEmailCalled(1, inpUsr.Email),
 				wasUpdateCalled(0),
+				wasSendRecoveryCalled(0, ""),
+			),
+		},
+		"User error returned by Database.Update": {
+			DB: dbStub(nil, httpflow.NewError(nil, 400, "123"),
+				toPointer(inpUsr)),
+			Email: emailStub(),
+			Body:  toJSON("user@email.com", "", false),
+			Checks: checks(
+				hasResp(false),
+				wasFetchByEmailCalled(1, inpUsr.Email),
+				wasUpdateCalled(1),
 				wasSendRecoveryCalled(0, ""),
 			),
 		},
