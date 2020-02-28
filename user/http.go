@@ -16,6 +16,11 @@ var (
 	// session.
 	ErrUnauthorized = httpflow.NewError(nil, http.StatusUnauthorized,
 		"unauthorized")
+
+	// ErrNotActivated is returned when an action which is allowed only
+	// by activated users is performed.
+	ErrNotActivated = httpflow.NewError(nil, http.StatusForbidden,
+		"not activated")
 )
 
 // Handler holds dependencies required for user management.
@@ -83,9 +88,9 @@ func (h *Handler) ServeHTTP() http.Handler {
 }
 
 // Routes returnes chi router instance with all core user
-// routes. Bool parameter determines whether registration is allowed or
-// not (useful for application where users are invited rather than allowed
-// to register themselves).
+// routes. Bool parameter determines whether registration and inactive user
+// log in, etc. are allowed or not (useful for applications where users are
+// invited rather than allowed to register themselves).
 func (h *Handler) Routes(open bool) chi.Router {
 	r := chi.NewRouter()
 	r.Use(middleware.AllowContentType("application/json"))
@@ -95,7 +100,7 @@ func (h *Handler) Routes(open bool) chi.Router {
 	}
 
 	r.Route("/auth", func(sr chi.Router) {
-		sr.Post("/", h.LogIn)
+		sr.Post("/", h.LogIn(open))
 		sr.With(h.sessions.Auth).Delete("/", h.LogOut)
 	})
 
@@ -198,51 +203,59 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 
 // LogIn handles user's credentials checking and new session creation.
 // On successful execution, a session will be created.
-func (h *Handler) LogIn(w http.ResponseWriter, r *http.Request) {
-	var cInp CoreInput
-	if err := httpflow.DecodeJSON(r, &cInp); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
-		return
+// Boolean parameters determines whether inactive users can log in or not.
+func (h *Handler) LogIn(open bool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var cInp CoreInput
+		if err := httpflow.DecodeJSON(r, &cInp); err != nil {
+			httpflow.RespondError(w, r, err, h.onError)
+			return
+		}
+
+		if err := CheckEmail(cInp.Email); err != nil {
+			httpflow.RespondError(w, r, ErrInvalidCredentials, h.onError)
+			return
+		}
+
+		ctx := r.Context()
+
+		usr, err := h.db.FetchByEmail(ctx, cInp.Email)
+		if err != nil {
+			httpflow.RespondError(w, r, err, h.onError)
+			return
+		}
+
+		usrC := usr.ExposeCore()
+
+		if !open && !usrC.IsActivated() {
+			httpflow.RespondError(w, r, ErrNotActivated, h.onError)
+			return
+		}
+
+		if !usrC.IsPasswordCorrect(cInp.Password) {
+			httpflow.RespondError(w, r, ErrInvalidCredentials, h.onError)
+			return
+		}
+
+		usrC.Recovery.Clear()
+
+		if err = h.db.Update(ctx, usr); err != nil {
+			httpflow.RespondError(w, r, err, h.onError)
+			return
+		}
+
+		sessions := h.sessions
+		if cInp.RememberMe {
+			sessions = sessions.Clone(sessionup.ExpiresIn(h.sesDur))
+		}
+
+		if err = sessions.Init(w, r, usrC.ID.String()); err != nil {
+			httpflow.RespondError(w, r, err, h.onError)
+			return
+		}
+
+		httpflow.Respond(w, r, nil, http.StatusNoContent, h.onError)
 	}
-
-	if err := CheckEmail(cInp.Email); err != nil {
-		httpflow.RespondError(w, r, ErrInvalidCredentials, h.onError)
-		return
-	}
-
-	ctx := r.Context()
-
-	usr, err := h.db.FetchByEmail(ctx, cInp.Email)
-	if err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
-		return
-	}
-
-	usrC := usr.ExposeCore()
-
-	if !usrC.IsPasswordCorrect(cInp.Password) {
-		httpflow.RespondError(w, r, ErrInvalidCredentials, h.onError)
-		return
-	}
-
-	usrC.Recovery.Clear()
-
-	if err = h.db.Update(ctx, usr); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
-		return
-	}
-
-	sessions := h.sessions
-	if cInp.RememberMe {
-		sessions = sessions.Clone(sessionup.ExpiresIn(h.sesDur))
-	}
-
-	if err = sessions.Init(w, r, usrC.ID.String()); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
-		return
-	}
-
-	httpflow.Respond(w, r, nil, http.StatusNoContent, h.onError)
 }
 
 // LogOut handles user's active session revokation.

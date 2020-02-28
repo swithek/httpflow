@@ -357,12 +357,14 @@ func TestHandlerLogIn(t *testing.T) {
 	inpUsr.SetPassword(inpPass)
 
 	cc := map[string]struct {
+		Open         bool
 		SessionStore *StoreMock
 		DB           *DatabaseMock
 		Body         io.Reader
 		Checks       []check
 	}{
 		"Invalid JSON body": {
+			Open:         true,
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			Body:         strings.NewReader("{"),
@@ -373,6 +375,7 @@ func TestHandlerLogIn(t *testing.T) {
 			),
 		},
 		"Invalid email": {
+			Open:         true,
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			Body:         toJSON("useremail.com", inpPass, false),
@@ -383,6 +386,7 @@ func TestHandlerLogIn(t *testing.T) {
 			),
 		},
 		"Error returned by Database.FetchByEmail": {
+			Open:         true,
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(assert.AnError, nil, nil),
 			Body:         toJSON(inpUsr.Email, inpPass, false),
@@ -392,7 +396,19 @@ func TestHandlerLogIn(t *testing.T) {
 				wasUpdateCalled(0),
 			),
 		},
+		"Account not activated when required": {
+			Open:         false,
+			SessionStore: sessionStoreStub(nil),
+			DB:           dbStub(nil, nil, toPointer(inpUsr)),
+			Body:         toJSON(inpUsr.Email, inpPass, false),
+			Checks: checks(
+				hasResp(true, false),
+				wasFetchByEmailCalled(1, inpUsr.Email),
+				wasUpdateCalled(0),
+			),
+		},
 		"Incorrect password": {
+			Open:         true,
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			Body:         toJSON(inpUsr.Email, "password2", false),
@@ -403,6 +419,7 @@ func TestHandlerLogIn(t *testing.T) {
 			),
 		},
 		"Error returned by Database.Update": {
+			Open:         true,
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil, assert.AnError, toPointer(inpUsr)),
 			Body:         toJSON(inpUsr.Email, inpPass, false),
@@ -413,6 +430,7 @@ func TestHandlerLogIn(t *testing.T) {
 			),
 		},
 		"Session init error": {
+			Open:         true,
 			SessionStore: sessionStoreStub(assert.AnError),
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			Body:         toJSON(inpUsr.Email, inpPass, true),
@@ -423,6 +441,7 @@ func TestHandlerLogIn(t *testing.T) {
 			),
 		},
 		"Successful user log in with permanent session": {
+			Open:         true,
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			Body:         toJSON(inpUsr.Email, inpPass, true),
@@ -433,9 +452,40 @@ func TestHandlerLogIn(t *testing.T) {
 			),
 		},
 		"Successful user log in with temporary session": {
+			Open:         true,
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			Body:         toJSON(inpUsr.Email, inpPass, false),
+			Checks: checks(
+				hasResp(false, false),
+				wasFetchByEmailCalled(1, inpUsr.Email),
+				wasUpdateCalled(1),
+			),
+		},
+		"Successful user log in with permanent session when activation is required": {
+			Open:         false,
+			SessionStore: sessionStoreStub(nil),
+			DB: dbStub(nil, nil, func() *Core {
+				tmp := inpUsr
+				tmp.ActivatedAt = zero.TimeFrom(time.Now())
+				return &tmp
+			}()),
+			Body: toJSON(inpUsr.Email, inpPass, true),
+			Checks: checks(
+				hasResp(false, true),
+				wasFetchByEmailCalled(1, inpUsr.Email),
+				wasUpdateCalled(1),
+			),
+		},
+		"Successful user log in with temporary session when activation is required": {
+			Open:         false,
+			SessionStore: sessionStoreStub(nil),
+			DB: dbStub(nil, nil, func() *Core {
+				tmp := inpUsr
+				tmp.ActivatedAt = zero.TimeFrom(time.Now())
+				return &tmp
+			}()),
+			Body: toJSON(inpUsr.Email, inpPass, false),
 			Checks: checks(
 				hasResp(false, false),
 				wasFetchByEmailCalled(1, inpUsr.Email),
@@ -455,7 +505,7 @@ func TestHandlerLogIn(t *testing.T) {
 			hdl.sessions = sessionup.NewManager(c.SessionStore)
 			hdl.sesDur = time.Hour
 			hdl.db = c.DB
-			hdl.LogIn(rec, req)
+			hdl.LogIn(c.Open)(rec, req)
 			for _, ch := range c.Checks {
 				ch(t, c.DB, rec)
 			}
