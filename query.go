@@ -1,31 +1,33 @@
 package httpflow
 
-import "net/http"
+import (
+	"net/http"
+)
 
 // Query is used to filter and retrieve bulk data from
 // data stores.
 type Query struct {
 	// Count specifies the total amount of data elements per page.
-	Count int
+	Count int `schema:"count"`
 
 	// Page specifies data batch number.
-	Page int
+	Page int `schema:"page"`
 
 	// FilterBy specifies a column by which filtering should be done.
 	// If FilterVal is empty, no filtering should be done.
 	// NOTE: should be checked before use.
-	FilterBy string
+	FilterBy string `schema:"filter_by"`
 
 	// FilterVal specifies a string by which rows should be searched and
 	// filtered.
-	FilterVal string
+	FilterVal string `schema:"filter_val"`
 
 	// SortBy specifies which column should be used for sorting.
 	// NOTE: should be checked before use.
-	SortBy string
+	SortBy string `schema:"sort_by"`
 
 	// Desc specifies whether descending sorting order should be used.
-	Desc bool
+	Desc bool `schema:"desc"`
 }
 
 // Validate checks whether query field values don't go out the bounds of

@@ -4,13 +4,23 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+
+	"github.com/gorilla/schema"
 )
 
 var (
-	// ErrInvalidJSON is returned when request body contains invalid JSON
+	// ErrInvalidJSON is returned when request's body contains invalid JSON
 	// data.
 	ErrInvalidJSON = NewError(nil, http.StatusBadRequest,
 		"invalid JSON body")
+
+	// ErrInvalidForm is returned when request's form contains invalid JSON
+	// data.
+	ErrInvalidForm = NewError(nil, http.StatusBadRequest, "invalid form data")
+)
+
+var (
+	formDec = schema.NewDecoder()
 )
 
 // ErrorExec is a function that should be used for calling on
@@ -49,10 +59,23 @@ func RespondError(w http.ResponseWriter, r *http.Request, err error,
 	}
 }
 
-// DecodeJSON tries to decode request's JSON body into destination object.
+// DecodeJSON decodes request's JSON body into destination object.
 func DecodeJSON(r *http.Request, v interface{}) error {
 	if err := json.NewDecoder(r.Body).Decode(v); err != nil {
 		return ErrInvalidJSON
+	}
+
+	return nil
+}
+
+// DecodeForm decodes request's form values into destination object.
+func DecodeForm(r *http.Request, v interface{}) error {
+	if err := r.ParseForm(); err != nil {
+		return ErrInvalidForm
+	}
+
+	if err := formDec.Decode(v, r.Form); err != nil {
+		return ErrInvalidForm
 	}
 
 	return nil

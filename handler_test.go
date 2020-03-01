@@ -58,7 +58,7 @@ func TestRespondError(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://test.com/", nil)
 	rec := httptest.NewRecorder()
 
-	RespondError(rec, req, errors.New("error"), DefaultErrorExec)
+	RespondError(rec, req, errors.New("error"), func(error) {})
 
 	assert.Equal(t, http.StatusInternalServerError, rec.Code)
 	assert.Equal(t, "application/json",
@@ -67,16 +67,31 @@ func TestRespondError(t *testing.T) {
 }
 
 func TestDecodeJSON(t *testing.T) {
-	sErr := statusError{}
+	v := struct {
+		Msg string `json:"msg"`
+	}{}
 	req := httptest.NewRequest("GET", "http://test.com/",
 		strings.NewReader("{"))
-	err := DecodeJSON(req, &sErr)
+	err := DecodeJSON(req, &v)
 	assert.Equal(t, ErrInvalidJSON, err)
-	assert.Zero(t, sErr)
+	assert.Zero(t, v)
 
 	req = httptest.NewRequest("GET", "http://test.com/",
-		strings.NewReader("{\"message\":\"error\"}"))
-	err = DecodeJSON(req, &sErr)
+		strings.NewReader("{\"msg\":\"test\"}"))
+	err = DecodeJSON(req, &v)
 	assert.Nil(t, err)
-	assert.Equal(t, "error", sErr.Message)
+	assert.Equal(t, "test", v.Msg)
+}
+
+func TestDecodeForm(t *testing.T) {
+	v := struct{ Msg string }{}
+	req := httptest.NewRequest("GET", "http://test.com/", nil)
+	assert.Equal(t, ErrInvalidForm, DecodeForm(req, v))
+
+	req = httptest.NewRequest("GET", "http://test.com/", nil)
+	q := req.URL.Query()
+	q.Add("msg", "test")
+	req.URL.RawQuery = q.Encode()
+	assert.Nil(t, DecodeForm(req, &v))
+	assert.Equal(t, "test", v.Msg)
 }

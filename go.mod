@@ -7,6 +7,7 @@ require (
 	github.com/dchest/uniuri v0.0.0-20200228104902-7aecb25e1fe5
 	github.com/gchaincl/dotsql v1.0.0
 	github.com/go-chi/chi v4.0.3+incompatible
+	github.com/gorilla/schema v1.1.0
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/jordan-wright/email v0.0.0-20200121133829-a0b5c5b58bb6
 	github.com/lib/pq v1.3.0
