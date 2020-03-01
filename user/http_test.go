@@ -48,8 +48,8 @@ func TestDefaultCreator(t *testing.T) {
 func TestNewHandler(t *testing.T) {
 	hdl := NewHandler(sessionup.NewManager(&StoreMock{}), time.Hour,
 		&DatabaseMock{}, &EmailSenderMock{}, httpflow.DefaultErrorExec,
-		DefaultParser, DefaultCreator, TokenTimes{time.Hour, time.Hour},
-		TokenTimes{time.Hour, time.Hour})
+		DefaultParser, DefaultCreator, DefaultGateKeeper(true),
+		TokenTimes{time.Hour, time.Hour}, TokenTimes{time.Hour, time.Hour})
 	assert.NotZero(t, hdl.sessions)
 	assert.Equal(t, time.Hour, hdl.sesDur)
 	assert.NotZero(t, hdl.db)
@@ -57,6 +57,7 @@ func TestNewHandler(t *testing.T) {
 	assert.NotZero(t, hdl.onError)
 	assert.NotZero(t, hdl.parse)
 	assert.NotZero(t, hdl.create)
+	assert.NotZero(t, hdl.gKeep)
 	assert.NotZero(t, hdl.verif)
 	assert.NotZero(t, hdl.recov)
 
@@ -360,6 +361,7 @@ func TestHandlerLogIn(t *testing.T) {
 		Open         bool
 		SessionStore *StoreMock
 		DB           *DatabaseMock
+		GateKeeper   GateKeeper
 		Body         io.Reader
 		Checks       []check
 	}{
@@ -367,6 +369,7 @@ func TestHandlerLogIn(t *testing.T) {
 			Open:         true,
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
+			GateKeeper:   DefaultGateKeeper(true),
 			Body:         strings.NewReader("{"),
 			Checks: checks(
 				hasResp(true, false),
@@ -378,6 +381,7 @@ func TestHandlerLogIn(t *testing.T) {
 			Open:         true,
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
+			GateKeeper:   DefaultGateKeeper(true),
 			Body:         toJSON("useremail.com", inpPass, false),
 			Checks: checks(
 				hasResp(true, false),
@@ -389,6 +393,7 @@ func TestHandlerLogIn(t *testing.T) {
 			Open:         true,
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(assert.AnError, nil, nil),
+			GateKeeper:   DefaultGateKeeper(true),
 			Body:         toJSON(inpUsr.Email, inpPass, false),
 			Checks: checks(
 				hasResp(true, false),
@@ -400,6 +405,7 @@ func TestHandlerLogIn(t *testing.T) {
 			Open:         false,
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
+			GateKeeper:   DefaultGateKeeper(false),
 			Body:         toJSON(inpUsr.Email, inpPass, false),
 			Checks: checks(
 				hasResp(true, false),
@@ -411,6 +417,7 @@ func TestHandlerLogIn(t *testing.T) {
 			Open:         true,
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
+			GateKeeper:   DefaultGateKeeper(true),
 			Body:         toJSON(inpUsr.Email, "password2", false),
 			Checks: checks(
 				hasResp(true, false),
@@ -422,6 +429,7 @@ func TestHandlerLogIn(t *testing.T) {
 			Open:         true,
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil, assert.AnError, toPointer(inpUsr)),
+			GateKeeper:   DefaultGateKeeper(true),
 			Body:         toJSON(inpUsr.Email, inpPass, false),
 			Checks: checks(
 				hasResp(true, false),
@@ -433,6 +441,7 @@ func TestHandlerLogIn(t *testing.T) {
 			Open:         true,
 			SessionStore: sessionStoreStub(assert.AnError),
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
+			GateKeeper:   DefaultGateKeeper(true),
 			Body:         toJSON(inpUsr.Email, inpPass, true),
 			Checks: checks(
 				hasResp(true, false),
@@ -444,6 +453,7 @@ func TestHandlerLogIn(t *testing.T) {
 			Open:         true,
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
+			GateKeeper:   DefaultGateKeeper(true),
 			Body:         toJSON(inpUsr.Email, inpPass, true),
 			Checks: checks(
 				hasResp(false, true),
@@ -455,6 +465,7 @@ func TestHandlerLogIn(t *testing.T) {
 			Open:         true,
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
+			GateKeeper:   DefaultGateKeeper(true),
 			Body:         toJSON(inpUsr.Email, inpPass, false),
 			Checks: checks(
 				hasResp(false, false),
@@ -470,7 +481,8 @@ func TestHandlerLogIn(t *testing.T) {
 				tmp.ActivatedAt = zero.TimeFrom(time.Now())
 				return &tmp
 			}()),
-			Body: toJSON(inpUsr.Email, inpPass, true),
+			GateKeeper: DefaultGateKeeper(true),
+			Body:       toJSON(inpUsr.Email, inpPass, true),
 			Checks: checks(
 				hasResp(false, true),
 				wasFetchByEmailCalled(1, inpUsr.Email),
@@ -485,7 +497,8 @@ func TestHandlerLogIn(t *testing.T) {
 				tmp.ActivatedAt = zero.TimeFrom(time.Now())
 				return &tmp
 			}()),
-			Body: toJSON(inpUsr.Email, inpPass, false),
+			GateKeeper: DefaultGateKeeper(true),
+			Body:       toJSON(inpUsr.Email, inpPass, false),
 			Checks: checks(
 				hasResp(false, false),
 				wasFetchByEmailCalled(1, inpUsr.Email),
@@ -505,7 +518,8 @@ func TestHandlerLogIn(t *testing.T) {
 			hdl.sessions = sessionup.NewManager(c.SessionStore)
 			hdl.sesDur = time.Hour
 			hdl.db = c.DB
-			hdl.LogIn(c.Open)(rec, req)
+			hdl.gKeep = c.GateKeeper
+			hdl.LogIn(rec, req)
 			for _, ch := range c.Checks {
 				ch(t, c.DB, rec)
 			}

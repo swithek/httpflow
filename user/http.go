@@ -34,6 +34,7 @@ type Handler struct {
 	onError httpflow.ErrorExec
 	parse   Parser
 	create  Creator
+	gKeep   GateKeeper
 
 	verif TokenTimes
 	recov TokenTimes
@@ -64,10 +65,28 @@ func DefaultCreator(_ context.Context, inp Inputer) (User, error) {
 	return NewCore(inp)
 }
 
+// GateKeeper is a function that should be used for custom user data
+// checks before authentication.
+// Used before non-registration type authentication (e.g. login).
+type GateKeeper func(usr User) error
+
+// DefaultGateKeeper checks whether the user has to be activated before
+// authentication or not.
+func DefaultGateKeeper(open bool) GateKeeper {
+	return func(usr User) error {
+		if !open && !usr.ExposeCore().IsActivated() {
+			return ErrNotActivated
+		}
+
+		return nil
+	}
+}
+
 // NewHandler creates a new user http handler.
 func NewHandler(sm *sessionup.Manager, sd time.Duration, db Database,
 	email EmailSender, onError httpflow.ErrorExec, parse Parser,
-	create Creator, verif TokenTimes, recov TokenTimes) *Handler {
+	create Creator, gKeep GateKeeper, verif TokenTimes,
+	recov TokenTimes) *Handler {
 	return &Handler{
 		sessions: sm,
 		sesDur:   sd,
@@ -76,6 +95,7 @@ func NewHandler(sm *sessionup.Manager, sd time.Duration, db Database,
 		onError:  onError,
 		parse:    parse,
 		create:   create,
+		gKeep:    gKeep,
 		verif:    verif,
 		recov:    recov,
 	}
@@ -100,7 +120,7 @@ func (h *Handler) Routes(open bool) chi.Router {
 	}
 
 	r.Route("/auth", func(sr chi.Router) {
-		sr.Post("/", h.LogIn(open))
+		sr.Post("/", h.LogIn)
 		sr.With(h.sessions.Auth).Delete("/", h.LogOut)
 	})
 
@@ -204,58 +224,56 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 // LogIn handles user's credentials checking and new session creation.
 // On successful execution, a session will be created.
 // Boolean parameters determines whether inactive users can log in or not.
-func (h *Handler) LogIn(open bool) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var cInp CoreInput
-		if err := httpflow.DecodeJSON(r, &cInp); err != nil {
-			httpflow.RespondError(w, r, err, h.onError)
-			return
-		}
-
-		if err := CheckEmail(cInp.Email); err != nil {
-			httpflow.RespondError(w, r, ErrInvalidCredentials, h.onError)
-			return
-		}
-
-		ctx := r.Context()
-
-		usr, err := h.db.FetchByEmail(ctx, cInp.Email)
-		if err != nil {
-			httpflow.RespondError(w, r, err, h.onError)
-			return
-		}
-
-		usrC := usr.ExposeCore()
-
-		if !open && !usrC.IsActivated() {
-			httpflow.RespondError(w, r, ErrNotActivated, h.onError)
-			return
-		}
-
-		if !usrC.IsPasswordCorrect(cInp.Password) {
-			httpflow.RespondError(w, r, ErrInvalidCredentials, h.onError)
-			return
-		}
-
-		usrC.Recovery.Clear()
-
-		if err = h.db.Update(ctx, usr); err != nil {
-			httpflow.RespondError(w, r, err, h.onError)
-			return
-		}
-
-		sessions := h.sessions
-		if cInp.RememberMe {
-			sessions = sessions.Clone(sessionup.ExpiresIn(h.sesDur))
-		}
-
-		if err = sessions.Init(w, r, usrC.ID.String()); err != nil {
-			httpflow.RespondError(w, r, err, h.onError)
-			return
-		}
-
-		httpflow.Respond(w, r, nil, http.StatusNoContent, h.onError)
+func (h *Handler) LogIn(w http.ResponseWriter, r *http.Request) {
+	var cInp CoreInput
+	if err := httpflow.DecodeJSON(r, &cInp); err != nil {
+		httpflow.RespondError(w, r, err, h.onError)
+		return
 	}
+
+	if err := CheckEmail(cInp.Email); err != nil {
+		httpflow.RespondError(w, r, ErrInvalidCredentials, h.onError)
+		return
+	}
+
+	ctx := r.Context()
+
+	usr, err := h.db.FetchByEmail(ctx, cInp.Email)
+	if err != nil {
+		httpflow.RespondError(w, r, err, h.onError)
+		return
+	}
+
+	if err = h.gKeep(usr); err != nil {
+		httpflow.RespondError(w, r, err, h.onError)
+		return
+	}
+
+	usrC := usr.ExposeCore()
+
+	if !usrC.IsPasswordCorrect(cInp.Password) {
+		httpflow.RespondError(w, r, ErrInvalidCredentials, h.onError)
+		return
+	}
+
+	usrC.Recovery.Clear()
+
+	if err = h.db.Update(ctx, usr); err != nil {
+		httpflow.RespondError(w, r, err, h.onError)
+		return
+	}
+
+	sessions := h.sessions
+	if cInp.RememberMe {
+		sessions = sessions.Clone(sessionup.ExpiresIn(h.sesDur))
+	}
+
+	if err = sessions.Init(w, r, usrC.ID.String()); err != nil {
+		httpflow.RespondError(w, r, err, h.onError)
+		return
+	}
+
+	httpflow.Respond(w, r, nil, http.StatusNoContent, h.onError)
 }
 
 // LogOut handles user's active session revokation.
