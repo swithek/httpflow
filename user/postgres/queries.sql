@@ -16,6 +16,10 @@ CREATE TABLE IF NOT EXISTS users (
 	CONSTRAINT email_unique UNIQUE(email)
 );
 
+
+-- name: select_stats
+SELECT COUNT(*) AS total_count FROM users;
+
 -- name: insert_user
 INSERT INTO users VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);
 

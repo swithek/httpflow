@@ -134,6 +134,55 @@ func TestStoreDeleteInactive(t *testing.T) {
 
 }
 
+func TestStoreStats(t *testing.T) {
+	db, mock := newDB(t)
+	dbx := sqlx.NewDb(db, "postgres")
+	s := Store{db: dbx}
+	err := s.initSQL()
+	require.Nil(t, err)
+
+	cc := map[string]struct {
+		Expect func()
+		Stats  user.Stats
+		Err    error
+	}{
+		"Error returned during stats selection": {
+			Expect: func() {
+				mock.ExpectQuery(`SELECT COUNT(*) AS total_count FROM users;`).
+					WillReturnError(assert.AnError)
+			},
+			Err: assert.AnError,
+		},
+		"Successful stats selection": {
+			Expect: func() {
+				mock.ExpectQuery(`SELECT COUNT(*) AS total_count FROM users;`).
+					WillReturnRows(sqlmock.NewRows(
+						[]string{"total_count"}).AddRow(11))
+			},
+			Stats: user.CoreStats{TotalCount: 11},
+		},
+	}
+
+	for cn, c := range cc {
+		t.Run(cn, func(t *testing.T) {
+			c.Expect()
+			st, err := s.Stats(context.Background())
+			if c.Err != nil {
+				if c.Err == assert.AnError {
+					assert.NotNil(t, err)
+				} else {
+					assert.Equal(t, c.Err, err)
+				}
+			} else {
+				assert.Nil(t, err)
+			}
+
+			assert.Equal(t, c.Stats, st)
+			assert.Nil(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
 func TestStoreCreate(t *testing.T) {
 	db, mock := newDB(t)
 	dbx := sqlx.NewDb(db, "postgres")

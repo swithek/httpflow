@@ -763,6 +763,10 @@ func ExtractSession(ctx context.Context) (sessionup.Session, error) {
 // Database is an interface which should be implemented by the user data
 // store layer.
 type Database interface {
+	// Stats should return users' data statistics from the underlying
+	// data store.
+	Stats(ctx context.Context) (Stats, error)
+
 	// Create should insert the freshly created user into the underlying
 	// data store.
 	Create(ctx context.Context, usr User) error

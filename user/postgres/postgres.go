@@ -76,6 +76,21 @@ func (s *Store) deleteInactive() error {
 	return nil
 }
 
+// Stats returns users' data statistics from the underlying data store.
+func (s *Store) Stats(ctx context.Context) (user.Stats, error) {
+	q, err := s.q.Raw("select_stats")
+	if err != nil {
+		return nil, err
+	}
+
+	var st user.CoreStats
+	if err = s.db.GetContext(ctx, &st, q); err != nil {
+		return nil, detectErr(err)
+	}
+
+	return st, nil
+}
+
 // Create inserts the freshly created user into the underlying
 // data store.
 func (s *Store) Create(ctx context.Context, usr user.User) error {

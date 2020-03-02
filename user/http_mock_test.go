@@ -15,6 +15,7 @@ var (
 	lockDatabaseMockFetchByEmail sync.RWMutex
 	lockDatabaseMockFetchByID    sync.RWMutex
 	lockDatabaseMockFetchMany    sync.RWMutex
+	lockDatabaseMockStats        sync.RWMutex
 	lockDatabaseMockUpdate       sync.RWMutex
 )
 
@@ -43,6 +44,9 @@ var _ Database = &DatabaseMock{}
 //             FetchManyFunc: func(ctx context.Context, qr httpflow.Query) ([]User, error) {
 // 	               panic("mock out the FetchMany method")
 //             },
+//             StatsFunc: func(ctx context.Context) (Stats, error) {
+// 	               panic("mock out the Stats method")
+//             },
 //             UpdateFunc: func(ctx context.Context, usr User) error {
 // 	               panic("mock out the Update method")
 //             },
@@ -67,6 +71,9 @@ type DatabaseMock struct {
 
 	// FetchManyFunc mocks the FetchMany method.
 	FetchManyFunc func(ctx context.Context, qr httpflow.Query) ([]User, error)
+
+	// StatsFunc mocks the Stats method.
+	StatsFunc func(ctx context.Context) (Stats, error)
 
 	// UpdateFunc mocks the Update method.
 	UpdateFunc func(ctx context.Context, usr User) error
@@ -107,6 +114,11 @@ type DatabaseMock struct {
 			Ctx context.Context
 			// Qr is the qr argument value.
 			Qr httpflow.Query
+		}
+		// Stats holds details about calls to the Stats method.
+		Stats []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
 		}
 		// Update holds details about calls to the Update method.
 		Update []struct {
@@ -290,6 +302,37 @@ func (mock *DatabaseMock) FetchManyCalls() []struct {
 	lockDatabaseMockFetchMany.RLock()
 	calls = mock.calls.FetchMany
 	lockDatabaseMockFetchMany.RUnlock()
+	return calls
+}
+
+// Stats calls StatsFunc.
+func (mock *DatabaseMock) Stats(ctx context.Context) (Stats, error) {
+	if mock.StatsFunc == nil {
+		panic("DatabaseMock.StatsFunc: method is nil but Database.Stats was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+	}{
+		Ctx: ctx,
+	}
+	lockDatabaseMockStats.Lock()
+	mock.calls.Stats = append(mock.calls.Stats, callInfo)
+	lockDatabaseMockStats.Unlock()
+	return mock.StatsFunc(ctx)
+}
+
+// StatsCalls gets all the calls that were made to Stats.
+// Check the length with:
+//     len(mockedDatabase.StatsCalls())
+func (mock *DatabaseMock) StatsCalls() []struct {
+	Ctx context.Context
+} {
+	var calls []struct {
+		Ctx context.Context
+	}
+	lockDatabaseMockStats.RLock()
+	calls = mock.calls.Stats
+	lockDatabaseMockStats.RUnlock()
 	return calls
 }
 

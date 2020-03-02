@@ -687,6 +687,11 @@ func TestCoreSummaryExposeCore(t *testing.T) {
 	assert.Equal(t, cSum, cSum.ExposeCore())
 }
 
+func TestCoreStatsExposeCore(t *testing.T) {
+	cStats := CoreStats{TotalCount: 10}
+	assert.Equal(t, cStats, cStats.ExposeCore())
+}
+
 func TestCheckFilterKey(t *testing.T) {
 	assert.Nil(t, CheckFilterKey("email"))
 	assert.NotNil(t, CheckFilterKey("email1"))

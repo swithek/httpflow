@@ -370,6 +370,24 @@ func (c CoreSummary) ExposeCore() CoreSummary {
 	return c
 }
 
+// Stats is an interface which should be implemented by every user statistics
+// data type.
+type Stats interface {
+	// ExposeCore should return users' core statistics.
+	ExposeCore() CoreStats
+}
+
+// CoreStats holds core user statistics.
+type CoreStats struct {
+	// TotalCount specifies the total number of users in the data store.
+	TotalCount int `json:"total_count" db:"total_count"`
+}
+
+// ExposeCore returns users' core statistics.
+func (c CoreStats) ExposeCore() CoreStats {
+	return c
+}
+
 // CheckFilterKey determines whether the filter key is valid
 func CheckFilterKey(fk string) error {
 	switch fk {
