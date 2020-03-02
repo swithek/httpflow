@@ -35,6 +35,7 @@ type Handler struct {
 	parse   Parser
 	create  Creator
 	gKeep   GateKeeper
+	pDel    PreDeleter
 
 	verif TokenTimes
 	recov TokenTimes
@@ -82,10 +83,19 @@ func DefaultGateKeeper(open bool) GateKeeper {
 	}
 }
 
+// PreDeleter is function that should be used for custom account checks
+// before user deletion (e.g. check whether at least one admin user exists).
+type PreDeleter func(usr User) error
+
+// DefaultPreDeleter does nothing, just fills the space and contemplates life.
+func DefaultPreDeleter(_ User) error {
+	return nil
+}
+
 // NewHandler creates a new user http handler.
 func NewHandler(sm *sessionup.Manager, sd time.Duration, db Database,
 	email EmailSender, onError httpflow.ErrorExec, parse Parser,
-	create Creator, gKeep GateKeeper, verif TokenTimes,
+	create Creator, gKeep GateKeeper, pDel PreDeleter, verif TokenTimes,
 	recov TokenTimes) *Handler {
 	return &Handler{
 		sessions: sm,
@@ -96,6 +106,7 @@ func NewHandler(sm *sessionup.Manager, sd time.Duration, db Database,
 		parse:    parse,
 		create:   create,
 		gKeep:    gKeep,
+		pDel:     pDel,
 		verif:    verif,
 		recov:    recov,
 	}
@@ -388,6 +399,11 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	usr, err := h.db.FetchByID(ctx, ses.UserKey)
 	if err != nil {
+		httpflow.RespondError(w, r, err, h.onError)
+		return
+	}
+
+	if err = h.pDel(usr); err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}

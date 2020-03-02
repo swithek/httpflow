@@ -45,11 +45,25 @@ func TestDefaultCreator(t *testing.T) {
 	assert.NotZero(t, usr.ExposeCore().PasswordHash)
 }
 
+func TestDefaultGateKeeper(t *testing.T) {
+	cr := &Core{}
+	assert.Nil(t, DefaultGateKeeper(true)(cr))
+	assert.Equal(t, ErrNotActivated, DefaultGateKeeper(false)(cr))
+
+	cr.ActivatedAt = zero.TimeFrom(time.Now())
+	assert.Nil(t, DefaultGateKeeper(false)(cr))
+}
+
+func TestDefaultPreDeleter(t *testing.T) {
+	assert.Nil(t, DefaultPreDeleter(nil))
+}
+
 func TestNewHandler(t *testing.T) {
 	hdl := NewHandler(sessionup.NewManager(&StoreMock{}), time.Hour,
 		&DatabaseMock{}, &EmailSenderMock{}, httpflow.DefaultErrorExec,
 		DefaultParser, DefaultCreator, DefaultGateKeeper(true),
-		TokenTimes{time.Hour, time.Hour}, TokenTimes{time.Hour, time.Hour})
+		DefaultPreDeleter, TokenTimes{time.Hour, time.Hour},
+		TokenTimes{time.Hour, time.Hour})
 	assert.NotZero(t, hdl.sessions)
 	assert.Equal(t, time.Hour, hdl.sesDur)
 	assert.NotZero(t, hdl.db)
@@ -58,6 +72,7 @@ func TestNewHandler(t *testing.T) {
 	assert.NotZero(t, hdl.parse)
 	assert.NotZero(t, hdl.create)
 	assert.NotZero(t, hdl.gKeep)
+	assert.NotZero(t, hdl.pDel)
 	assert.NotZero(t, hdl.verif)
 	assert.NotZero(t, hdl.recov)
 
@@ -1065,6 +1080,7 @@ func TestHandlerDelete(t *testing.T) {
 		DB           *DatabaseMock
 		Email        *EmailSenderMock
 		SessionStore *StoreMock
+		PreDeleter   PreDeleter
 		Body         io.Reader
 		Session      bool
 		Checks       []check
@@ -1073,6 +1089,7 @@ func TestHandlerDelete(t *testing.T) {
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
+			PreDeleter:   DefaultPreDeleter,
 			Body:         toJSON("", inpPass, false),
 			Session:      false,
 			Checks: checks(
@@ -1086,6 +1103,7 @@ func TestHandlerDelete(t *testing.T) {
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
+			PreDeleter:   DefaultPreDeleter,
 			Body:         strings.NewReader("{"),
 			Session:      true,
 			Checks: checks(
@@ -1099,6 +1117,21 @@ func TestHandlerDelete(t *testing.T) {
 			DB:           dbStub(assert.AnError, nil, nil),
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
+			PreDeleter:   DefaultPreDeleter,
+			Body:         toJSON("", inpPass, false),
+			Session:      true,
+			Checks: checks(
+				hasResp(true),
+				wasFetchByIDCalled(1, inpUsr.ID.String()),
+				wasDeleteByIDCalled(0, ""),
+				wasSendAccountDeletedCalled(0, ""),
+			),
+		},
+		"Error returned by pre-deleter": {
+			DB:           dbStub(nil, nil, toPointer(inpUsr)),
+			Email:        emailStub(),
+			SessionStore: sessionStoreStub(nil),
+			PreDeleter:   func(_ User) error { return assert.AnError },
 			Body:         toJSON("", inpPass, false),
 			Session:      true,
 			Checks: checks(
@@ -1112,6 +1145,7 @@ func TestHandlerDelete(t *testing.T) {
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
+			PreDeleter:   DefaultPreDeleter,
 			Body:         toJSON("", "password2", false),
 			Session:      true,
 			Checks: checks(
@@ -1125,6 +1159,7 @@ func TestHandlerDelete(t *testing.T) {
 			DB:           dbStub(nil, assert.AnError, toPointer(inpUsr)),
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
+			PreDeleter:   DefaultPreDeleter,
 			Body:         toJSON("", inpPass, false),
 			Session:      true,
 			Checks: checks(
@@ -1138,6 +1173,7 @@ func TestHandlerDelete(t *testing.T) {
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(assert.AnError),
+			PreDeleter:   DefaultPreDeleter,
 			Body:         toJSON("", inpPass, false),
 			Session:      true,
 			Checks: checks(
@@ -1151,6 +1187,7 @@ func TestHandlerDelete(t *testing.T) {
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
+			PreDeleter:   DefaultPreDeleter,
 			Body:         toJSON("", inpPass, false),
 			Session:      true,
 			Checks: checks(
@@ -1174,6 +1211,7 @@ func TestHandlerDelete(t *testing.T) {
 				sessionup.ExpiresIn(time.Hour))
 			hdl.db = c.DB
 			hdl.email = c.Email
+			hdl.pDel = c.PreDeleter
 			if c.Session {
 				req = req.WithContext(sessionup.NewContext(
 					context.Background(),
