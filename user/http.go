@@ -85,10 +85,10 @@ func DefaultGateKeeper(open bool) GateKeeper {
 
 // PreDeleter is function that should be used for custom account checks
 // before user deletion (e.g. check whether at least one admin user exists).
-type PreDeleter func(usr User) error
+type PreDeleter func(ctx context.Context, usr User) error
 
 // DefaultPreDeleter does nothing, just fills the space and contemplates life.
-func DefaultPreDeleter(_ User) error {
+func DefaultPreDeleter(_ context.Context, _ User) error {
 	return nil
 }
 
@@ -403,7 +403,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = h.pDel(usr); err != nil {
+	if err = h.pDel(ctx, usr); err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}

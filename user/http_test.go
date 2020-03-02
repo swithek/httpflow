@@ -55,7 +55,7 @@ func TestDefaultGateKeeper(t *testing.T) {
 }
 
 func TestDefaultPreDeleter(t *testing.T) {
-	assert.Nil(t, DefaultPreDeleter(nil))
+	assert.Nil(t, DefaultPreDeleter(nil, nil))
 }
 
 func TestNewHandler(t *testing.T) {
@@ -1131,7 +1131,7 @@ func TestHandlerDelete(t *testing.T) {
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
-			PreDeleter:   func(_ User) error { return assert.AnError },
+			PreDeleter:   func(_ context.Context, _ User) error { return assert.AnError },
 			Body:         toJSON("", inpPass, false),
 			Session:      true,
 			Checks: checks(
