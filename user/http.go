@@ -126,10 +126,10 @@ func NewDefaultHandler(sm *sessionup.Manager, db Database, email EmailSender) *H
 		DefaultPreDeleter, VerifTimes, RecovTimes)
 }
 
-// ServeHTTP returns a handler with all core user routes.
+// ServeHTTP handles all core user routes.
 // Registration is allowed (use Routes method to override this).
-func (h *Handler) ServeHTTP() http.Handler {
-	return h.Routes(true)
+func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.Routes(true).ServeHTTP(w, r)
 }
 
 // Routes returns a chi router instance with all core user

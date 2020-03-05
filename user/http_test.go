@@ -76,7 +76,6 @@ func TestNewHandler(t *testing.T) {
 	assert.NotZero(t, hdl.verif)
 	assert.NotZero(t, hdl.recov)
 
-	assert.NotZero(t, hdl.ServeHTTP())
 	assert.NotZero(t, hdl.Routes(true))
 }
 
@@ -96,7 +95,6 @@ func TestNewDefaultHandler(t *testing.T) {
 	assert.Equal(t, VerifTimes, hdl.verif)
 	assert.Equal(t, RecovTimes, hdl.recov)
 
-	assert.NotZero(t, hdl.ServeHTTP())
 	assert.NotZero(t, hdl.Routes(true))
 }
 
