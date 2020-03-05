@@ -80,6 +80,26 @@ func TestNewHandler(t *testing.T) {
 	assert.NotZero(t, hdl.Routes(true))
 }
 
+func TestNewDefaultHandler(t *testing.T) {
+	hdl := NewDefaultHandler(sessionup.NewManager(&StoreMock{}),
+		&DatabaseMock{}, &EmailSenderMock{})
+
+	assert.NotZero(t, hdl.sessions)
+	assert.Equal(t, SessionDuration, hdl.sesDur)
+	assert.NotZero(t, hdl.db)
+	assert.NotZero(t, hdl.email)
+	assert.NotZero(t, hdl.onError)
+	assert.NotZero(t, hdl.parse)
+	assert.NotZero(t, hdl.create)
+	assert.NotZero(t, hdl.gKeep)
+	assert.NotZero(t, hdl.pDel)
+	assert.Equal(t, VerifTimes, hdl.verif)
+	assert.Equal(t, RecovTimes, hdl.recov)
+
+	assert.NotZero(t, hdl.ServeHTTP())
+	assert.NotZero(t, hdl.Routes(true))
+}
+
 func TestSetupLinks(t *testing.T) {
 	ll := SetupLinks("http://yoursite.com/user")
 	require.NotNil(t, ll)

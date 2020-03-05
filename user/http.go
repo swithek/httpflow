@@ -23,6 +23,11 @@ var (
 		"not activated")
 )
 
+var (
+	// SessionDuration is the default / recommended session duration value.
+	SessionDuration = time.Hour * 24 * 30 // 30 days
+)
+
 // Handler holds dependencies required for user management.
 //go:generate moq -out ./http_mock_test.go . Database EmailSender
 type Handler struct {
@@ -95,7 +100,7 @@ func DefaultPreDeleter(_ context.Context, _ User) error {
 // NewHandler creates a new user http handler.
 func NewHandler(sm *sessionup.Manager, sd time.Duration, db Database,
 	email EmailSender, onError httpflow.ErrorExec, parse Parser,
-	create Creator, gKeep GateKeeper, pDel PreDeleter, verif TokenTimes,
+	create Creator, gKeep GateKeeper, pDel PreDeleter, verif,
 	recov TokenTimes) *Handler {
 	return &Handler{
 		sessions: sm,
@@ -112,28 +117,27 @@ func NewHandler(sm *sessionup.Manager, sd time.Duration, db Database,
 	}
 }
 
+// NewDefaultHandler creates a new user http handler with fields set to
+// defaults, if possible.
+func NewDefaultHandler(sm *sessionup.Manager, db Database, email EmailSender) *Handler {
+	return NewHandler(sm, SessionDuration, db, email,
+		httpflow.DefaultErrorExec, DefaultParser,
+		DefaultCreator, DefaultGateKeeper(true),
+		DefaultPreDeleter, VerifTimes, RecovTimes)
+}
+
 // ServeHTTP returns a handler with all core user routes.
 // Registration is allowed (use Routes method to override this).
 func (h *Handler) ServeHTTP() http.Handler {
 	return h.Routes(true)
 }
 
-// Routes returnes chi router instance with all core user
-// routes. Bool parameter determines whether registration and inactive user
-// log in, etc. are allowed or not (useful for applications where users are
-// invited rather than allowed to register themselves).
+// Routes returns a chi router instance with all core user
+// routes. Bool parameter determines whether registration is allowed
+// or not (useful for applications where users are invited rather
+// than allowed to register themselves).
 func (h *Handler) Routes(open bool) chi.Router {
-	r := chi.NewRouter()
-	r.Use(middleware.AllowContentType("application/json"))
-
-	if open {
-		r.Post("/new", h.Register)
-	}
-
-	r.Route("/auth", func(sr chi.Router) {
-		sr.Post("/", h.LogIn)
-		sr.With(h.sessions.Auth).Delete("/", h.LogOut)
-	})
+	r := h.BasicRoutes(open)
 
 	r.Group(func(sr chi.Router) {
 		sr.Use(h.sessions.Auth)
@@ -166,6 +170,26 @@ func (h *Handler) Routes(open bool) chi.Router {
 		sr.Post("/{token}", h.Recover)
 		sr.Get("/{token}", h.PingRecovery)
 		sr.Get("/{token}/cancel", h.CancelRecovery)
+	})
+
+	return r
+}
+
+// BasicRoutes returns a chi router instance with basic user
+// routes. Bool parameter determines whether registration is allowed or
+// not (useful for applications where users are invited rather than
+// allowed to register themselves).
+func (h *Handler) BasicRoutes(open bool) chi.Router {
+	r := chi.NewRouter()
+	r.Use(middleware.AllowContentType("application/json"))
+
+	if open {
+		r.Post("/new", h.Register)
+	}
+
+	r.Route("/auth", func(sr chi.Router) {
+		sr.Post("/", h.LogIn)
+		sr.With(h.sessions.Auth).Delete("/", h.LogOut)
 	})
 
 	return r

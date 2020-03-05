@@ -33,6 +33,21 @@ var (
 	emailRe = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 )
 
+var (
+	// VerifTimes is the default / recommended verification token times
+	// value.
+	VerifTimes = TokenTimes{
+		Interval: time.Hour * 24 * 7, // one week
+		Cooldown: time.Minute,
+	}
+
+	// RecovTimes is the default / recommended recovery token times value.
+	RecovTimes = TokenTimes{
+		Interval: time.Hour * 24, // one day
+		Cooldown: time.Minute,
+	}
+)
+
 // User is an interface every user data type should implement.
 type User interface {
 	// ApplyInput should set values from provided data structure.
