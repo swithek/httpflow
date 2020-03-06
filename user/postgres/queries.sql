@@ -50,12 +50,12 @@ activated_at,
 email,
 unverified_email,
 password_hash,
-verification_token_hash AS verification.hash,
-verification_next_at AS verification.next_at,
-verification_expires_at AS verification.expires_at,
-recovery_token_hash AS recovery.hash,
-recovery_next_at AS recovery.next_at,
-recovery_expires_at AS recovery.expires_at
+verification_token_hash AS "verification.hash",
+verification_next_at AS "verification.next_at",
+verification_expires_at AS "verification.expires_at",
+recovery_token_hash AS "recovery.hash",
+recovery_next_at AS "recovery.next_at",
+recovery_expires_at AS "recovery.expires_at"
 FROM users WHERE id = $1 LIMIT 1;
 
 -- name: select_user_by_email
@@ -66,12 +66,12 @@ activated_at,
 email,
 unverified_email,
 password_hash,
-verification_token_hash AS verification.hash,
-verification_next_at AS verification.next_at,
-verification_expires_at AS verification.expires_at,
-recovery_token_hash AS recovery.hash,
-recovery_next_at AS recovery.next_at,
-recovery_expires_at AS recovery.expires_at
+verification_token_hash AS "verification.hash",
+verification_next_at AS "verification.next_at",
+verification_expires_at AS "verification.expires_at",
+recovery_token_hash AS "recovery.hash",
+recovery_next_at AS "recovery.next_at",
+recovery_expires_at AS "recovery.expires_at"
 FROM users WHERE email = $1 LIMIT 1;
 
 -- name: select_users_by_email_desc_created_at
@@ -82,12 +82,12 @@ activated_at,
 email,
 unverified_email,
 password_hash,
-verification_token_hash AS verification.hash,
-verification_next_at AS verification.next_at,
-verification_expires_at AS verification.expires_at,
-recovery_token_hash AS recovery.hash,
-recovery_next_at AS recovery.next_at,
-recovery_expires_at AS recovery.expires_at
+verification_token_hash AS "verification.hash",
+verification_next_at AS "verification.next_at",
+verification_expires_at AS "verification.expires_at",
+recovery_token_hash AS "recovery.hash",
+recovery_next_at AS "recovery.next_at",
+recovery_expires_at AS "recovery.expires_at"
 FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY created_at DESC LIMIT $2 OFFSET $3;
 
 -- name: select_users_by_email_asc_created_at
@@ -98,12 +98,12 @@ activated_at,
 email,
 unverified_email,
 password_hash,
-verification_token_hash AS verification.hash,
-verification_next_at AS verification.next_at,
-verification_expires_at AS verification.expires_at,
-recovery_token_hash AS recovery.hash,
-recovery_next_at AS recovery.next_at,
-recovery_expires_at AS recovery.expires_at
+verification_token_hash AS "verification.hash",
+verification_next_at AS "verification.next_at",
+verification_expires_at AS "verification.expires_at",
+recovery_token_hash AS "recovery.hash",
+recovery_next_at AS "recovery.next_at",
+recovery_expires_at AS "recovery.expires_at"
 FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY created_at ASC LIMIT $2 OFFSET $3;
 
 -- name: select_users_by_email_desc_updated_at
@@ -114,12 +114,12 @@ activated_at,
 email,
 unverified_email,
 password_hash,
-verification_token_hash AS verification.hash,
-verification_next_at AS verification.next_at,
-verification_expires_at AS verification.expires_at,
-recovery_token_hash AS recovery.hash,
-recovery_next_at AS recovery.next_at,
-recovery_expires_at AS recovery.expires_at
+verification_token_hash AS "verification.hash",
+verification_next_at AS "verification.next_at",
+verification_expires_at AS "verification.expires_at",
+recovery_token_hash AS "recovery.hash",
+recovery_next_at AS "recovery.next_at",
+recovery_expires_at AS "recovery.expires_at"
 FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY updated_at DESC LIMIT $2 OFFSET $3;
 
 -- name: select_users_by_email_asc_updated_at
@@ -130,12 +130,12 @@ activated_at,
 email,
 unverified_email,
 password_hash,
-verification_token_hash AS verification.hash,
-verification_next_at AS verification.next_at,
-verification_expires_at AS verification.expires_at,
-recovery_token_hash AS recovery.hash,
-recovery_next_at AS recovery.next_at,
-recovery_expires_at AS recovery.expires_at
+verification_token_hash AS "verification.hash",
+verification_next_at AS "verification.next_at",
+verification_expires_at AS "verification.expires_at",
+recovery_token_hash AS "recovery.hash",
+recovery_next_at AS "recovery.next_at",
+recovery_expires_at AS "recovery.expires_at"
 FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY updated_at ASC LIMIT $2 OFFSET $3;
 
 -- name: select_users_by_email_desc_activated_at
@@ -146,12 +146,12 @@ activated_at,
 email,
 unverified_email,
 password_hash,
-verification_token_hash AS verification.hash,
-verification_next_at AS verification.next_at,
-verification_expires_at AS verification.expires_at,
-recovery_token_hash AS recovery.hash,
-recovery_next_at AS recovery.next_at,
-recovery_expires_at AS recovery.expires_at
+verification_token_hash AS "verification.hash",
+verification_next_at AS "verification.next_at",
+verification_expires_at AS "verification.expires_at",
+recovery_token_hash AS "recovery.hash",
+recovery_next_at AS "recovery.next_at",
+recovery_expires_at AS "recovery.expires_at"
 FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY activated_at DESC LIMIT $2 OFFSET $3;
 
 -- name: select_users_by_email_asc_activated_at
@@ -162,12 +162,12 @@ activated_at,
 email,
 unverified_email,
 password_hash,
-verification_token_hash AS verification.hash,
-verification_next_at AS verification.next_at,
-verification_expires_at AS verification.expires_at,
-recovery_token_hash AS recovery.hash,
-recovery_next_at AS recovery.next_at,
-recovery_expires_at AS recovery.expires_at
+verification_token_hash AS "verification.hash",
+verification_next_at AS "verification.next_at",
+verification_expires_at AS "verification.expires_at",
+recovery_token_hash AS "recovery.hash",
+recovery_next_at AS "recovery.next_at",
+recovery_expires_at AS "recovery.expires_at"
 FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY activated_at ASC LIMIT $2 OFFSET $3;
 
 -- name: select_users_by_email_desc_email
@@ -178,12 +178,12 @@ activated_at,
 email,
 unverified_email,
 password_hash,
-verification_token_hash AS verification.hash,
-verification_next_at AS verification.next_at,
-verification_expires_at AS verification.expires_at,
-recovery_token_hash AS recovery.hash,
-recovery_next_at AS recovery.next_at,
-recovery_expires_at AS recovery.expires_at
+verification_token_hash AS "verification.hash",
+verification_next_at AS "verification.next_at",
+verification_expires_at AS "verification.expires_at",
+recovery_token_hash AS "recovery.hash",
+recovery_next_at AS "recovery.next_at",
+recovery_expires_at AS "recovery.expires_at"
 FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY email DESC LIMIT $2 OFFSET $3;
 
 -- name: select_users_by_email_asc_email
@@ -194,10 +194,10 @@ activated_at,
 email,
 unverified_email,
 password_hash,
-verification_token_hash AS verification.hash,
-verification_next_at AS verification.next_at,
-verification_expires_at AS verification.expires_at,
-recovery_token_hash AS recovery.hash,
-recovery_next_at AS recovery.next_at,
-recovery_expires_at AS recovery.expires_at
+verification_token_hash AS "verification.hash",
+verification_next_at AS "verification.next_at",
+verification_expires_at AS "verification.expires_at",
+recovery_token_hash AS "recovery.hash",
+recovery_next_at AS "recovery.next_at",
+recovery_expires_at AS "recovery.expires_at"
 FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY email ASC LIMIT $2 OFFSET $3;
