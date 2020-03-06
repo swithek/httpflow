@@ -32,6 +32,10 @@ func NewLinks(ll map[LinkKey]string) Links {
 // Prep finds the link by the specified key and inserts all provided arguments
 // into it (if allowed).
 func (l Links) Prep(k LinkKey, args ...interface{}) string {
+	if l.ll == nil {
+		return ""
+	}
+
 	ls, ok := l.ll[k]
 	if !ok {
 		return ""
@@ -42,6 +46,10 @@ func (l Links) Prep(k LinkKey, args ...interface{}) string {
 
 // Exist checks whether the links accessed by the specified keys exists.
 func (l Links) Exist(kk ...LinkKey) bool {
+	if l.ll == nil {
+		return false
+	}
+
 	for _, k := range kk {
 		if v, ok := l.ll[k]; !ok || v == "" {
 			return false

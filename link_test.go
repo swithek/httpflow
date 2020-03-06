@@ -13,8 +13,12 @@ func TestNewLinks(t *testing.T) {
 }
 
 func TestLinksPrep(t *testing.T) {
+	l := Links{}
+
+	assert.Zero(t, l.Prep(LinkActivation))
+
 	ll := map[LinkKey]string{LinkActivation: "activ?token=%s"}
-	l := Links{ll: ll}
+	l.ll = ll
 
 	ls := l.Prep(LinkRecovery, "123")
 	assert.Zero(t, ls)
@@ -27,11 +31,15 @@ func TestLinksPrep(t *testing.T) {
 }
 
 func TestLinksExist(t *testing.T) {
+	l := Links{}
+	assert.False(t, l.Exist(LinkActivation))
+
 	ll := map[LinkKey]string{
 		LinkActivation:   "activ?token=%s",
 		LinkVerification: "",
 	}
-	l := Links{ll: ll}
+
+	l.ll = ll
 
 	res := l.Exist(LinkActivation, LinkRecovery)
 	assert.False(t, res)
