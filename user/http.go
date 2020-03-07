@@ -12,11 +12,6 @@ import (
 )
 
 var (
-	// ErrUnauthorized is returned when request's context contains invalid
-	// session.
-	ErrUnauthorized = httpflow.NewError(nil, http.StatusUnauthorized,
-		"unauthorized")
-
 	// ErrNotActivated is returned when an action which is allowed only
 	// by activated users is performed.
 	ErrNotActivated = httpflow.NewError(nil, http.StatusForbidden,
@@ -44,6 +39,95 @@ type Handler struct {
 
 	verif TokenTimes
 	recov TokenTimes
+}
+
+// setter is used to set Handler configuration options.
+type setter func(*Handler)
+
+// SetSessionDuration sets the duration of permanent sessions.
+func SetSessionDuration(sd time.Duration) setter {
+	return func(h *Handler) {
+		h.sesDur = sd
+	}
+}
+
+// SetErrorExec sets a function that will be used during critical errors
+// detection.
+func SetErrorExec(ex httpflow.ErrorExec) setter {
+	return func(h *Handler) {
+		h.onError = ex
+	}
+}
+
+// SetParser sets a function that will be used to parse user's request input.
+func SetParser(p Parser) setter {
+	return func(h *Handler) {
+		h.parse = p
+	}
+}
+
+// SetCreator sets a function that will be used to construct a new user.
+func SetCreator(c Creator) setter {
+	return func(h *Handler) {
+		h.create = c
+	}
+}
+
+// SetGateKeeper sets a function that will be called before user auth.
+func SetGateKeeper(gk GateKeeper) setter {
+	return func(h *Handler) {
+		h.gKeep = gk
+	}
+}
+
+// SetPreDeleter sets a function that will be called before user deletion.
+func SetPreDeleter(pd PreDeleter) setter {
+	return func(h *Handler) {
+		h.pDel = pd
+	}
+}
+
+// SetVerificationTimes sets token time values for verification process.
+func SetVerificationTimes(t TokenTimes) setter {
+	return func(h *Handler) {
+		h.verif = t
+	}
+}
+
+// SetRecoveryTimes sets token time values for recovery process.
+func SetRecoveryTimes(t TokenTimes) setter {
+	return func(h *Handler) {
+		h.recov = t
+	}
+}
+
+// NewHandler creates a new handler instance with the options provided.
+func NewHandler(sm *sessionup.Manager, db Database, es EmailSender, ss ...setter) *Handler {
+	h := &Handler{
+		sessions: sm,
+		db:       db,
+		email:    es,
+	}
+
+	h.Defaults()
+
+	for _, s := range ss {
+		s(h)
+	}
+
+	return h
+}
+
+// Defaults sets all optional handler's values to sane defaults.
+func (h *Handler) Defaults() {
+	h.sesDur = SessionDuration
+	h.onError = httpflow.DefaultErrorExec
+	h.parse = DefaultParser
+	h.create = DefaultCreator
+	h.gKeep = DefaultGateKeeper(true)
+	h.pDel = DefaultPreDeleter
+	h.verif = VerifTimes
+	h.recov = RecovTimes
 }
 
 // Parser is a function that should be used for custom input parsing.
@@ -97,35 +181,6 @@ func DefaultPreDeleter(_ context.Context, _ User) error {
 	return nil
 }
 
-// NewHandler creates a new user http handler.
-func NewHandler(sm *sessionup.Manager, sd time.Duration, db Database,
-	email EmailSender, onError httpflow.ErrorExec, parse Parser,
-	create Creator, gKeep GateKeeper, pDel PreDeleter, verif,
-	recov TokenTimes) *Handler {
-	return &Handler{
-		sessions: sm,
-		sesDur:   sd,
-		db:       db,
-		email:    email,
-		onError:  onError,
-		parse:    parse,
-		create:   create,
-		gKeep:    gKeep,
-		pDel:     pDel,
-		verif:    verif,
-		recov:    recov,
-	}
-}
-
-// NewDefaultHandler creates a new user http handler with fields set to
-// defaults, if possible.
-func NewDefaultHandler(sm *sessionup.Manager, db Database, email EmailSender) *Handler {
-	return NewHandler(sm, SessionDuration, db, email,
-		httpflow.DefaultErrorExec, DefaultParser,
-		DefaultCreator, DefaultGateKeeper(true),
-		DefaultPreDeleter, VerifTimes, RecovTimes)
-}
-
 // ServeHTTP handles all core user routes.
 // Registration is allowed (use Routes method to override this).
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -155,13 +210,13 @@ func (h *Handler) Routes(open bool) chi.Router {
 
 	r.Route("/activ", func(sr chi.Router) {
 		sr.With(h.sessions.Auth).Put("/", h.ResendVerification)
-		sr.Post("/{token}", h.Verify)
+		sr.Get("/{token}", h.Verify)
 		sr.Get("/{token}/cancel", h.CancelVerification)
 	})
 
 	r.Route("/verif", func(sr chi.Router) {
 		sr.With(h.sessions.Auth).Put("/", h.ResendVerification)
-		sr.Post("/{token}", h.Verify)
+		sr.Get("/{token}", h.Verify)
 		sr.Get("/{token}/cancel", h.CancelVerification)
 	})
 
@@ -524,7 +579,7 @@ func (h *Handler) ResendVerification(w http.ResponseWriter, r *http.Request) {
 
 	ses, ok := sessionup.FromContext(ctx)
 	if !ok {
-		httpflow.RespondError(w, r, ErrUnauthorized, h.onError)
+		httpflow.RespondError(w, r, sessionup.ErrUnauthorized, h.onError)
 		return
 	}
 
@@ -778,7 +833,7 @@ func (h *Handler) FetchByToken(r *http.Request) (User, string, error) {
 func ExtractSession(ctx context.Context) (sessionup.Session, error) {
 	ses, ok := sessionup.FromContext(ctx)
 	if !ok {
-		return sessionup.Session{}, ErrUnauthorized
+		return sessionup.Session{}, sessionup.ErrUnauthorized
 	}
 
 	return ses, nil

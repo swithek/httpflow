@@ -6,6 +6,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
 	"github.com/jmoiron/sqlx"
 	"github.com/swithek/httpflow"
 	"github.com/swithek/httpflow/email"
@@ -16,36 +18,44 @@ import (
 )
 
 func main() {
+	log := log.New(os.Stdout, "", log.LstdFlags)
 	db, err := sqlx.Connect("postgres", "dbname=httpflow user=postgres password=password123 sslmode=disable")
 	if err != nil {
-		handleErr(err)
+		handleErr(log)(err)
 		return
 	}
 
 	sesStore, err := sesPg.New(db.DB, "sessions", time.Minute*5)
 	if err != nil {
-		handleErr(err)
+		handleErr(log)(err)
 		return
 	}
 
 	ses := sessionup.NewManager(sesStore)
 
-	uDB, err := uPg.New(db, time.Hour*24, handleErr)
+	uDB, err := uPg.New(db, time.Hour*24, handleErr(log))
 	if err != nil {
-		handleErr(err)
+		handleErr(log)(err)
 		return
 	}
 
 	eml := email.NewPlaceholder(
-		log.New(os.Stderr, "", log.LstdFlags),
+		log,
 		httpflow.NewLinks(user.SetupLinks("http://localhost:8080")),
 	)
 
-	hdl := user.NewDefaultHandler(ses, uDB, eml)
+	hdl := user.NewHandler(ses, uDB, eml, user.SetErrorExec(handleErr(log)))
 
-	http.ListenAndServe(":8080", hdl)
+	router := chi.NewRouter()
+	router.Use(middleware.Recoverer)
+	router.Use(middleware.Logger)
+	router.Mount("/", hdl.Routes(true))
+
+	http.ListenAndServe(":8080", router)
 }
 
-func handleErr(err error) {
-	log.Println(err)
+func handleErr(log *log.Logger) httpflow.ErrorExec {
+	return func(err error) {
+		log.Println(err)
+	}
 }

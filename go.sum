@@ -80,10 +80,8 @@ github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXf
 github.com/stretchr/testify v1.4.0 h1:2E4SXV/wtOkTonXsotYi4li6zVWxYlZuYNCXe9XRJyk=
 github.com/stretchr/testify v1.4.0/go.mod h1:j7eGeouHqKxXV5pUuKE4zz7dFj8WfuZ+81PSLYec5m4=
 github.com/swithek/sessionup v1.0.0/go.mod h1:2Hw9qm+mH/p/6dEwqYeQl9pee8rqjrYDTJ2XhET9Oyg=
-github.com/swithek/sessionup v1.1.1 h1:s8yqrixIseUEJs0lJ9HFsbDUkK9wSJf2BeiEq7yYu3k=
-github.com/swithek/sessionup v1.1.1/go.mod h1:2Hw9qm+mH/p/6dEwqYeQl9pee8rqjrYDTJ2XhET9Oyg=
-github.com/swithek/sessionup v1.3.0 h1:RgOZ+KHRE/JBqGEB8jsH4HGnrlfJsMc6t3X8pvjYT+I=
-github.com/swithek/sessionup v1.3.0/go.mod h1:2Hw9qm+mH/p/6dEwqYeQl9pee8rqjrYDTJ2XhET9Oyg=
+github.com/swithek/sessionup v1.3.1 h1:FWDErKx4JsbG+7Z9NiUhKJfeiaArUpA6hrGe39LgIyE=
+github.com/swithek/sessionup v1.3.1/go.mod h1:2Hw9qm+mH/p/6dEwqYeQl9pee8rqjrYDTJ2XhET9Oyg=
 github.com/swithek/sessionup-pgstore v1.0.1 h1:yh4fN/68jM1FXRTQjjgDSFojnUlDLgMxWzZIoF+38GY=
 github.com/swithek/sessionup-pgstore v1.0.1/go.mod h1:3UyppuyMjjUpwT+C4Kd53FzkQHhFvv68milhSpoxLEk=
 github.com/vanng822/css v0.0.0-20190504095207-a21e860bcd04 h1:L0rPdfzq43+NV8rfIx2kA4iSSLRj2jN5ijYHoeXRwvQ=

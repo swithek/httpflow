@@ -14,7 +14,7 @@ require (
 	github.com/matcornic/hermes/v2 v2.1.0
 	github.com/rs/xid v1.2.1
 	github.com/stretchr/testify v1.4.0
-	github.com/swithek/sessionup v1.3.0
+	github.com/swithek/sessionup v1.3.1
 	github.com/swithek/sessionup-pgstore v1.0.1
 	golang.org/x/crypto v0.0.0-20200117160349-530e935923ad
 	golang.org/x/net v0.0.0-20190620200207-3b0461eec859 // indirect

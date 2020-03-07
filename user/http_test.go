@@ -20,6 +20,84 @@ import (
 	"gopkg.in/guregu/null.v3/zero"
 )
 
+func TestSetSessionDuration(t *testing.T) {
+	h := &Handler{}
+	SetSessionDuration(time.Hour)(h)
+	assert.Equal(t, time.Hour, h.sesDur)
+}
+
+func TestSetErrorExec(t *testing.T) {
+	h := &Handler{}
+	SetErrorExec(httpflow.DefaultErrorExec)(h)
+	assert.NotNil(t, h.onError)
+}
+
+func TestSetParser(t *testing.T) {
+	h := &Handler{}
+	SetParser(DefaultParser)(h)
+	assert.NotNil(t, h.parse)
+}
+
+func TestSetCreator(t *testing.T) {
+	h := &Handler{}
+	SetCreator(DefaultCreator)(h)
+	assert.NotNil(t, h.create)
+}
+
+func TestSetGateKeeper(t *testing.T) {
+	h := &Handler{}
+	SetGateKeeper(DefaultGateKeeper(true))(h)
+	assert.NotNil(t, h.gKeep)
+}
+
+func TestSetPreDeleter(t *testing.T) {
+	h := &Handler{}
+	SetPreDeleter(DefaultPreDeleter)(h)
+	assert.NotNil(t, h.pDel)
+}
+
+func TestSetVerificationTimes(t *testing.T) {
+	h := &Handler{}
+	SetVerificationTimes(VerifTimes)(h)
+	assert.Equal(t, VerifTimes, h.verif)
+}
+
+func TestSetRecoveryTimes(t *testing.T) {
+	h := &Handler{}
+	SetRecoveryTimes(RecovTimes)(h)
+	assert.Equal(t, RecovTimes, h.recov)
+}
+
+func TestNewHandler(t *testing.T) {
+	h := NewHandler(sessionup.NewManager(&StoreMock{}), &DatabaseMock{},
+		&EmailSenderMock{}, SetSessionDuration(time.Hour),
+		SetVerificationTimes(VerifTimes))
+	assert.NotNil(t, h.sessions)
+	assert.NotNil(t, h.db)
+	assert.NotNil(t, h.email)
+	assert.Equal(t, time.Hour, h.sesDur)
+	assert.NotNil(t, h.onError)
+	assert.NotNil(t, h.parse)
+	assert.NotNil(t, h.create)
+	assert.NotNil(t, h.gKeep)
+	assert.NotNil(t, h.pDel)
+	assert.Equal(t, VerifTimes, h.verif)
+	assert.NotZero(t, h.recov)
+}
+
+func TestDefaults(t *testing.T) {
+	h := Handler{}
+	h.Defaults()
+	assert.Equal(t, SessionDuration, h.sesDur)
+	assert.NotNil(t, h.onError)
+	assert.NotNil(t, h.parse)
+	assert.NotNil(t, h.create)
+	assert.NotNil(t, h.gKeep)
+	assert.NotNil(t, h.pDel)
+	assert.Equal(t, VerifTimes, h.verif)
+	assert.Equal(t, RecovTimes, h.recov)
+}
+
 func TestDefaultParser(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://test.com/",
 		strings.NewReader("{"))
@@ -56,46 +134,6 @@ func TestDefaultGateKeeper(t *testing.T) {
 
 func TestDefaultPreDeleter(t *testing.T) {
 	assert.Nil(t, DefaultPreDeleter(nil, nil))
-}
-
-func TestNewHandler(t *testing.T) {
-	hdl := NewHandler(sessionup.NewManager(&StoreMock{}), time.Hour,
-		&DatabaseMock{}, &EmailSenderMock{}, httpflow.DefaultErrorExec,
-		DefaultParser, DefaultCreator, DefaultGateKeeper(true),
-		DefaultPreDeleter, TokenTimes{time.Hour, time.Hour},
-		TokenTimes{time.Hour, time.Hour})
-	assert.NotZero(t, hdl.sessions)
-	assert.Equal(t, time.Hour, hdl.sesDur)
-	assert.NotZero(t, hdl.db)
-	assert.NotZero(t, hdl.email)
-	assert.NotZero(t, hdl.onError)
-	assert.NotZero(t, hdl.parse)
-	assert.NotZero(t, hdl.create)
-	assert.NotZero(t, hdl.gKeep)
-	assert.NotZero(t, hdl.pDel)
-	assert.NotZero(t, hdl.verif)
-	assert.NotZero(t, hdl.recov)
-
-	assert.NotZero(t, hdl.Routes(true))
-}
-
-func TestNewDefaultHandler(t *testing.T) {
-	hdl := NewDefaultHandler(sessionup.NewManager(&StoreMock{}),
-		&DatabaseMock{}, &EmailSenderMock{})
-
-	assert.NotZero(t, hdl.sessions)
-	assert.Equal(t, SessionDuration, hdl.sesDur)
-	assert.NotZero(t, hdl.db)
-	assert.NotZero(t, hdl.email)
-	assert.NotZero(t, hdl.onError)
-	assert.NotZero(t, hdl.parse)
-	assert.NotZero(t, hdl.create)
-	assert.NotZero(t, hdl.gKeep)
-	assert.NotZero(t, hdl.pDel)
-	assert.Equal(t, VerifTimes, hdl.verif)
-	assert.Equal(t, RecovTimes, hdl.recov)
-
-	assert.NotZero(t, hdl.Routes(true))
 }
 
 func TestSetupLinks(t *testing.T) {
