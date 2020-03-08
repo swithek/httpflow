@@ -476,6 +476,18 @@ func TestHandlerLogIn(t *testing.T) {
 				wasUpdateCalled(0),
 			),
 		},
+		"Not found error returned by Database.FetchByEmail": {
+			Open:         true,
+			SessionStore: sessionStoreStub(nil),
+			DB:           dbStub(httpflow.ErrNotFound, nil, nil),
+			GateKeeper:   DefaultGateKeeper(true),
+			Body:         toJSON(inpUsr.Email, inpPass, false),
+			Checks: checks(
+				hasResp(true, false),
+				wasFetchByEmailCalled(1, inpUsr.Email),
+				wasUpdateCalled(0),
+			),
+		},
 		"Account not activated when required": {
 			Open:         false,
 			SessionStore: sessionStoreStub(nil),

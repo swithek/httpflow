@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
@@ -221,6 +222,10 @@ func (s *Store) DeleteByID(ctx context.Context, id string) error {
 // detectErr determines whether postgres' error needs any additional
 // modifications.
 func detectErr(err error) error {
+	if err == sql.ErrNoRows {
+		return httpflow.ErrNotFound
+	}
+
 	var perr *pq.Error
 	if errors.As(err, &perr) {
 		switch perr.Constraint {

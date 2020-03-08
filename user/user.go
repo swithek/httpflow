@@ -82,7 +82,7 @@ type Core struct {
 	UnverifiedEmail zero.String `json:"unverified_email" db:"unverified_email"`
 
 	// PasswordHash is already hashed version of user's password.
-	PasswordHash []byte `json:"password_hash" db:"password_hash"`
+	PasswordHash []byte `json:"-" db:"password_hash"`
 
 	// Verification holds data needed for account activation or email
 	// update.

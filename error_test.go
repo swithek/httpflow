@@ -1,7 +1,6 @@
 package httpflow
 
 import (
-	"database/sql"
 	"errors"
 	"net/http"
 	"strings"
@@ -9,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/swithek/sessionup"
 )
 
 func TestNewError(t *testing.T) {
@@ -51,11 +51,15 @@ func TestDetectError(t *testing.T) {
 			Message: "error",
 			Code:    400,
 		},
-		"SQL rows not found": {
-			Err: sql.ErrNoRows,
-			Message: strings.ToLower(
-				http.StatusText(http.StatusNotFound)),
-			Code: http.StatusNotFound,
+		"No cookie error": {
+			Err:     http.ErrNoCookie,
+			Message: "session cookie is invalid",
+			Code:    http.StatusBadRequest,
+		},
+		"Unauthorized error": {
+			Err:     sessionup.ErrUnauthorized,
+			Message: strings.ToLower(http.StatusText(http.StatusUnauthorized)),
+			Code:    http.StatusUnauthorized,
 		},
 		"Undefined error": {
 			Err: errors.New("error"),

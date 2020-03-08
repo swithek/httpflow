@@ -2,6 +2,7 @@ package user
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"time"
 
@@ -330,6 +331,9 @@ func (h *Handler) LogIn(w http.ResponseWriter, r *http.Request) {
 
 	usr, err := h.db.FetchByEmail(ctx, cInp.Email)
 	if err != nil {
+		if errors.Is(err, httpflow.ErrNotFound) {
+			err = ErrInvalidCredentials
+		}
 		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}

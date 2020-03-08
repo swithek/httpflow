@@ -851,6 +851,7 @@ func TestStoreDeleteByID(t *testing.T) {
 
 func TestDetectErr(t *testing.T) {
 	assert.Equal(t, 400, httpflow.ErrorCode(detectErr(&pq.Error{Constraint: "email_unique"})))
+	assert.Equal(t, httpflow.ErrNotFound, detectErr(sql.ErrNoRows))
 	assert.Equal(t, assert.AnError, detectErr(assert.AnError))
 }
 
