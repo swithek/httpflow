@@ -23,6 +23,12 @@ var (
 		"invalid token")
 )
 
+var (
+	// tokenChars is an array of characters used by token string
+	// generator.
+	tokenChars = []byte("abcdefghijklmnopqrstuvwxyz0123456789")
+)
+
 // TokenTimes holds data related to token expiration and next generation times.
 type TokenTimes struct {
 	// Interval is used for token expiration time calculation.
@@ -60,7 +66,7 @@ func (t *Token) init(tt TokenTimes) (string, error) {
 		return "", ErrTooManyTokens
 	}
 
-	v := uniuri.New()
+	v := uniuri.NewLenChars(uniuri.StdLen, tokenChars)
 	h, err := bcrypt.GenerateFromPassword([]byte(v), bcrypt.DefaultCost)
 	if err != nil {
 		return "", err
