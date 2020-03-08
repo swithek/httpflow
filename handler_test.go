@@ -98,7 +98,7 @@ func TestDecodeForm(t *testing.T) {
 func TestSessionReject(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://test.com/", nil)
 	rec := httptest.NewRecorder()
-	SessionReject(assert.AnError, func(error) {}).ServeHTTP(rec, req)
+	SessionReject(func(error) {})(assert.AnError).ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusInternalServerError, rec.Code)
 	assert.Equal(t, "application/json",
 		rec.Header().Get("Content-Type"))

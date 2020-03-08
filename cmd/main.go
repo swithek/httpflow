@@ -31,7 +31,8 @@ func main() {
 		return
 	}
 
-	ses := sessionup.NewManager(sesStore)
+	ses := sessionup.NewManager(sesStore,
+		sessionup.Reject(httpflow.SessionReject(handleErr(log))))
 
 	uDB, err := uPg.New(db, time.Hour*24, handleErr(log))
 	if err != nil {
