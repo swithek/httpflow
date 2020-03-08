@@ -80,3 +80,11 @@ func DecodeForm(r *http.Request, v interface{}) error {
 
 	return nil
 }
+
+//SessionReject should be used as sessionup's manager's invalid request
+// rejection function.
+func SessionReject(err error, onError ErrorExec) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		RespondError(w, r, err, onError)
+	})
+}

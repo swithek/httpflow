@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/swithek/sessionup"
 )
 
 // statusError is a custom error type used to carry both error
@@ -45,9 +47,16 @@ func DetectError(err error) error {
 		return err
 	}
 
-	if errors.Is(err, sql.ErrNoRows) {
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
 		return NewError(err, http.StatusNotFound, strings.ToLower(
 			http.StatusText(http.StatusNotFound)))
+	case errors.Is(err, http.ErrNoCookie):
+		return NewError(err, http.StatusBadRequest,
+			"session cookie is invalid")
+	case errors.Is(err, sessionup.ErrUnauthorized):
+		return NewError(err, http.StatusUnauthorized,
+			strings.ToLower(http.StatusText(http.StatusUnauthorized)))
 	}
 
 	return NewError(err, http.StatusInternalServerError,

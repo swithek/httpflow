@@ -1,7 +1,6 @@
 package httpflow
 
 import (
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -11,7 +10,7 @@ import (
 )
 
 func TestDefaultErrorExec(t *testing.T) {
-	DefaultErrorExec(errors.New("error")) // nothing to test
+	DefaultErrorExec(assert.AnError) // nothing to test
 }
 
 func TestRespond(t *testing.T) {
@@ -58,7 +57,7 @@ func TestRespondError(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://test.com/", nil)
 	rec := httptest.NewRecorder()
 
-	RespondError(rec, req, errors.New("error"), func(error) {})
+	RespondError(rec, req, assert.AnError, func(error) {})
 
 	assert.Equal(t, http.StatusInternalServerError, rec.Code)
 	assert.Equal(t, "application/json",
@@ -94,4 +93,14 @@ func TestDecodeForm(t *testing.T) {
 	req.URL.RawQuery = q.Encode()
 	assert.Nil(t, DecodeForm(req, &v))
 	assert.Equal(t, "test", v.Msg)
+}
+
+func TestSessionReject(t *testing.T) {
+	req := httptest.NewRequest("GET", "http://test.com/", nil)
+	rec := httptest.NewRecorder()
+	SessionReject(assert.AnError, func(error) {}).ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	assert.Equal(t, "application/json",
+		rec.Header().Get("Content-Type"))
+	assert.NotZero(t, rec.Body.String())
 }

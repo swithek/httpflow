@@ -210,21 +210,21 @@ func (h *Handler) Routes(open bool) chi.Router {
 
 	r.Route("/activ", func(sr chi.Router) {
 		sr.With(h.sessions.Auth).Put("/", h.ResendVerification)
-		sr.Get("/{token}", h.Verify)
-		sr.Get("/{token}/cancel", h.CancelVerification)
+		sr.Get("/", h.Verify)
+		sr.Get("/cancel", h.CancelVerification)
 	})
 
 	r.Route("/verif", func(sr chi.Router) {
 		sr.With(h.sessions.Auth).Put("/", h.ResendVerification)
-		sr.Get("/{token}", h.Verify)
-		sr.Get("/{token}/cancel", h.CancelVerification)
+		sr.Get("/", h.Verify)
+		sr.Get("/cancel", h.CancelVerification)
 	})
 
 	r.Route("/recov", func(sr chi.Router) {
 		sr.Put("/", h.InitRecovery)
-		sr.Post("/{token}", h.Recover)
-		sr.Get("/{token}", h.PingRecovery)
-		sr.Get("/{token}/cancel", h.CancelRecovery)
+		sr.Post("/", h.Recover)
+		sr.Get("/", h.PingRecovery)
+		sr.Get("/cancel", h.CancelRecovery)
 	})
 
 	return r
@@ -810,7 +810,7 @@ func (h *Handler) CancelRecovery(w http.ResponseWriter, r *http.Request) {
 // embedded in the token and returns user's account instance, raw token and
 // optionally an error.
 func (h *Handler) FetchByToken(r *http.Request) (User, string, error) {
-	tok := chi.URLParam(r, "token")
+	tok := r.URL.Query().Get("token")
 	if tok == "" {
 		return nil, "", httpflow.NewError(nil, http.StatusBadRequest,
 			"token not found")

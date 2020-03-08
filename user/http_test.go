@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -83,6 +85,8 @@ func TestNewHandler(t *testing.T) {
 	assert.NotNil(t, h.pDel)
 	assert.Equal(t, VerifTimes, h.verif)
 	assert.NotZero(t, h.recov)
+
+	assert.NotNil(t, h.Routes(true))
 }
 
 func TestDefaults(t *testing.T) {
@@ -1911,8 +1915,7 @@ func TestHandlerVerify(t *testing.T) {
 			hdl := newHandler()
 			hdl.db = c.DB
 			hdl.email = c.Email
-			hdl.Verify(rec, req.WithContext(
-				addChiCtx(nil, "token", c.Token)))
+			hdl.Verify(rec, addQueryParam(req, "token", c.Token))
 			time.Sleep(time.Millisecond) // to record goroutine func call
 			for _, ch := range c.Checks {
 				ch(t, c.DB, c.Email, rec)
@@ -2023,8 +2026,7 @@ func TestHandlerCancelVerification(t *testing.T) {
 			rec := httptest.NewRecorder()
 			hdl := newHandler()
 			hdl.db = c.DB
-			hdl.CancelVerification(rec, req.WithContext(
-				addChiCtx(nil, "token", c.Token)))
+			hdl.CancelVerification(rec, addQueryParam(req, "token", c.Token))
 			time.Sleep(time.Millisecond) // to record goroutine func call
 			for _, ch := range c.Checks {
 				ch(t, c.DB, rec)
@@ -2410,8 +2412,7 @@ func TestHandlerRecover(t *testing.T) {
 				sessionup.ExpiresIn(time.Hour))
 			hdl.db = c.DB
 			hdl.email = c.Email
-			hdl.Recover(rec, req.WithContext(
-				addChiCtx(nil, "token", c.Token)))
+			hdl.Recover(rec, addQueryParam(req, "token", c.Token))
 			time.Sleep(time.Millisecond) // to record goroutine func call
 			for _, ch := range c.Checks {
 				ch(t, c.DB, c.Email, rec)
@@ -2494,8 +2495,7 @@ func TestHandlerPingRecovery(t *testing.T) {
 			rec := httptest.NewRecorder()
 			hdl := newHandler()
 			hdl.db = c.DB
-			hdl.PingRecovery(rec, req.WithContext(
-				addChiCtx(nil, "token", c.Token)))
+			hdl.PingRecovery(rec, addQueryParam(req, "token", c.Token))
 			for _, ch := range c.Checks {
 				ch(t, c.DB, rec)
 			}
@@ -2604,8 +2604,7 @@ func TestHandlerCancelRecovery(t *testing.T) {
 			rec := httptest.NewRecorder()
 			hdl := newHandler()
 			hdl.db = c.DB
-			hdl.CancelRecovery(rec, req.WithContext(
-				addChiCtx(nil, "token", c.Token)))
+			hdl.CancelRecovery(rec, addQueryParam(req, "token", c.Token))
 			for _, ch := range c.Checks {
 				ch(t, c.DB, rec)
 			}
@@ -2719,8 +2718,8 @@ func TestHandlerFetchByToken(t *testing.T) {
 			req := httptest.NewRequest("GET", "http://test.com/", nil)
 			hdl := newHandler()
 			hdl.db = c.DB
-			usr, tok, err := hdl.FetchByToken(req.WithContext(
-				addChiCtx(nil, "token", c.Token)))
+			usr, tok, err := hdl.FetchByToken(addQueryParam(req,
+				"token", c.Token))
 
 			for _, ch := range c.Checks {
 				ch(t, c.DB, usr, tok, err)
@@ -2749,6 +2748,13 @@ func toJSON(eml, pass string, rem bool) *bytes.Buffer {
 
 func toPointer(c Core) *Core {
 	return &c
+}
+
+func addQueryParam(r *http.Request, k, v string) *http.Request {
+	q := url.Values{}
+	q.Add(k, v)
+	r.URL.RawQuery = q.Encode()
+	return r
 }
 
 func addChiCtx(ctx context.Context, k, v string) context.Context {
