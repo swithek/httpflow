@@ -46,7 +46,7 @@ func (p Placeholder) SendEmailVerification(ctx context.Context, eml string, tok 
 // being set (second parameter).
 func (p Placeholder) SendEmailChanged(ctx context.Context, oEml string, nEml string) {
 	if p.log != nil {
-		p.log.Printf("Email was changed to: %s\n", nEml)
+		p.log.Printf("Email was changed from \"%s\" to \"%s\"\n", oEml, nEml)
 	}
 	return
 }
@@ -64,7 +64,7 @@ func (p Placeholder) SendRecovery(ctx context.Context, eml string, tok string) {
 // deletion to the specified email address.
 func (p Placeholder) SendAccountDeleted(ctx context.Context, eml string) {
 	if p.log != nil {
-		p.log.Printf("Account associated to > %s < email address was deleted\n", eml)
+		p.log.Printf("\"%s\" account was deleted\n", eml)
 	}
 	return
 }
@@ -75,7 +75,7 @@ func (p Placeholder) SendAccountDeleted(ctx context.Context, eml string) {
 // the recovery process or not.
 func (p Placeholder) SendPasswordChanged(ctx context.Context, eml string, recov bool) {
 	if p.log != nil {
-		p.log.Printf("Account's associated to > %s < email address password was changed\n", eml)
+		p.log.Printf("\"%s\" account password was changed\n", eml)
 	}
 	return
 }
