@@ -1,6 +1,7 @@
 package httpflow
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
@@ -11,7 +12,8 @@ import (
 
 var (
 	// ErrNotFound is returned when target resources is not found.
-	ErrNotFound = NewError(nil, http.StatusNotFound, "not found")
+	ErrNotFound = NewError(nil, http.StatusNotFound,
+		strings.ToLower(http.StatusText(http.StatusNotFound)))
 )
 
 // statusError is a custom error type used to carry both error
@@ -52,6 +54,8 @@ func DetectError(err error) error {
 	}
 
 	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return ErrNotFound
 	case errors.Is(err, http.ErrNoCookie):
 		return NewError(err, http.StatusBadRequest,
 			"session cookie is invalid")

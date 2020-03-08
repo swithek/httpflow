@@ -1,6 +1,7 @@
 package httpflow
 
 import (
+	"database/sql"
 	"errors"
 	"net/http"
 	"strings"
@@ -51,6 +52,11 @@ func TestDetectError(t *testing.T) {
 			Message: "error",
 			Code:    400,
 		},
+		"No rows found error": {
+			Err:     sql.ErrNoRows,
+			Message: strings.ToLower(http.StatusText(http.StatusNotFound)),
+			Code:    http.StatusNotFound,
+		},
 		"No cookie error": {
 			Err:     http.ErrNoCookie,
 			Message: "session cookie is invalid",
@@ -78,7 +84,6 @@ func TestDetectError(t *testing.T) {
 			sErr := err.(*statusError)
 			assert.Equal(t, c.Message, sErr.Message)
 			assert.Equal(t, c.Code, sErr.Code)
-			assert.NotNil(t, sErr.err)
 		})
 	}
 }
