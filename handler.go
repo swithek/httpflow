@@ -35,12 +35,13 @@ func DefaultErrorExec(err error) {
 // Respond sends JSON type response to the client.
 func Respond(w http.ResponseWriter, r *http.Request, data interface{},
 	code int, onError ErrorExec) {
-	w.WriteHeader(code)
 	if data == nil {
+		w.WriteHeader(code)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		w.Header().Del("Content-Type")
 		w.WriteHeader(http.StatusInternalServerError)
