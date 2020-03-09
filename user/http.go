@@ -42,11 +42,11 @@ type Handler struct {
 	recov TokenTimes
 }
 
-// setter is used to set Handler configuration options.
-type setter func(*Handler)
+// Setter is used to set Handler configuration options.
+type Setter func(*Handler)
 
 // SetSessionDuration sets the duration of permanent sessions.
-func SetSessionDuration(sd time.Duration) setter {
+func SetSessionDuration(sd time.Duration) Setter {
 	return func(h *Handler) {
 		h.sesDur = sd
 	}
@@ -54,56 +54,56 @@ func SetSessionDuration(sd time.Duration) setter {
 
 // SetErrorExec sets a function that will be used during critical errors
 // detection.
-func SetErrorExec(ex httpflow.ErrorExec) setter {
+func SetErrorExec(ex httpflow.ErrorExec) Setter {
 	return func(h *Handler) {
 		h.onError = ex
 	}
 }
 
 // SetParser sets a function that will be used to parse user's request input.
-func SetParser(p Parser) setter {
+func SetParser(p Parser) Setter {
 	return func(h *Handler) {
 		h.parse = p
 	}
 }
 
 // SetCreator sets a function that will be used to construct a new user.
-func SetCreator(c Creator) setter {
+func SetCreator(c Creator) Setter {
 	return func(h *Handler) {
 		h.create = c
 	}
 }
 
 // SetGateKeeper sets a function that will be called before user auth.
-func SetGateKeeper(gk GateKeeper) setter {
+func SetGateKeeper(gk GateKeeper) Setter {
 	return func(h *Handler) {
 		h.gKeep = gk
 	}
 }
 
 // SetPreDeleter sets a function that will be called before user deletion.
-func SetPreDeleter(pd PreDeleter) setter {
+func SetPreDeleter(pd PreDeleter) Setter {
 	return func(h *Handler) {
 		h.pDel = pd
 	}
 }
 
 // SetVerificationTimes sets token time values for verification process.
-func SetVerificationTimes(t TokenTimes) setter {
+func SetVerificationTimes(t TokenTimes) Setter {
 	return func(h *Handler) {
 		h.verif = t
 	}
 }
 
 // SetRecoveryTimes sets token time values for recovery process.
-func SetRecoveryTimes(t TokenTimes) setter {
+func SetRecoveryTimes(t TokenTimes) Setter {
 	return func(h *Handler) {
 		h.recov = t
 	}
 }
 
 // NewHandler creates a new handler instance with the options provided.
-func NewHandler(sm *sessionup.Manager, db Database, es EmailSender, ss ...setter) *Handler {
+func NewHandler(sm *sessionup.Manager, db Database, es EmailSender, ss ...Setter) *Handler {
 	h := &Handler{
 		sessions: sm,
 		db:       db,
