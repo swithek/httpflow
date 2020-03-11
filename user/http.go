@@ -541,11 +541,9 @@ func (h *Handler) RevokeSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := chi.URLParam(r, "id")
-	if id == "" {
-		httpflow.RespondError(w, r, httpflow.NewError(nil,
-			http.StatusBadRequest,
-			"id not found"), h.onError)
+	id, err := httpflow.ExtractID(r)
+	if err != nil {
+		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}
 

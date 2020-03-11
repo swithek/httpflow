@@ -1,11 +1,13 @@
 package httpflow
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/go-chi/chi"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -103,4 +105,20 @@ func TestSessionReject(t *testing.T) {
 	assert.Equal(t, "application/json",
 		rec.Header().Get("Content-Type"))
 	assert.NotZero(t, rec.Body.String())
+}
+
+func TestExtractID(t *testing.T) {
+	req := httptest.NewRequest("GET", "http://test.com/", nil)
+	id, err := ExtractID(req)
+	assert.Zero(t, id)
+	assert.NotNil(t, err)
+
+	ctx := chi.NewRouteContext()
+	ctx.URLParams.Add("id", "123")
+	req = req.WithContext(context.WithValue(context.Background(),
+		chi.RouteCtxKey, ctx))
+
+	id, err = ExtractID(req)
+	assert.Equal(t, "123", id)
+	assert.Nil(t, err)
 }

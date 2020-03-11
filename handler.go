@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/go-chi/chi"
 	"github.com/gorilla/schema"
 )
 
@@ -90,4 +91,14 @@ func SessionReject(onError ErrorExec) func(error) http.Handler {
 			RespondError(w, r, err, onError)
 		})
 	}
+}
+
+// ExtractID extracts ID from URL.
+func ExtractID(r *http.Request) (string, error) {
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		return "", NewError(nil, http.StatusBadRequest, "id not found")
+	}
+
+	return id, nil
 }
