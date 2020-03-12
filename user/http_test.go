@@ -363,13 +363,14 @@ func TestHandlerLogIn(t *testing.T) {
 
 	checks := func(cc ...check) []check { return cc }
 
-	hasResp := func(err, rem bool) check {
+	hasResp := func(rem bool, code int) check {
 		return func(t *testing.T, _ *DatabaseMock, rec *httptest.ResponseRecorder) {
-			if err {
-				assert.LessOrEqual(t, 400, rec.Code)
+			assert.Equal(t, code, rec.Code)
+			if code >= 400 {
 				assert.NotZero(t, rec.Body.Len())
 				return
 			}
+
 			co := rec.Header().Get("Set-Cookie")
 			assert.NotZero(t, co)
 			if rem {
@@ -377,7 +378,6 @@ func TestHandlerLogIn(t *testing.T) {
 			} else {
 				assert.NotContains(t, co, "Expires")
 			}
-			assert.Greater(t, 400, rec.Code)
 			assert.Zero(t, rec.Body.Len())
 		}
 	}
@@ -447,7 +447,7 @@ func TestHandlerLogIn(t *testing.T) {
 			GateKeeper:   DefaultGateKeeper(true),
 			Body:         strings.NewReader("{"),
 			Checks: checks(
-				hasResp(true, false),
+				hasResp(false, 400),
 				wasFetchByEmailCalled(0, ""),
 				wasUpdateCalled(0),
 			),
@@ -459,7 +459,7 @@ func TestHandlerLogIn(t *testing.T) {
 			GateKeeper:   DefaultGateKeeper(true),
 			Body:         toJSON("useremail.com", inpPass, false),
 			Checks: checks(
-				hasResp(true, false),
+				hasResp(false, 401),
 				wasFetchByEmailCalled(0, ""),
 				wasUpdateCalled(0),
 			),
@@ -471,7 +471,7 @@ func TestHandlerLogIn(t *testing.T) {
 			GateKeeper:   DefaultGateKeeper(true),
 			Body:         toJSON(inpUsr.Email, inpPass, false),
 			Checks: checks(
-				hasResp(true, false),
+				hasResp(false, 500),
 				wasFetchByEmailCalled(1, inpUsr.Email),
 				wasUpdateCalled(0),
 			),
@@ -483,7 +483,7 @@ func TestHandlerLogIn(t *testing.T) {
 			GateKeeper:   DefaultGateKeeper(true),
 			Body:         toJSON(inpUsr.Email, inpPass, false),
 			Checks: checks(
-				hasResp(true, false),
+				hasResp(false, 401),
 				wasFetchByEmailCalled(1, inpUsr.Email),
 				wasUpdateCalled(0),
 			),
@@ -495,7 +495,7 @@ func TestHandlerLogIn(t *testing.T) {
 			GateKeeper:   DefaultGateKeeper(false),
 			Body:         toJSON(inpUsr.Email, inpPass, false),
 			Checks: checks(
-				hasResp(true, false),
+				hasResp(false, 403),
 				wasFetchByEmailCalled(1, inpUsr.Email),
 				wasUpdateCalled(0),
 			),
@@ -507,7 +507,7 @@ func TestHandlerLogIn(t *testing.T) {
 			GateKeeper:   DefaultGateKeeper(true),
 			Body:         toJSON(inpUsr.Email, "password2", false),
 			Checks: checks(
-				hasResp(true, false),
+				hasResp(false, 401),
 				wasFetchByEmailCalled(1, inpUsr.Email),
 				wasUpdateCalled(0),
 			),
@@ -519,7 +519,7 @@ func TestHandlerLogIn(t *testing.T) {
 			GateKeeper:   DefaultGateKeeper(true),
 			Body:         toJSON(inpUsr.Email, inpPass, false),
 			Checks: checks(
-				hasResp(true, false),
+				hasResp(false, 500),
 				wasFetchByEmailCalled(1, inpUsr.Email),
 				wasUpdateCalled(1),
 			),
@@ -531,7 +531,7 @@ func TestHandlerLogIn(t *testing.T) {
 			GateKeeper:   DefaultGateKeeper(true),
 			Body:         toJSON(inpUsr.Email, inpPass, true),
 			Checks: checks(
-				hasResp(true, false),
+				hasResp(false, 500),
 				wasFetchByEmailCalled(1, inpUsr.Email),
 				wasUpdateCalled(1),
 			),
@@ -543,7 +543,7 @@ func TestHandlerLogIn(t *testing.T) {
 			GateKeeper:   DefaultGateKeeper(true),
 			Body:         toJSON(inpUsr.Email, inpPass, true),
 			Checks: checks(
-				hasResp(false, true),
+				hasResp(true, 204),
 				wasFetchByEmailCalled(1, inpUsr.Email),
 				wasUpdateCalled(1),
 			),
@@ -555,7 +555,7 @@ func TestHandlerLogIn(t *testing.T) {
 			GateKeeper:   DefaultGateKeeper(true),
 			Body:         toJSON(inpUsr.Email, inpPass, false),
 			Checks: checks(
-				hasResp(false, false),
+				hasResp(false, 204),
 				wasFetchByEmailCalled(1, inpUsr.Email),
 				wasUpdateCalled(1),
 			),
@@ -571,7 +571,7 @@ func TestHandlerLogIn(t *testing.T) {
 			GateKeeper: DefaultGateKeeper(true),
 			Body:       toJSON(inpUsr.Email, inpPass, true),
 			Checks: checks(
-				hasResp(false, true),
+				hasResp(true, 204),
 				wasFetchByEmailCalled(1, inpUsr.Email),
 				wasUpdateCalled(1),
 			),
@@ -587,7 +587,7 @@ func TestHandlerLogIn(t *testing.T) {
 			GateKeeper: DefaultGateKeeper(true),
 			Body:       toJSON(inpUsr.Email, inpPass, false),
 			Checks: checks(
-				hasResp(false, false),
+				hasResp(false, 204),
 				wasFetchByEmailCalled(1, inpUsr.Email),
 				wasUpdateCalled(1),
 			),

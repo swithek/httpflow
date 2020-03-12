@@ -23,7 +23,7 @@ var (
 
 	// ErrInvalidCredentials is returned when login credentials are
 	// determined to be incorrect.
-	ErrInvalidCredentials = httpflow.NewError(nil, http.StatusBadRequest,
+	ErrInvalidCredentials = httpflow.NewError(nil, http.StatusUnauthorized,
 		"incorrect credentials")
 )
 
