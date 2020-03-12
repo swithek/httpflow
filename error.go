@@ -14,6 +14,10 @@ var (
 	// ErrNotFound is returned when target resources is not found.
 	ErrNotFound = NewError(nil, http.StatusNotFound,
 		strings.ToLower(http.StatusText(http.StatusNotFound)))
+
+	// ErrUnauthorized is returned when authorization process fails.
+	ErrUnauthorized = NewError(nil, http.StatusUnauthorized,
+		strings.ToLower(http.StatusText(http.StatusUnauthorized)))
 )
 
 // statusError is a custom error type used to carry both error

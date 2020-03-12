@@ -581,7 +581,7 @@ func (h *Handler) ResendVerification(w http.ResponseWriter, r *http.Request) {
 
 	ses, ok := sessionup.FromContext(ctx)
 	if !ok {
-		httpflow.RespondError(w, r, sessionup.ErrUnauthorized, h.onError)
+		httpflow.RespondError(w, r, httpflow.ErrUnauthorized, h.onError)
 		return
 	}
 
@@ -835,7 +835,7 @@ func (h *Handler) FetchByToken(r *http.Request) (User, string, error) {
 func ExtractSession(ctx context.Context) (sessionup.Session, error) {
 	ses, ok := sessionup.FromContext(ctx)
 	if !ok {
-		return sessionup.Session{}, sessionup.ErrUnauthorized
+		return sessionup.Session{}, httpflow.ErrUnauthorized
 	}
 
 	return ses, nil
