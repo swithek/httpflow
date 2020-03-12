@@ -3,7 +3,9 @@ package httpflow
 import (
 	"encoding/json"
 	"log"
+	"net"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi"
 	"github.com/gorilla/schema"
@@ -101,4 +103,26 @@ func ExtractID(r *http.Request) (string, error) {
 	}
 
 	return id, nil
+}
+
+// ExtractIP extracts request origin's IP address.
+func ExtractIP(r *http.Request) (net.IP, error) {
+	ip := r.Header.Get(http.CanonicalHeaderKey("X-Real-IP"))
+
+	if ip == "" {
+		ips := strings.Split(r.Header.Get(
+			http.CanonicalHeaderKey("X-Forwarded-For")), ", ")
+		ip = ips[len(ips)-1]
+	}
+
+	if ip == "" {
+		ip, _, _ = net.SplitHostPort(r.RemoteAddr)
+	}
+
+	if ip == "" {
+		return nil, NewError(nil,
+			http.StatusNotAcceptable, "invalid ip address")
+	}
+
+	return net.ParseIP(ip), nil
 }

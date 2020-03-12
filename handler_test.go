@@ -2,6 +2,7 @@ package httpflow
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -120,5 +121,32 @@ func TestExtractID(t *testing.T) {
 
 	id, err = ExtractID(req)
 	assert.Equal(t, "123", id)
+	assert.Nil(t, err)
+}
+
+func TestReadIP(t *testing.T) {
+	ip := net.ParseIP("127.0.0.1")
+	req := httptest.NewRequest("GET", "http://example.com/", nil)
+	req.RemoteAddr = ""
+	ip1, err := ExtractIP(req)
+	assert.Nil(t, ip1)
+	assert.NotNil(t, err)
+
+	req = httptest.NewRequest("GET", "http://example.com/", nil)
+	req.Header.Set("X-Real-IP", "127.0.0.1")
+	ip1, err = ExtractIP(req)
+	assert.Equal(t, ip, ip1)
+	assert.Nil(t, err)
+
+	req = httptest.NewRequest("GET", "http://example.com/", nil)
+	req.Header.Set("X-Forwarded-For", "127.0.0.2, 127.0.0.1")
+	ip1, err = ExtractIP(req)
+	assert.Equal(t, ip, ip1)
+	assert.Nil(t, err)
+
+	req = httptest.NewRequest("GET", "http://example.com/", nil)
+	req.RemoteAddr = "127.0.0.1:3000"
+	ip1, err = ExtractIP(req)
+	assert.Equal(t, ip, ip1)
 	assert.Nil(t, err)
 }
