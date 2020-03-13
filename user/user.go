@@ -342,7 +342,7 @@ type Inputer interface {
 	ExposeCore() CoreInput
 }
 
-// CoreInput holds core fields needed for every user's Init/ApplyInput call.
+// CoreInput holds core fields needed for every user's ApplyInput call.
 type CoreInput struct {
 	// Email is user's email address submitted for further processing.
 	Email string `json:"email"`
