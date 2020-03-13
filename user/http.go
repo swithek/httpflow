@@ -240,7 +240,7 @@ func (h *Handler) BasicRoutes(open bool) chi.Router {
 	r.Use(middleware.AllowContentType("application/json"))
 
 	if open {
-		r.Post("/new", h.Register)
+		r.Post("/", h.Register)
 	}
 
 	r.Route("/auth", func(sr chi.Router) {
