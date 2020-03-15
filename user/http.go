@@ -228,6 +228,9 @@ func (h *Handler) Routes(open bool) chi.Router {
 		sr.Get("/cancel", h.CancelRecovery)
 	})
 
+	r.NotFound(httpflow.NotFound(h.onError))
+	r.MethodNotAllowed(httpflow.MethodNotAllowed(h.onError))
+
 	return r
 }
 
@@ -238,8 +241,6 @@ func (h *Handler) Routes(open bool) chi.Router {
 func (h *Handler) BasicRoutes(open bool) chi.Router {
 	r := chi.NewRouter()
 	r.Use(middleware.AllowContentType("application/json"))
-	r.NotFound(httpflow.NotFound(h.onError))
-	r.MethodNotAllowed(httpflow.MethodNotAllowed(h.onError))
 
 	if open {
 		r.Post("/", h.Register)
@@ -249,6 +250,9 @@ func (h *Handler) BasicRoutes(open bool) chi.Router {
 		sr.Post("/", h.LogIn)
 		sr.With(h.sessions.Auth).Delete("/", h.LogOut)
 	})
+
+	r.NotFound(httpflow.NotFound(h.onError))
+	r.MethodNotAllowed(httpflow.MethodNotAllowed(h.onError))
 
 	return r
 }
