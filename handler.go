@@ -95,6 +95,21 @@ func SessionReject(onError ErrorExec) func(error) http.Handler {
 	}
 }
 
+// NotFound handles cases when request is sent to a non-existing endpoint.
+func NotFound(onError ErrorExec) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		RespondError(w, r, ErrNotFound, onError)
+	}
+}
+
+// MethodNotAllowed handles cases when request's method is not supported for
+// the requested endpoint.
+func MethodNotAllowed(onError ErrorExec) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		RespondError(w, r, ErrMethodNotAllowed, onError)
+	}
+}
+
 // ExtractID extracts ID from URL.
 func ExtractID(r *http.Request) (string, error) {
 	id := chi.URLParam(r, "id")

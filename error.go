@@ -11,13 +11,18 @@ import (
 )
 
 var (
+	// ErrUnauthorized is returned when authorization process fails.
+	ErrUnauthorized = NewError(nil, http.StatusUnauthorized,
+		strings.ToLower(http.StatusText(http.StatusUnauthorized)))
+
 	// ErrNotFound is returned when target resources is not found.
 	ErrNotFound = NewError(nil, http.StatusNotFound,
 		strings.ToLower(http.StatusText(http.StatusNotFound)))
 
-	// ErrUnauthorized is returned when authorization process fails.
-	ErrUnauthorized = NewError(nil, http.StatusUnauthorized,
-		strings.ToLower(http.StatusText(http.StatusUnauthorized)))
+	// ErrMethodNotAllowed is returned when request's method is not
+	// supported for the requested endpoint.
+	ErrMethodNotAllowed = NewError(nil, http.StatusMethodNotAllowed,
+		strings.ToLower(http.StatusText(http.StatusMethodNotAllowed)))
 )
 
 // statusError is a custom error type used to carry both error

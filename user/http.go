@@ -238,6 +238,8 @@ func (h *Handler) Routes(open bool) chi.Router {
 func (h *Handler) BasicRoutes(open bool) chi.Router {
 	r := chi.NewRouter()
 	r.Use(middleware.AllowContentType("application/json"))
+	r.NotFound(httpflow.NotFound(h.onError))
+	r.MethodNotAllowed(httpflow.MethodNotAllowed(h.onError))
 
 	if open {
 		r.Post("/", h.Register)

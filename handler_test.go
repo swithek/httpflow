@@ -108,6 +108,26 @@ func TestSessionReject(t *testing.T) {
 	assert.NotZero(t, rec.Body.String())
 }
 
+func TestNotFound(t *testing.T) {
+	req := httptest.NewRequest("GET", "http://test.com/", nil)
+	rec := httptest.NewRecorder()
+	NotFound(func(error) {})(rec, req)
+	assert.Equal(t, "application/json",
+		rec.Header().Get("Content-Type"))
+	assert.Equal(t, http.StatusNotFound, rec.Code)
+	assert.NotZero(t, rec.Body.Len())
+}
+
+func TestMethodNotAllowed(t *testing.T) {
+	req := httptest.NewRequest("GET", "http://test.com/", nil)
+	rec := httptest.NewRecorder()
+	MethodNotAllowed(func(error) {})(rec, req)
+	assert.Equal(t, "application/json",
+		rec.Header().Get("Content-Type"))
+	assert.Equal(t, http.StatusMethodNotAllowed, rec.Code)
+	assert.NotZero(t, rec.Body.Len())
+}
+
 func TestExtractID(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://test.com/", nil)
 	id, err := ExtractID(req)
