@@ -44,7 +44,7 @@ func (l Links) Prep(k LinkKey, args ...interface{}) string {
 	return fmt.Sprintf(ls, args...)
 }
 
-// Exist checks whether the links accessed by the specified keys exists.
+// Exist checks whether the links accessed by the specified keys exist or not.
 func (l Links) Exist(kk ...LinkKey) bool {
 	if l.ll == nil {
 		return false

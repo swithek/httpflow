@@ -78,7 +78,8 @@ func (t *Token) init(tt TokenTimes) (string, error) {
 	return v, nil
 }
 
-// Check determines whether the provided token is correct and non-expired.
+// Check determines whether the provided token is correct and non-expired
+// or not.
 func (t *Token) Check(v string) error {
 	if time.Now().After(t.ExpiresAt.Time) {
 		return ErrInvalidToken

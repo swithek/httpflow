@@ -174,7 +174,8 @@ func DefaultGateKeeper(open bool) GateKeeper {
 }
 
 // PreDeleter is function that should be used for custom account checks
-// before user deletion (e.g. check whether at least one admin user exists).
+// before user deletion (e.g. check whether at least one admin user exists
+// or not).
 type PreDeleter func(ctx context.Context, usr User) error
 
 // DefaultPreDeleter does nothing, just fills the space and contemplates life.
@@ -775,7 +776,7 @@ func (h *Handler) Recover(w http.ResponseWriter, r *http.Request) {
 	httpflow.Respond(w, r, nil, http.StatusNoContent, h.onError)
 }
 
-// PingRecovery only checks whether the token in the URL is valid, no
+// PingRecovery only checks whether the token in the URL is valid or not; no
 // writable modifications are being done.
 func (h *Handler) PingRecovery(w http.ResponseWriter, r *http.Request) {
 	usr, tok, err := h.FetchByToken(r)

@@ -220,7 +220,7 @@ func (s *Store) DeleteByID(ctx context.Context, id string) error {
 }
 
 // detectErr determines whether postgres' error needs any additional
-// modifications.
+// modifications or not.
 func detectErr(err error) error {
 	if err == sql.ErrNoRows {
 		return httpflow.ErrNotFound

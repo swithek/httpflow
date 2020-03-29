@@ -135,7 +135,7 @@ func (c *Core) ExposeCore() *Core {
 	return c
 }
 
-// IsActivated checks whether user's account is activated.
+// IsActivated checks whether user's account is activated or not.
 func (c *Core) IsActivated() bool {
 	return !c.ActivatedAt.IsZero()
 }
@@ -208,7 +208,8 @@ func (c *Core) SetPassword(p string) (bool, error) {
 	return true, nil
 }
 
-// IsPasswordCorrect checks whether the provided password matches the hash.
+// IsPasswordCorrect checks whether the provided password matches the hash
+// or not.
 func (c *Core) IsPasswordCorrect(p string) bool {
 	return bcrypt.CompareHashAndPassword(c.PasswordHash, []byte(p)) == nil
 }
@@ -228,8 +229,8 @@ func (c *Core) InitVerification(tt TokenTimes) (string, error) {
 }
 
 // Verify checks whether the provided token is valid and activates
-// the account (if it wasn't already) and/or, if unverified email address exists,
-// confirms it as the main email address.
+// the account (if it wasn't already) and/or, if unverified email address
+// exists, confirms it as the main email address.
 // NOTE: provided Token must in its original / raw form - not combined with
 // user's ID (as InitVerification method returns).
 func (c *Core) Verify(t string) error {
@@ -317,7 +318,7 @@ func (c *Core) CancelRecovery(t string) error {
 }
 
 // CheckEmail determines whether the provided email address is of correct
-// format.
+// format or not.
 func CheckEmail(e string) error {
 	if !emailRe.MatchString(e) {
 		return ErrInvalidEmail
@@ -326,7 +327,8 @@ func CheckEmail(e string) error {
 	return nil
 }
 
-// CheckPassword determines whether the provided password is of correct format.
+// CheckPassword determines whether the provided password is of correct
+// format or not.
 func CheckPassword(p string) error {
 	if len(p) < 8 { // TODO add more extensive checks?
 		return ErrInvalidPassword
@@ -352,7 +354,7 @@ type CoreInput struct {
 	Password string `json:"password"`
 
 	// RememberMe specifies whether a session should be created on
-	// registration / log in.
+	// registration / log in or not.
 	RememberMe bool `json:"remember_me"`
 }
 
@@ -368,15 +370,15 @@ type Summary interface {
 	ExposeCore() CoreSummary
 }
 
-// CoreSummary holds core fields' information about whether they
-// were modified.
+// CoreSummary holds core fields' information which determines whether they
+// were modified or not.
 type CoreSummary struct {
 	// Email specifies whether the email was modified during
-	// input application.
+	// input application or not.
 	Email bool
 
 	// Password specifies whether the password was modified
-	// during input application.
+	// during input application or not.
 	Password bool
 }
 
@@ -403,7 +405,7 @@ func (c CoreStats) ExposeCore() CoreStats {
 	return c
 }
 
-// CheckFilterKey determines whether the filter key is valid
+// CheckFilterKey determines whether the filter key is valid or not.
 func CheckFilterKey(fk string) error {
 	switch fk {
 	case "email":
@@ -414,7 +416,7 @@ func CheckFilterKey(fk string) error {
 		"invalid filter key")
 }
 
-// CheckSortKey determines whether the sort key is valid.
+// CheckSortKey determines whether the sort key is valid or not.
 func CheckSortKey(sk string) error {
 	switch sk {
 	case "created_at", "updated_at", "activated_at", "email":

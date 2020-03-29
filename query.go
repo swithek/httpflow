@@ -30,8 +30,8 @@ type Query struct {
 	Desc bool `schema:"desc"`
 }
 
-// Validate checks whether query field values don't go out the bounds of
-// sanity.
+// Validate checks whether query field values go out the bounds of
+// sanity or not.
 // First parameter should be sort key checking func, second - filter key
 // checking func.
 func (q Query) Validate(fck, sck func(v string) error) error {
