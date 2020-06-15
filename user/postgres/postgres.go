@@ -29,6 +29,7 @@ type Store struct {
 func New(db *sqlx.DB, d time.Duration, onError httpflow.ErrorExec) (*Store, error) {
 	s := &Store{db: db}
 	if err := s.initSQL(); err != nil {
+		// unlikely to happen
 		return nil, err
 	}
 
@@ -45,10 +46,12 @@ func New(db *sqlx.DB, d time.Duration, onError httpflow.ErrorExec) (*Store, erro
 func (s *Store) initSQL() error {
 	q, err := dotsql.LoadFromString(_escFSMustString(false, "/queries.sql"))
 	if err != nil {
+		// unlikely to happen
 		return err
 	}
 
 	s.q = q
+
 	return nil
 }
 
@@ -59,10 +62,12 @@ func (s *Store) startCleanup(d time.Duration, onError httpflow.ErrorExec) {
 	}
 
 	t := time.NewTicker(d)
+
 	for {
 		if err := s.deleteInactive(); err != nil {
 			onError(err)
 		}
+
 		<-t.C
 	}
 }
@@ -81,6 +86,7 @@ func (s *Store) deleteInactive() error {
 func (s *Store) Stats(ctx context.Context) (user.Stats, error) {
 	q, err := s.q.Raw("select_stats")
 	if err != nil {
+		// unlikely to happen
 		return nil, err
 	}
 
@@ -131,6 +137,7 @@ func (s *Store) FetchMany(ctx context.Context, qr httpflow.Query) ([]user.User, 
 	q, err := s.q.Raw(fmt.Sprintf("select_users_by_%s_%s_%s", qr.FilterBy,
 		ord, qr.SortBy))
 	if err != nil {
+		// unlikely to happen
 		return nil, err
 	}
 
@@ -140,12 +147,14 @@ func (s *Store) FetchMany(ctx context.Context, qr httpflow.Query) ([]user.User, 
 		return nil, detectErr(err)
 	}
 
-	var usrs []user.User
+	var usrs []user.User //nolint:prealloc // row count is not accessible
+
 	for rr.Next() {
 		cr := &user.Core{}
-		err = rr.StructScan(cr)
-		if err != nil {
-			rr.Close()
+
+		if err = rr.StructScan(cr); err != nil {
+			// unlikely to happen
+			rr.Close() //nolint:gosec,errcheck // no need to check for close errors during reading
 			return nil, detectErr(err)
 		}
 
@@ -153,6 +162,7 @@ func (s *Store) FetchMany(ctx context.Context, qr httpflow.Query) ([]user.User, 
 	}
 
 	if err = rr.Err(); err != nil {
+		// unlikely to happen
 		return nil, detectErr(err)
 	}
 
@@ -164,6 +174,7 @@ func (s *Store) FetchMany(ctx context.Context, qr httpflow.Query) ([]user.User, 
 func (s *Store) FetchByID(ctx context.Context, id string) (user.User, error) {
 	q, err := s.q.Raw("select_user_by_id")
 	if err != nil {
+		// unlikely to happen
 		return nil, err
 	}
 
@@ -180,6 +191,7 @@ func (s *Store) FetchByID(ctx context.Context, id string) (user.User, error) {
 func (s *Store) FetchByEmail(ctx context.Context, eml string) (user.User, error) {
 	q, err := s.q.Raw("select_user_by_email")
 	if err != nil {
+		// unlikely to happen
 		return nil, err
 	}
 
@@ -222,17 +234,14 @@ func (s *Store) DeleteByID(ctx context.Context, id string) error {
 // detectErr determines whether postgres' error needs any additional
 // modifications or not.
 func detectErr(err error) error {
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return httpflow.ErrNotFound
 	}
 
 	var perr *pq.Error
-	if errors.As(err, &perr) {
-		switch perr.Constraint {
-		case "email_unique":
-			return httpflow.NewError(nil, http.StatusBadRequest,
-				"email address cannot be used")
-		}
+	if errors.As(err, &perr) && perr.Constraint == "email_unique" {
+		return httpflow.NewError(nil, http.StatusBadRequest,
+			"email address cannot be used")
 	}
 
 	return err

@@ -11,18 +11,19 @@ import (
 	"gopkg.in/guregu/null.v3/zero"
 )
 
-func TestNewCore(t *testing.T) {
+func Test_NewCore(t *testing.T) {
 	cr, err := NewCore(CoreInput{})
-	assert.NotNil(t, err)
+	assert.Nil(t, cr)
+	assert.Error(t, err)
 
-	cr, err = NewCore(CoreInput{Email: "user@email.com", Password: "password"})
-	assert.Nil(t, err)
+	cr, err = NewCore(CoreInput{Email: _email, Password: "password"})
+	assert.NoError(t, err)
 	assert.NotZero(t, cr.ID)
-	assert.Equal(t, "user@email.com", cr.Email)
+	assert.Equal(t, _email, cr.Email)
 	assert.NotZero(t, cr.PasswordHash)
 }
 
-func TestCoreApplyInput(t *testing.T) {
+func Test_Core_ApplyInput(t *testing.T) {
 	cc := map[string]struct {
 		Err   error
 		Input CoreInput
@@ -37,13 +38,13 @@ func TestCoreApplyInput(t *testing.T) {
 		"Invalid password": {
 			Err: assert.AnError,
 			Input: CoreInput{
-				Email:    "user@email.com",
+				Email:    _email,
 				Password: "pass",
 			},
 		},
 		"Successfully applied input": {
 			Input: CoreInput{
-				Email:    "user@email.com",
+				Email:    _email,
 				Password: "password",
 			},
 		},
@@ -51,19 +52,24 @@ func TestCoreApplyInput(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
 			cr := Core{}
 			res, err := cr.ApplyInput(c.Input)
 
 			if c.Err != nil {
-				if c.Err == assert.AnError {
-					assert.NotNil(t, err)
+				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
+					assert.Error(t, err)
 				} else {
 					assert.Equal(t, c.Err, err)
 				}
+
 				return
 			}
+
+			assert.NoError(t, err)
 
 			if c.Input.Email != "" {
 				assert.True(t, res.ExposeCore().Email)
@@ -80,17 +86,16 @@ func TestCoreApplyInput(t *testing.T) {
 				assert.False(t, res.ExposeCore().Password)
 				assert.Zero(t, cr.PasswordHash)
 			}
-
 		})
 	}
 }
 
-func TestCoreExposeCore(t *testing.T) {
-	cr := Core{Email: "user@email.com"}
+func Test_Core_ExposeCore(t *testing.T) {
+	cr := Core{Email: _email}
 	assert.Equal(t, &cr, cr.ExposeCore())
 }
 
-func TestCoreIsActivated(t *testing.T) {
+func Test_Core_IsActivated(t *testing.T) {
 	cr := Core{}
 	assert.False(t, cr.IsActivated())
 
@@ -98,9 +103,7 @@ func TestCoreIsActivated(t *testing.T) {
 	assert.True(t, cr.IsActivated())
 }
 
-func TestCoreSetEmail(t *testing.T) {
-	current := "user@email.com"
-
+func Test_Core_SetEmail(t *testing.T) {
 	cc := map[string]struct {
 		Err        error
 		Current    string
@@ -114,48 +117,51 @@ func TestCoreSetEmail(t *testing.T) {
 			New:     "",
 		},
 		"Empty new email": {
-			Current: current,
+			Current: _email,
 			New:     "",
 		},
 		"Matching emails": {
-			Current: current,
-			New:     current,
+			Current: _email,
+			New:     _email,
 		},
 		"Invalid new email": {
 			Err:     assert.AnError,
-			Current: current,
+			Current: _email,
 			New:     "useremail.com",
 		},
 		"Successful unverified email set": {
-			Current:    current,
+			Current:    _email,
 			New:        "user123@email.com",
 			Applied:    true,
 			Unverified: true,
 		},
 		"Successful email set": {
 			Current: "",
-			New:     current,
+			New:     _email,
 			Applied: true,
 		},
 	}
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
 			cr := Core{}
 			cr.Email = c.Current
 
 			res, err := cr.SetEmail(c.New)
 			if c.Err != nil {
-				if c.Err == assert.AnError {
-					assert.NotNil(t, err)
+				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
+					assert.Error(t, err)
 				} else {
 					assert.Equal(t, c.Err, err)
 				}
 				return
 			}
 
+			assert.NoError(t, err)
 			assert.Equal(t, c.Applied, res)
 
 			if c.Applied {
@@ -171,9 +177,7 @@ func TestCoreSetEmail(t *testing.T) {
 	}
 }
 
-func TestCoreSetUnverifiedEmail(t *testing.T) {
-	current := "user@email.com"
-
+func Test_Core_SetUnverifiedEmail(t *testing.T) {
 	cc := map[string]struct {
 		Err     error
 		Current string // current unverified email
@@ -185,8 +189,8 @@ func TestCoreSetUnverifiedEmail(t *testing.T) {
 			New:     "",
 		},
 		"Matching email": {
-			Current: current,
-			New:     current,
+			Current: _email,
+			New:     _email,
 		},
 		"Invalid email": {
 			Err:     assert.AnError,
@@ -195,28 +199,31 @@ func TestCoreSetUnverifiedEmail(t *testing.T) {
 		},
 		"Successfully set unverified email": {
 			Current: "",
-			New:     current,
+			New:     _email,
 			Applied: true,
 		},
 	}
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
 			cr := Core{}
 			cr.UnverifiedEmail = zero.StringFrom(c.Current)
 
 			res, err := cr.SetUnverifiedEmail(c.New)
 			if c.Err != nil {
-				if c.Err == assert.AnError {
-					assert.NotNil(t, err)
+				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
+					assert.Error(t, err)
 				} else {
 					assert.Equal(t, c.Err, err)
 				}
 				return
 			}
 
+			assert.NoError(t, err)
 			assert.Equal(t, c.Applied, res)
 
 			if c.Applied {
@@ -228,7 +235,7 @@ func TestCoreSetUnverifiedEmail(t *testing.T) {
 	}
 }
 
-func TestCoreSetPassword(t *testing.T) {
+func Test_Core_SetPassword(t *testing.T) {
 	cc := map[string]struct {
 		Err      error
 		Password string
@@ -258,34 +265,37 @@ func TestCoreSetPassword(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
 			cr := Core{PasswordHash: c.Hash}
 
 			res, err := cr.SetPassword(c.Password)
 			if c.Err != nil {
-				if c.Err == assert.AnError {
-					assert.NotNil(t, err)
+				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
+					assert.Error(t, err)
 				} else {
 					assert.Equal(t, c.Err, err)
 				}
 				return
 			}
 
+			assert.NoError(t, err)
 			assert.Equal(t, c.Applied, res)
 
 			if c.Applied {
-				assert.Nil(t, bcrypt.CompareHashAndPassword(
+				assert.NoError(t, bcrypt.CompareHashAndPassword(
 					cr.PasswordHash, []byte(c.Password)))
 				return
 			}
-			assert.NotNil(t, bcrypt.CompareHashAndPassword(
+			assert.Error(t, bcrypt.CompareHashAndPassword(
 				cr.PasswordHash, []byte(c.Password)))
 		})
 	}
 }
 
-func TestCoreIsPasswordCorrect(t *testing.T) {
+func Test_Core_IsPasswordCorrect(t *testing.T) {
 	cr := Core{}
 	cr.PasswordHash, _ = bcrypt.GenerateFromPassword([]byte("password"),
 		bcrypt.DefaultCost)
@@ -293,7 +303,7 @@ func TestCoreIsPasswordCorrect(t *testing.T) {
 	assert.False(t, false, cr.IsPasswordCorrect("password1"))
 }
 
-func TestCoreInitVerification(t *testing.T) {
+func Test_Core_InitVerification(t *testing.T) {
 	cc := map[string]struct {
 		Err   error
 		Token Token
@@ -309,27 +319,30 @@ func TestCoreInitVerification(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
 			cr := Core{ID: xid.New(), Verification: c.Token}
 			tok, err := cr.InitVerification(TokenTimes{time.Minute,
 				time.Minute})
 			if c.Err != nil {
-				if c.Err == assert.AnError {
-					assert.NotNil(t, err)
+				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
+					assert.Error(t, err)
 				} else {
 					assert.Equal(t, c.Err, err)
 				}
 				return
 			}
 
+			assert.NoError(t, err)
 			assert.NotZero(t, tok)
 			assert.NotZero(t, cr.Verification)
 		})
 	}
 }
 
-func TestCoreVerify(t *testing.T) {
+func Test_Core_Verify(t *testing.T) {
 	inp := Token{}
 	str, _ := inp.init(TokenTimes{time.Hour, time.Hour})
 	cc := map[string]struct {
@@ -355,8 +368,8 @@ func TestCoreVerify(t *testing.T) {
 					ActivatedAt:  zero.TimeFrom(time.Now()),
 					Verification: inp,
 				}
-				cr.Email = "user@email.com"
-				cr.UnverifiedEmail = zero.StringFrom("user@email.com")
+				cr.Email = _email
+				cr.UnverifiedEmail = zero.StringFrom(_email)
 				return cr
 			}(),
 			Token:           str,
@@ -374,7 +387,7 @@ func TestCoreVerify(t *testing.T) {
 					ActivatedAt:  zero.TimeFrom(time.Time{}),
 					Verification: inp,
 				}
-				cr.UnverifiedEmail = zero.StringFrom("user@email.com")
+				cr.UnverifiedEmail = zero.StringFrom(_email)
 				return cr
 			}(),
 			Token:           str,
@@ -386,7 +399,7 @@ func TestCoreVerify(t *testing.T) {
 					ActivatedAt:  zero.TimeFrom(time.Now()),
 					Verification: inp,
 				}
-				cr.UnverifiedEmail = zero.StringFrom("user@email.com")
+				cr.UnverifiedEmail = zero.StringFrom(_email)
 				return cr
 			}(),
 			Token:           str,
@@ -396,18 +409,21 @@ func TestCoreVerify(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
 			err := c.Core.Verify(c.Token)
 			if c.Err != nil {
-				if c.Err == assert.AnError {
-					assert.NotNil(t, err)
+				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
+					assert.Error(t, err)
 				} else {
 					assert.Equal(t, c.Err, err)
 				}
 				return
 			}
 
+			assert.NoError(t, err)
 			assert.True(t, c.Core.Verification.IsEmpty())
 			if c.UnverifiedEmail {
 				assert.Zero(t, c.Core.UnverifiedEmail)
@@ -420,7 +436,7 @@ func TestCoreVerify(t *testing.T) {
 	}
 }
 
-func TestCoreCancelVerification(t *testing.T) {
+func Test_Core_CancelVerification(t *testing.T) {
 	inp := Token{}
 	str, _ := inp.init(TokenTimes{time.Hour, time.Hour})
 	cc := map[string]struct {
@@ -449,23 +465,27 @@ func TestCoreCancelVerification(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
 			err := c.Core.CancelVerification(c.Token)
 			if c.Err != nil {
-				if c.Err == assert.AnError {
-					assert.NotNil(t, err)
+				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
+					assert.Error(t, err)
 				} else {
 					assert.Equal(t, c.Err, err)
 				}
 				return
 			}
+
+			assert.NoError(t, err)
 			assert.True(t, c.Core.Verification.IsEmpty())
 		})
 	}
 }
 
-func TestCoreInitRecovery(t *testing.T) {
+func Test_Core_InitRecovery(t *testing.T) {
 	cc := map[string]struct {
 		Err   error
 		Token Token
@@ -481,27 +501,30 @@ func TestCoreInitRecovery(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
 			cr := Core{ID: xid.New(), Recovery: c.Token}
 			tok, err := cr.InitRecovery(TokenTimes{time.Minute,
 				time.Minute})
 			if c.Err != nil {
-				if c.Err == assert.AnError {
-					assert.NotNil(t, err)
+				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
+					assert.Error(t, err)
 				} else {
 					assert.Equal(t, c.Err, err)
 				}
 				return
 			}
 
+			assert.NoError(t, err)
 			assert.NotZero(t, tok)
 			assert.NotZero(t, cr.Recovery)
 		})
 	}
 }
 
-func TestCoreRecover(t *testing.T) {
+func Test_Core_Recover(t *testing.T) {
 	inp := Token{}
 	str, _ := inp.init(TokenTimes{time.Hour, time.Hour})
 	cc := map[string]struct {
@@ -550,26 +573,29 @@ func TestCoreRecover(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
 			err := c.Core.Recover(c.Token, c.Password)
 			if c.Err != nil {
-				if c.Err == assert.AnError {
-					assert.NotNil(t, err)
+				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
+					assert.Error(t, err)
 				} else {
 					assert.Equal(t, c.Err, err)
 				}
 				return
 			}
 
+			assert.NoError(t, err)
 			assert.True(t, c.Core.Recovery.IsEmpty())
-			assert.Nil(t, bcrypt.CompareHashAndPassword(
+			assert.NoError(t, bcrypt.CompareHashAndPassword(
 				c.Core.PasswordHash, []byte(c.Password)))
 		})
 	}
 }
 
-func TestCoreCancelRecovery(t *testing.T) {
+func Test_Core_CancelRecovery(t *testing.T) {
 	inp := Token{}
 	str, _ := inp.init(TokenTimes{time.Hour, time.Hour})
 	cc := map[string]struct {
@@ -598,23 +624,27 @@ func TestCoreCancelRecovery(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
 			err := c.Core.CancelRecovery(c.Token)
 			if c.Err != nil {
-				if c.Err == assert.AnError {
-					assert.NotNil(t, err)
+				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
+					assert.Error(t, err)
 				} else {
 					assert.Equal(t, c.Err, err)
 				}
 				return
 			}
+
+			assert.NoError(t, err)
 			assert.True(t, c.Core.Recovery.IsEmpty())
 		})
 	}
 }
 
-func TestCheckEmail(t *testing.T) {
+func Test_CheckEmail(t *testing.T) {
 	cc := map[string]struct {
 		Email string
 		Err   error
@@ -654,53 +684,57 @@ func TestCheckEmail(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
 			err := CheckEmail(c.Email)
 			if c.Err != nil {
-				if c.Err == assert.AnError {
-					assert.NotNil(t, err)
+				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
+					assert.Error(t, err)
 				} else {
 					assert.Equal(t, c.Err, err)
 				}
 				return
 			}
+
+			assert.NoError(t, err)
 		})
 	}
 }
 
-func TestCheckPassword(t *testing.T) {
+func Test_CheckPassword(t *testing.T) {
 	err := CheckPassword("1234567")
 	assert.Equal(t, ErrInvalidPassword, err)
 
 	err = CheckPassword("12345678")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 }
 
-func TestCoreInputExposeCore(t *testing.T) {
-	cInp := CoreInput{Email: "user@email.com"}
+func Test_CoreInput_ExposeCore(t *testing.T) {
+	cInp := CoreInput{Email: _email}
 	assert.Equal(t, cInp, cInp.ExposeCore())
 }
 
-func TestCoreSummaryExposeCore(t *testing.T) {
+func Test_CoreSummary_ExposeCore(t *testing.T) {
 	cSum := CoreSummary{Email: true}
 	assert.Equal(t, cSum, cSum.ExposeCore())
 }
 
-func TestCoreStatsExposeCore(t *testing.T) {
+func Test_CoreStats_ExposeCore(t *testing.T) {
 	cStats := CoreStats{TotalCount: 10}
 	assert.Equal(t, cStats, cStats.ExposeCore())
 }
 
-func TestCheckFilterKey(t *testing.T) {
-	assert.Nil(t, CheckFilterKey("email"))
-	assert.NotNil(t, CheckFilterKey("email1"))
+func Test_CheckFilterKey(t *testing.T) {
+	assert.NoError(t, CheckFilterKey("email"))
+	assert.Error(t, CheckFilterKey("email1"))
 }
 
-func TestCheckSortKey(t *testing.T) {
-	assert.Nil(t, CheckSortKey("created_at"))
-	assert.Nil(t, CheckSortKey("updated_at"))
-	assert.Nil(t, CheckSortKey("activated_at"))
-	assert.Nil(t, CheckSortKey("email"))
-	assert.NotNil(t, CheckSortKey("email1"))
+func Test_CheckSortKey(t *testing.T) {
+	assert.NoError(t, CheckSortKey("created_at"))
+	assert.NoError(t, CheckSortKey("updated_at"))
+	assert.NoError(t, CheckSortKey("activated_at"))
+	assert.NoError(t, CheckSortKey("email"))
+	assert.Error(t, CheckSortKey("email1"))
 }

@@ -2,6 +2,7 @@ package httpflow
 
 import "fmt"
 
+// Link-prefixed constants define core link keys.
 const (
 	LinkActivation         LinkKey = "activation"
 	LinkActivationCancel   LinkKey = "activation_cancel"
@@ -14,7 +15,8 @@ const (
 // LinkKey is used to access links in the map.
 type LinkKey string
 
-// Links holds a map of link strings ready to formatted and built with arguments.
+// Links holds a map of link strings ready to formatted and built with
+// arguments.
 // Useful for sending emails etc.
 // Strings should abide standard rules of formatting, example:
 // "http://yoursite.com/user/activ?token=%s"

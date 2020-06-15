@@ -12,7 +12,7 @@ import (
 	"github.com/swithek/sessionup"
 )
 
-func TestNewError(t *testing.T) {
+func Test_NewError(t *testing.T) {
 	err := NewError(assert.AnError, 400, "bad request %s", "123")
 
 	require.IsType(t, &statusError{}, err)
@@ -23,7 +23,7 @@ func TestNewError(t *testing.T) {
 	assert.Equal(t, sErr.Message, "bad request 123")
 }
 
-func TestStatusErrorError(t *testing.T) {
+func Test_statusError_Error(t *testing.T) {
 	sErr := statusError{
 		Code:    400,
 		Message: "bad request",
@@ -36,12 +36,12 @@ func TestStatusErrorError(t *testing.T) {
 	assert.Equal(t, "400 - bad request: invalid JSON body", sErr.Error())
 }
 
-func TestStatusErrorUnwrap(t *testing.T) {
+func Test_statusError_Unwrap(t *testing.T) {
 	sErr := statusError{err: assert.AnError}
 	assert.Equal(t, assert.AnError, sErr.Unwrap())
 }
 
-func TestDetectError(t *testing.T) {
+func Test_DetectError(t *testing.T) {
 	cc := map[string]struct {
 		Err     error
 		Message string
@@ -77,8 +77,10 @@ func TestDetectError(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
 			err := DetectError(c.Err)
 			require.IsType(t, &statusError{}, err)
 			sErr := err.(*statusError)
@@ -88,13 +90,12 @@ func TestDetectError(t *testing.T) {
 	}
 }
 
-func TestErrorCode(t *testing.T) {
-	assert.Equal(t, http.StatusInternalServerError, ErrorCode(
-		errors.New("error")))
+func Test_ErrorCode(t *testing.T) {
+	assert.Equal(t, http.StatusInternalServerError, ErrorCode(errors.New("error")))
 	assert.Equal(t, 400, ErrorCode(NewError(nil, 400, "error")))
 }
 
-func TestErrorMessage(t *testing.T) {
+func Test_ErrorMessage(t *testing.T) {
 	assert.Equal(t, strings.ToLower(http.StatusText(
 		http.StatusInternalServerError)), ErrorMessage(errors.New("error")))
 	assert.Equal(t, "error", ErrorMessage(NewError(nil, 400, "error")))

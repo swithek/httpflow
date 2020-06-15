@@ -72,18 +72,21 @@ func TestNew(t *testing.T) {
 	}
 
 	for cn, c := range cc {
+		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			c.Expect()
+
 			s, err := New(dbx, 0, func(err error) {})
 			if c.Err != nil {
 				assert.Equal(t, c.Err, err)
 				return
 			}
 
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 			assert.Equal(t, dbx, s.db)
 			assert.NotZero(t, s.q)
-			assert.Nil(t, mock.ExpectationsWereMet())
+			assert.NoError(t, mock.ExpectationsWereMet())
 		})
 	}
 }
@@ -93,7 +96,7 @@ func TestStoreDeleteInactive(t *testing.T) {
 	dbx := sqlx.NewDb(db, "postgres")
 	s := Store{db: dbx}
 	err := s.initSQL()
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	cc := map[string]struct {
 		Expect func()
@@ -115,23 +118,25 @@ func TestStoreDeleteInactive(t *testing.T) {
 	}
 
 	for cn, c := range cc {
+		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			c.Expect()
+
 			err = s.deleteInactive()
 			if c.Err != nil {
-				if c.Err == assert.AnError {
-					assert.NotNil(t, err)
+				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
+					assert.Error(t, err)
 				} else {
 					assert.Equal(t, c.Err, err)
 				}
 				return
 			}
 
-			assert.Nil(t, err)
-			assert.Nil(t, mock.ExpectationsWereMet())
+			assert.NoError(t, err)
+			assert.NoError(t, mock.ExpectationsWereMet())
 		})
 	}
-
 }
 
 func TestStoreStats(t *testing.T) {
@@ -139,7 +144,7 @@ func TestStoreStats(t *testing.T) {
 	dbx := sqlx.NewDb(db, "postgres")
 	s := Store{db: dbx}
 	err := s.initSQL()
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	cc := map[string]struct {
 		Expect func()
@@ -164,21 +169,24 @@ func TestStoreStats(t *testing.T) {
 	}
 
 	for cn, c := range cc {
+		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			c.Expect()
+
 			st, err := s.Stats(context.Background())
 			if c.Err != nil {
-				if c.Err == assert.AnError {
-					assert.NotNil(t, err)
+				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
+					assert.Error(t, err)
 				} else {
 					assert.Equal(t, c.Err, err)
 				}
 			} else {
-				assert.Nil(t, err)
+				assert.NoError(t, err)
 			}
 
 			assert.Equal(t, c.Stats, st)
-			assert.Nil(t, mock.ExpectationsWereMet())
+			assert.NoError(t, mock.ExpectationsWereMet())
 		})
 	}
 }
@@ -188,7 +196,7 @@ func TestStoreCreate(t *testing.T) {
 	dbx := sqlx.NewDb(db, "postgres")
 	s := Store{db: dbx}
 	err := s.initSQL()
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	inpUsr := newFullUser()
 
@@ -229,18 +237,23 @@ func TestStoreCreate(t *testing.T) {
 	}
 
 	for cn, c := range cc {
+		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			c.Expect()
+
 			err = s.Create(context.Background(), c.User)
 			if c.Err != nil {
-				if c.Err == assert.AnError {
-					assert.NotNil(t, err)
+				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
+					assert.Error(t, err)
 				} else {
 					assert.Equal(t, c.Err, err)
 				}
 				return
 			}
-			assert.Nil(t, mock.ExpectationsWereMet())
+
+			assert.NoError(t, err)
+			assert.NoError(t, mock.ExpectationsWereMet())
 		})
 	}
 }
@@ -250,7 +263,7 @@ func TestStoryFetchMany(t *testing.T) {
 	dbx := sqlx.NewDb(db, "postgres")
 	s := Store{db: dbx}
 	err := s.initSQL()
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	inpUsrs := []user.User{
 		toPointer(newFullUser()),
@@ -542,21 +555,24 @@ FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY email ASC LIMIT $2 OFFSET 
 	}
 
 	for cn, c := range cc {
+		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			c.Expect()
+
 			usrs, err := s.FetchMany(context.Background(), c.Query)
 			if c.Err != nil {
-				if c.Err == assert.AnError {
-					assert.NotNil(t, err)
+				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
+					assert.Error(t, err)
 				} else {
 					assert.Equal(t, c.Err, err)
 				}
 			} else {
-				assert.Nil(t, err)
+				assert.NoError(t, err)
 			}
 
 			assert.Equal(t, c.Users, usrs)
-			assert.Nil(t, mock.ExpectationsWereMet())
+			assert.NoError(t, mock.ExpectationsWereMet())
 		})
 	}
 }
@@ -566,7 +582,7 @@ func TestStoreFetchByID(t *testing.T) {
 	dbx := sqlx.NewDb(db, "postgres")
 	s := Store{db: dbx}
 	err := s.initSQL()
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	inpUsr := toPointer(newFullUser())
 
@@ -621,21 +637,24 @@ FROM users WHERE id = $1 LIMIT 1;`).
 	}
 
 	for cn, c := range cc {
+		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			c.Expect()
+
 			usr, err := s.FetchByID(context.Background(), c.User.ID.String())
 			if c.Err != nil {
-				if c.Err == assert.AnError {
-					assert.NotNil(t, err)
+				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
+					assert.Error(t, err)
 				} else {
 					assert.Equal(t, c.Err, err)
 				}
 				return
 			}
 
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 			assert.Equal(t, c.User, usr)
-			assert.Nil(t, mock.ExpectationsWereMet())
+			assert.NoError(t, mock.ExpectationsWereMet())
 		})
 	}
 }
@@ -645,7 +664,7 @@ func TestStoreFetchByEmail(t *testing.T) {
 	dbx := sqlx.NewDb(db, "postgres")
 	s := Store{db: dbx}
 	err := s.initSQL()
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	inpUsr := toPointer(newFullUser())
 
@@ -700,20 +719,24 @@ FROM users WHERE email = $1 LIMIT 1;`).
 	}
 
 	for cn, c := range cc {
+		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			c.Expect()
+
 			usr, err := s.FetchByEmail(context.Background(), c.User.Email)
 			if c.Err != nil {
-				if c.Err == assert.AnError {
-					assert.NotNil(t, err)
+				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
+					assert.Error(t, err)
 				} else {
 					assert.Equal(t, c.Err, err)
 				}
 				return
 			}
-			assert.Nil(t, err)
+
+			assert.NoError(t, err)
 			assert.Equal(t, c.User, usr)
-			assert.Nil(t, mock.ExpectationsWereMet())
+			assert.NoError(t, mock.ExpectationsWereMet())
 		})
 	}
 }
@@ -723,7 +746,7 @@ func TestStoreUpdate(t *testing.T) {
 	dbx := sqlx.NewDb(db, "postgres")
 	s := Store{db: dbx}
 	err := s.initSQL()
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	inpUsr := newFullUser()
 
@@ -782,20 +805,23 @@ recovery_expires_at = $11 WHERE id = $12;`).
 	}
 
 	for cn, c := range cc {
+		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			c.Expect()
+
 			err = s.Update(context.Background(), c.User)
 			if c.Err != nil {
-				if c.Err == assert.AnError {
-					assert.NotNil(t, err)
+				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
+					assert.Error(t, err)
 				} else {
 					assert.Equal(t, c.Err, err)
 				}
 				return
 			}
 
-			assert.Nil(t, err)
-			assert.Nil(t, mock.ExpectationsWereMet())
+			assert.NoError(t, err)
+			assert.NoError(t, mock.ExpectationsWereMet())
 		})
 	}
 }
@@ -805,7 +831,7 @@ func TestStoreDeleteByID(t *testing.T) {
 	dbx := sqlx.NewDb(db, "postgres")
 	s := Store{db: dbx}
 	err := s.initSQL()
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	inpUsr := newFullUser()
 
@@ -831,20 +857,23 @@ func TestStoreDeleteByID(t *testing.T) {
 	}
 
 	for cn, c := range cc {
+		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			c.Expect()
+
 			err = s.DeleteByID(context.Background(), inpUsr.ID.String())
 			if c.Err != nil {
-				if c.Err == assert.AnError {
-					assert.NotNil(t, err)
+				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
+					assert.Error(t, err)
 				} else {
 					assert.Equal(t, c.Err, err)
 				}
 				return
 			}
 
-			assert.Nil(t, err)
-			assert.Nil(t, mock.ExpectationsWereMet())
+			assert.NoError(t, err)
+			assert.NoError(t, mock.ExpectationsWereMet())
 		})
 	}
 }
@@ -857,7 +886,8 @@ func TestDetectErr(t *testing.T) {
 
 func newDB(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {
 	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
-	require.Nil(t, err)
+	require.NoError(t, err)
+
 	return db, mock
 }
 

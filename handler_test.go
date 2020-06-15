@@ -12,11 +12,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestDefaultErrorExec(t *testing.T) {
+func Test_DefaultErrorExec(t *testing.T) {
 	DefaultErrorExec(assert.AnError) // nothing to test
 }
 
-func TestRespond(t *testing.T) {
+func Test_Respond(t *testing.T) {
 	cc := map[string]struct {
 		Code int
 		Data interface{}
@@ -35,6 +35,7 @@ func TestRespond(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
 			req := httptest.NewRequest("GET", "http://test.com/", nil)
@@ -56,7 +57,7 @@ func TestRespond(t *testing.T) {
 	}
 }
 
-func TestRespondError(t *testing.T) {
+func Test_RespondError(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://test.com/", nil)
 	rec := httptest.NewRecorder()
 
@@ -68,7 +69,7 @@ func TestRespondError(t *testing.T) {
 	assert.NotZero(t, rec.Body.String())
 }
 
-func TestDecodeJSON(t *testing.T) {
+func Test_DecodeJSON(t *testing.T) {
 	v := struct {
 		Msg string `json:"msg"`
 	}{}
@@ -81,11 +82,11 @@ func TestDecodeJSON(t *testing.T) {
 	req = httptest.NewRequest("GET", "http://test.com/",
 		strings.NewReader("{\"msg\":\"test\"}"))
 	err = DecodeJSON(req, &v)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "test", v.Msg)
 }
 
-func TestDecodeForm(t *testing.T) {
+func Test_DecodeForm(t *testing.T) {
 	v := struct{ Msg string }{}
 	req := httptest.NewRequest("GET", "http://test.com/", nil)
 	assert.Equal(t, ErrInvalidForm, DecodeForm(req, v))
@@ -94,11 +95,11 @@ func TestDecodeForm(t *testing.T) {
 	q := req.URL.Query()
 	q.Add("msg", "test")
 	req.URL.RawQuery = q.Encode()
-	assert.Nil(t, DecodeForm(req, &v))
+	assert.NoError(t, DecodeForm(req, &v))
 	assert.Equal(t, "test", v.Msg)
 }
 
-func TestSessionReject(t *testing.T) {
+func Test_SessionReject(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://test.com/", nil)
 	rec := httptest.NewRecorder()
 	SessionReject(func(error) {})(assert.AnError).ServeHTTP(rec, req)
@@ -108,7 +109,7 @@ func TestSessionReject(t *testing.T) {
 	assert.NotZero(t, rec.Body.String())
 }
 
-func TestNotFound(t *testing.T) {
+func Test_NotFound(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://test.com/", nil)
 	rec := httptest.NewRecorder()
 	NotFound(func(error) {})(rec, req)
@@ -118,7 +119,7 @@ func TestNotFound(t *testing.T) {
 	assert.NotZero(t, rec.Body.Len())
 }
 
-func TestMethodNotAllowed(t *testing.T) {
+func Test_MethodNotAllowed(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://test.com/", nil)
 	rec := httptest.NewRecorder()
 	MethodNotAllowed(func(error) {})(rec, req)
@@ -128,11 +129,11 @@ func TestMethodNotAllowed(t *testing.T) {
 	assert.NotZero(t, rec.Body.Len())
 }
 
-func TestExtractID(t *testing.T) {
+func Test_ExtractID(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://test.com/", nil)
 	id, err := ExtractID(req)
 	assert.Zero(t, id)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 
 	ctx := chi.NewRouteContext()
 	ctx.URLParams.Add("id", "123")
@@ -141,32 +142,32 @@ func TestExtractID(t *testing.T) {
 
 	id, err = ExtractID(req)
 	assert.Equal(t, "123", id)
-	assert.Nil(t, err)
+	assert.Error(t, err)
 }
 
-func TestReadIP(t *testing.T) {
+func Test_ExtractIP(t *testing.T) {
 	ip := net.ParseIP("127.0.0.1")
 	req := httptest.NewRequest("GET", "http://example.com/", nil)
 	req.RemoteAddr = ""
 	ip1, err := ExtractIP(req)
 	assert.Nil(t, ip1)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 
 	req = httptest.NewRequest("GET", "http://example.com/", nil)
 	req.Header.Set("X-Real-IP", "127.0.0.1")
 	ip1, err = ExtractIP(req)
 	assert.Equal(t, ip, ip1)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	req = httptest.NewRequest("GET", "http://example.com/", nil)
 	req.Header.Set("X-Forwarded-For", "127.0.0.2, 127.0.0.1")
 	ip1, err = ExtractIP(req)
 	assert.Equal(t, ip, ip1)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	req = httptest.NewRequest("GET", "http://example.com/", nil)
 	req.RemoteAddr = "127.0.0.1:3000"
 	ip1, err = ExtractIP(req)
 	assert.Equal(t, ip, ip1)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 }

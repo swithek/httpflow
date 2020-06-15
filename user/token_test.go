@@ -11,7 +11,7 @@ import (
 	"gopkg.in/guregu/null.v3"
 )
 
-func TestTokenIsEmpty(t *testing.T) {
+func Test_Token_IsEmpty(t *testing.T) {
 	tok := Token{}
 	assert.True(t, tok.IsEmpty())
 
@@ -19,7 +19,7 @@ func TestTokenIsEmpty(t *testing.T) {
 	assert.False(t, tok.IsEmpty())
 }
 
-func TestTokenInit(t *testing.T) {
+func Test_Token_Init(t *testing.T) {
 	cc := map[string]struct {
 		Token Token
 		Err   error
@@ -37,8 +37,10 @@ func TestTokenInit(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
-		t.Run(cn, func(st *testing.T) {
-			st.Parallel()
+
+		t.Run(cn, func(t *testing.T) {
+			t.Parallel()
+
 			tok, err := c.Token.init(TokenTimes{time.Minute,
 				time.Minute})
 
@@ -55,7 +57,7 @@ func TestTokenInit(t *testing.T) {
 	}
 }
 
-func TestTokenCheck(t *testing.T) {
+func Test_Token_Check(t *testing.T) {
 	inp := Token{
 		ExpiresAt: null.TimeFrom(time.Now().Add(time.Hour)),
 		Hash: func() []byte {
@@ -100,15 +102,17 @@ func TestTokenCheck(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
-		t.Run(cn, func(st *testing.T) {
-			st.Parallel()
+
+		t.Run(cn, func(t *testing.T) {
+			t.Parallel()
+
 			err := c.Token.Check(c.Input)
 			assert.Equal(t, c.Err, err)
 		})
 	}
 }
 
-func TestTokenClear(t *testing.T) {
+func Test_Token_Clear(t *testing.T) {
 	tok := Token{
 		ExpiresAt: null.TimeFrom(time.Now()),
 		NextAt:    null.TimeFrom(time.Now()),
@@ -119,13 +123,13 @@ func TestTokenClear(t *testing.T) {
 	assert.True(t, tok.IsEmpty())
 }
 
-func TestToFullToken(t *testing.T) {
+func Test_ToFullToken(t *testing.T) {
 	tok := uniuri.New()
 	id := xid.New()
 	assert.Equal(t, tok+id.String(), toFullToken(tok, id))
 }
 
-func TestFromFullToken(t *testing.T) {
+func Test_FromFullToken(t *testing.T) {
 	inpID := xid.New()
 	inpTok := uniuri.New()
 
@@ -155,8 +159,10 @@ func TestFromFullToken(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
-		t.Run(cn, func(st *testing.T) {
-			st.Parallel()
+
+		t.Run(cn, func(t *testing.T) {
+			t.Parallel()
+
 			tok, id, err := FromFullToken(c.Input)
 			assert.Equal(t, c.Token, tok)
 			assert.Equal(t, c.ID, id)

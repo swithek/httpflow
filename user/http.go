@@ -21,7 +21,7 @@ var (
 
 var (
 	// SessionDuration is the default / recommended session duration value.
-	SessionDuration = time.Hour * 24 * 30 // 30 days
+	SessionDuration = time.Hour * 24 * 30 //nolint:gochecknoglobals // used as a constant
 )
 
 // Handler holds dependencies required for user management.
@@ -341,7 +341,9 @@ func (h *Handler) LogIn(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, httpflow.ErrNotFound) {
 			err = ErrInvalidCredentials
 		}
+
 		httpflow.RespondError(w, r, err, h.onError)
+
 		return
 	}
 
@@ -412,6 +414,7 @@ func (h *Handler) Fetch(w http.ResponseWriter, r *http.Request) {
 // On password change, all other sessions will be destroyed and email sent.
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+
 	ses, err := ExtractSession(ctx)
 	if err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
@@ -475,6 +478,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 // On successful deletion, an email will be sent.
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+
 	ses, err := ExtractSession(ctx)
 	if err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
@@ -558,6 +562,7 @@ func (h *Handler) RevokeSession(w http.ResponseWriter, r *http.Request) {
 		httpflow.RespondError(w, r, httpflow.NewError(nil,
 			http.StatusBadRequest,
 			"current session cannot be revoked"), h.onError)
+
 		return
 	}
 
@@ -576,6 +581,7 @@ func (h *Handler) RevokeOtherSessions(w http.ResponseWriter, r *http.Request) {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}
+
 	httpflow.Respond(w, r, nil, http.StatusNoContent, h.onError)
 }
 
@@ -604,6 +610,7 @@ func (h *Handler) ResendVerification(w http.ResponseWriter, r *http.Request) {
 		httpflow.RespondError(w, r, httpflow.NewError(nil,
 			http.StatusBadRequest,
 			"verification has not been initiated"), h.onError)
+
 		return
 	}
 
@@ -707,6 +714,7 @@ func (h *Handler) InitRecovery(w http.ResponseWriter, r *http.Request) {
 				h.onError)
 			return
 		}
+
 		httpflow.RespondError(w, r, err, h.onError)
 	}
 

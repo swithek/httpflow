@@ -47,6 +47,7 @@ func (e *statusError) Error() string {
 	if e.err != nil {
 		return fmt.Sprintf("%d - %s: %v", e.Code, e.Message, e.err)
 	}
+
 	return fmt.Sprintf("%d - %s", e.Code, e.Message)
 }
 
@@ -83,15 +84,17 @@ func ErrorCode(err error) int {
 	if !errors.As(err, &serr) {
 		return http.StatusInternalServerError
 	}
+
 	return serr.Code
 }
 
-// ErrorMessage returns message assocaited with the error.
+// ErrorMessage returns message associated with the error.
 func ErrorMessage(err error) string {
 	var serr *statusError
 	if !errors.As(err, &serr) {
 		return strings.ToLower(http.StatusText(
 			http.StatusInternalServerError))
 	}
+
 	return serr.Message
 }

@@ -24,9 +24,9 @@ var (
 )
 
 var (
-	// tokenChars is an array of characters used by token string
+	// _tokenChars is an array of characters used by token string
 	// generator.
-	tokenChars = []byte("abcdefghijklmnopqrstuvwxyz0123456789")
+	_tokenChars = []byte("abcdefghijklmnopqrstuvwxyz0123456789")
 )
 
 // TokenTimes holds data related to token expiration and next generation times.
@@ -66,7 +66,8 @@ func (t *Token) init(tt TokenTimes) (string, error) {
 		return "", ErrTooManyTokens
 	}
 
-	v := uniuri.NewLenChars(uniuri.StdLen, tokenChars)
+	v := uniuri.NewLenChars(uniuri.StdLen, _tokenChars)
+
 	h, err := bcrypt.GenerateFromPassword([]byte(v), bcrypt.DefaultCost)
 	if err != nil {
 		return "", err
@@ -75,6 +76,7 @@ func (t *Token) init(tt TokenTimes) (string, error) {
 	t.ExpiresAt = null.TimeFrom(time.Now().Add(tt.Interval))
 	t.NextAt = null.TimeFrom(time.Now().Add(tt.Cooldown))
 	t.Hash = h
+
 	return v, nil
 }
 
@@ -116,6 +118,7 @@ func FromFullToken(t string) (string, xid.ID, error) {
 	}
 
 	raw := t[:uniuri.StdLen]
+
 	id, err := xid.FromString(t[uniuri.StdLen:])
 	if id.IsNil() || err != nil {
 		return "", xid.ID{}, ErrInvalidToken

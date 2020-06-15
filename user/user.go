@@ -28,21 +28,21 @@ var (
 )
 
 var (
-	// emailRe defines a regexp validation instance with a preset
+	// _emailRe defines a regexp validation instance with a preset
 	// allowed email format.
-	emailRe = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+	_emailRe = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 )
 
 var (
 	// VerifTimes is the default / recommended verification token times
 	// value.
-	VerifTimes = TokenTimes{
+	VerifTimes = TokenTimes{ //nolint:gochecknoglobals // used as a constant
 		Interval: time.Hour * 24 * 7, // one week
 		Cooldown: time.Minute,
 	}
 
 	// RecovTimes is the default / recommended recovery token times value.
-	RecovTimes = TokenTimes{
+	RecovTimes = TokenTimes{ //nolint:gochecknoglobals // used as a constant
 		Interval: time.Hour * 24, // one day
 		Cooldown: time.Minute,
 	}
@@ -147,6 +147,7 @@ func (c *Core) SetEmail(e string) (bool, error) {
 		if c.Email == "" {
 			return false, ErrInvalidEmail
 		}
+
 		return false, nil
 	}
 
@@ -163,6 +164,7 @@ func (c *Core) SetEmail(e string) (bool, error) {
 	}
 
 	c.Email = e
+
 	return true, nil
 }
 
@@ -182,6 +184,7 @@ func (c *Core) SetUnverifiedEmail(e string) (bool, error) {
 	}
 
 	c.UnverifiedEmail = zero.StringFrom(e)
+
 	return true, nil
 }
 
@@ -192,6 +195,7 @@ func (c *Core) SetPassword(p string) (bool, error) {
 		if c.PasswordHash == nil {
 			return false, ErrInvalidPassword
 		}
+
 		return false, nil
 	}
 
@@ -205,6 +209,7 @@ func (c *Core) SetPassword(p string) (bool, error) {
 	}
 
 	c.PasswordHash = h
+
 	return true, nil
 }
 
@@ -225,6 +230,7 @@ func (c *Core) InitVerification(tt TokenTimes) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return toFullToken(t, c.ID), nil
 }
 
@@ -251,10 +257,12 @@ func (c *Core) Verify(t string) error {
 		if c.UnverifiedEmail.String != c.Email {
 			c.Email = c.UnverifiedEmail.String
 		}
+
 		c.UnverifiedEmail = zero.StringFrom("")
 	}
 
 	c.Verification.Clear()
+
 	return nil
 }
 
@@ -266,7 +274,9 @@ func (c *Core) CancelVerification(t string) error {
 	if err := c.Verification.Check(t); err != nil {
 		return err
 	}
+
 	c.Verification.Clear()
+
 	return nil
 }
 
@@ -280,6 +290,7 @@ func (c *Core) InitRecovery(tt TokenTimes) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return toFullToken(t, c.ID), nil
 }
 
@@ -302,6 +313,7 @@ func (c *Core) Recover(t, p string) error {
 	}
 
 	c.Recovery.Clear()
+
 	return nil
 }
 
@@ -313,14 +325,16 @@ func (c *Core) CancelRecovery(t string) error {
 	if err := c.Recovery.Check(t); err != nil {
 		return err
 	}
+
 	c.Recovery.Clear()
+
 	return nil
 }
 
 // CheckEmail determines whether the provided email address is of correct
 // format or not.
 func CheckEmail(e string) error {
-	if !emailRe.MatchString(e) {
+	if !_emailRe.MatchString(e) {
 		return ErrInvalidEmail
 	}
 
@@ -350,7 +364,7 @@ type CoreInput struct {
 	Email string `json:"email"`
 
 	// Password is user's plain-text password version submitted for
-	// futher processing.
+	// further processing.
 	Password string `json:"password"`
 
 	// RememberMe specifies whether a session should be created on
@@ -407,8 +421,7 @@ func (c CoreStats) ExposeCore() CoreStats {
 
 // CheckFilterKey determines whether the filter key is valid or not.
 func CheckFilterKey(fk string) error {
-	switch fk {
-	case "email":
+	if fk == "email" { // more options might be added
 		return nil
 	}
 

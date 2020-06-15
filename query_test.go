@@ -81,12 +81,14 @@ func TestQueryValidate(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
 			err := c.Query.Validate(c.FilterKeyCheck, c.SortKeyCheck)
 			if c.Err != nil {
-				if c.Err == assert.AnError {
-					assert.NotNil(t, err)
+				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
+					assert.Error(t, err)
 				} else {
 					assert.Equal(t, c.Err, err)
 				}
@@ -94,7 +96,7 @@ func TestQueryValidate(t *testing.T) {
 				return
 			}
 
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 		})
 	}
 }

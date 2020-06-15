@@ -22,9 +22,7 @@ var (
 	ErrInvalidForm = NewError(nil, http.StatusBadRequest, "invalid form data")
 )
 
-var (
-	formDec = schema.NewDecoder()
-)
+var _formDec = schema.NewDecoder()
 
 // ErrorExec is a function that should be used for calling on
 // errors. Useful for error logging etc.
@@ -36,8 +34,7 @@ func DefaultErrorExec(err error) {
 }
 
 // Respond sends JSON type response to the client.
-func Respond(w http.ResponseWriter, r *http.Request, data interface{},
-	code int, onError ErrorExec) {
+func Respond(w http.ResponseWriter, r *http.Request, data interface{}, code int, onError ErrorExec) {
 	if data == nil {
 		w.WriteHeader(code)
 		return
@@ -45,6 +42,7 @@ func Respond(w http.ResponseWriter, r *http.Request, data interface{},
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
+
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		w.Header().Del("Content-Type")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -53,11 +51,12 @@ func Respond(w http.ResponseWriter, r *http.Request, data interface{},
 }
 
 // RespondError sends the provided error in a JSON format to the client.
-func RespondError(w http.ResponseWriter, r *http.Request, err error,
-	onError ErrorExec) {
+func RespondError(w http.ResponseWriter, r *http.Request, err error, onError ErrorExec) {
 	err = DetectError(err)
 	code := ErrorCode(err)
+
 	Respond(w, r, err, code, onError)
+
 	if code >= 500 {
 		onError(err)
 	}
@@ -78,7 +77,7 @@ func DecodeForm(r *http.Request, v interface{}) error {
 		return ErrInvalidForm
 	}
 
-	if err := formDec.Decode(v, r.Form); err != nil {
+	if err := _formDec.Decode(v, r.Form); err != nil {
 		return ErrInvalidForm
 	}
 
@@ -122,11 +121,10 @@ func ExtractID(r *http.Request) (string, error) {
 
 // ExtractIP extracts request origin's IP address.
 func ExtractIP(r *http.Request) (net.IP, error) {
-	ip := r.Header.Get(http.CanonicalHeaderKey("X-Real-IP"))
+	ip := r.Header.Get("X-Real-IP")
 
 	if ip == "" {
-		ips := strings.Split(r.Header.Get(
-			http.CanonicalHeaderKey("X-Forwarded-For")), ", ")
+		ips := strings.Split(r.Header.Get("X-Forwarded-For"), ", ")
 		ip = ips[len(ips)-1]
 	}
 

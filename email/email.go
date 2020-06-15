@@ -25,9 +25,11 @@ type Manager struct {
 // NewManager creates a fresh instance of email manager.
 func NewManager(host, username, password, from string, herm hermes.Hermes,
 	l httpflow.Links, onError httpflow.ErrorExec) (*Manager, error) {
+
 	if !l.Exist(httpflow.LinkVerification, httpflow.LinkVerificationCancel,
 		httpflow.LinkActivation, httpflow.LinkActivationCancel,
 		httpflow.LinkRecovery, httpflow.LinkRecoveryCancel) {
+
 		return nil, errors.New("not all links are set up")
 	}
 
@@ -44,12 +46,13 @@ func NewManager(host, username, password, from string, herm hermes.Hermes,
 
 // send authenticates against the smtp server, builds an email and sends it
 // to the address provided.
-func (m *Manager) send(ctx context.Context, eml, subj, data string) {
+func (m *Manager) send(_ context.Context, eml, subj, data string) {
 	e := email.NewEmail()
 	e.From = m.from
 	e.To = []string{eml}
 	e.Subject = subj
 	e.HTML = []byte(data)
+
 	err := e.Send(m.host, smtp.PlainAuth("", m.username, m.password, m.host))
 	if err != nil {
 		m.onError(err)
@@ -59,7 +62,7 @@ func (m *Manager) send(ctx context.Context, eml, subj, data string) {
 // SendAccountActivation sends an email regarding account
 // activation with the token, embedded into a full URL, to the
 // specified email address.
-func (m *Manager) SendAccountActivation(ctx context.Context, eml string, tok string) {
+func (m *Manager) SendAccountActivation(ctx context.Context, eml, tok string) {
 	e := hermes.Email{
 		Body: hermes.Body{
 			Title: "Welcome!",
@@ -99,7 +102,7 @@ func (m *Manager) SendAccountActivation(ctx context.Context, eml string, tok str
 
 // SendEmailVerification sends an email regarding new email verification with
 // the token, embedded into a full URL, to the specified email address.
-func (m *Manager) SendEmailVerification(ctx context.Context, eml string, tok string) {
+func (m *Manager) SendEmailVerification(ctx context.Context, eml, tok string) {
 	e := hermes.Email{
 		Body: hermes.Body{
 			Title: "Just one more step...",
@@ -134,7 +137,7 @@ func (m *Manager) SendEmailVerification(ctx context.Context, eml string, tok str
 
 // SendEmailChanged sends an email to the old email address (first parameter)
 // about a new email address being set (second parameter).
-func (m *Manager) SendEmailChanged(ctx context.Context, oEml string, nEml string) {
+func (m *Manager) SendEmailChanged(ctx context.Context, oEml, nEml string) {
 	e := hermes.Email{
 		Body: hermes.Body{
 			Title: "Your email address was successfully changed.",
@@ -154,7 +157,7 @@ func (m *Manager) SendEmailChanged(ctx context.Context, oEml string, nEml string
 
 // SendRecovery sends an email regarding account recovery with
 // the token, embedded into a full URL, to the specified email address.
-func (m *Manager) SendRecovery(ctx context.Context, eml string, tok string) {
+func (m *Manager) SendRecovery(ctx context.Context, eml, tok string) {
 	e := hermes.Email{
 		Body: hermes.Body{
 			Title: "Trying to recover access your account?",
@@ -212,8 +215,11 @@ func (m *Manager) SendAccountDeleted(ctx context.Context, eml string) {
 // Last parameter specifies whether the password was changed during
 // the recovery process or not.
 func (m *Manager) SendPasswordChanged(ctx context.Context, eml string, recov bool) {
-	var e hermes.Email
-	var subj string
+	var (
+		e    hermes.Email
+		subj string
+	)
+
 	if recov {
 		subj = "Password successfully reset"
 		e = hermes.Email{

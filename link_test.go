@@ -6,13 +6,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewLinks(t *testing.T) {
+func Test_NewLinks(t *testing.T) {
 	ll := map[LinkKey]string{LinkActivation: "link"}
 	l := NewLinks(ll)
 	assert.Equal(t, ll, l.ll)
 }
 
-func TestLinksPrep(t *testing.T) {
+func Test_LinksPrep(t *testing.T) {
 	l := Links{}
 
 	assert.Zero(t, l.Prep(LinkActivation))
@@ -30,7 +30,7 @@ func TestLinksPrep(t *testing.T) {
 	assert.Equal(t, "activ?token=123", ls)
 }
 
-func TestLinksExist(t *testing.T) {
+func Test_LinksExist(t *testing.T) {
 	l := Links{}
 	assert.False(t, l.Exist(LinkActivation))
 

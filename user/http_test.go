@@ -22,55 +22,59 @@ import (
 	"gopkg.in/guregu/null.v3/zero"
 )
 
-func TestSetSessionDuration(t *testing.T) {
+const (
+	_email = "user@email.com"
+)
+
+func Test_SetSessionDuration(t *testing.T) {
 	h := &Handler{}
 	SetSessionDuration(time.Hour)(h)
 	assert.Equal(t, time.Hour, h.sesDur)
 }
 
-func TestSetErrorExec(t *testing.T) {
+func Test_SetErrorExec(t *testing.T) {
 	h := &Handler{}
 	SetErrorExec(httpflow.DefaultErrorExec)(h)
 	assert.NotNil(t, h.onError)
 }
 
-func TestSetParser(t *testing.T) {
+func Test_SetParser(t *testing.T) {
 	h := &Handler{}
 	SetParser(DefaultParser)(h)
 	assert.NotNil(t, h.parse)
 }
 
-func TestSetCreator(t *testing.T) {
+func Test_SetCreator(t *testing.T) {
 	h := &Handler{}
 	SetCreator(DefaultCreator)(h)
 	assert.NotNil(t, h.create)
 }
 
-func TestSetGateKeeper(t *testing.T) {
+func Test_SetGateKeeper(t *testing.T) {
 	h := &Handler{}
 	SetGateKeeper(DefaultGateKeeper(true))(h)
 	assert.NotNil(t, h.gKeep)
 }
 
-func TestSetPreDeleter(t *testing.T) {
+func Test_SetPreDeleter(t *testing.T) {
 	h := &Handler{}
 	SetPreDeleter(DefaultPreDeleter)(h)
 	assert.NotNil(t, h.pDel)
 }
 
-func TestSetVerificationTimes(t *testing.T) {
+func Test_SetVerificationTimes(t *testing.T) {
 	h := &Handler{}
 	SetVerificationTimes(VerifTimes)(h)
 	assert.Equal(t, VerifTimes, h.verif)
 }
 
-func TestSetRecoveryTimes(t *testing.T) {
+func Test_SetRecoveryTimes(t *testing.T) {
 	h := &Handler{}
 	SetRecoveryTimes(RecovTimes)(h)
 	assert.Equal(t, RecovTimes, h.recov)
 }
 
-func TestNewHandler(t *testing.T) {
+func Test_NewHandler(t *testing.T) {
 	h := NewHandler(sessionup.NewManager(&StoreMock{}), &DatabaseMock{},
 		&EmailSenderMock{}, SetSessionDuration(time.Hour),
 		SetVerificationTimes(VerifTimes))
@@ -89,7 +93,7 @@ func TestNewHandler(t *testing.T) {
 	assert.NotNil(t, h.Routes(true))
 }
 
-func TestDefaults(t *testing.T) {
+func Test_Handler_Defaults(t *testing.T) {
 	h := Handler{}
 	h.Defaults()
 	assert.Equal(t, SessionDuration, h.sesDur)
@@ -102,32 +106,32 @@ func TestDefaults(t *testing.T) {
 	assert.Equal(t, RecovTimes, h.recov)
 }
 
-func TestDefaultParser(t *testing.T) {
+func Test_DefaultParser(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://test.com/",
 		strings.NewReader("{"))
 	inp, err := DefaultParser(req)
 	assert.Nil(t, inp)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 
 	req = httptest.NewRequest("GET", "http://test.com/",
-		toJSON("user@email.com", "password1", false))
+		toJSON(_email, "password1", false))
 	inp, err = DefaultParser(req)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	require.NotNil(t, inp)
-	assert.Equal(t, "user@email.com", inp.ExposeCore().Email)
+	assert.Equal(t, _email, inp.ExposeCore().Email)
 	assert.Equal(t, "password1", inp.ExposeCore().Password)
 }
 
-func TestDefaultCreator(t *testing.T) {
+func Test_DefaultCreator(t *testing.T) {
 	usr, err := DefaultCreator(context.Background(),
-		CoreInput{Email: "user@email.com", Password: "password1"})
-	assert.Nil(t, err)
+		CoreInput{Email: _email, Password: "password1"})
+	assert.NoError(t, err)
 	require.NotNil(t, usr)
-	assert.Equal(t, "user@email.com", usr.ExposeCore().Email)
+	assert.Equal(t, _email, usr.ExposeCore().Email)
 	assert.NotZero(t, usr.ExposeCore().PasswordHash)
 }
 
-func TestDefaultGateKeeper(t *testing.T) {
+func Test_DefaultGateKeeper(t *testing.T) {
 	cr := &Core{}
 	assert.Nil(t, DefaultGateKeeper(true)(cr))
 	assert.Equal(t, ErrNotActivated, DefaultGateKeeper(false)(cr))
@@ -136,11 +140,11 @@ func TestDefaultGateKeeper(t *testing.T) {
 	assert.Nil(t, DefaultGateKeeper(false)(cr))
 }
 
-func TestDefaultPreDeleter(t *testing.T) {
-	assert.Nil(t, DefaultPreDeleter(nil, nil))
+func Test_DefaultPreDeleter(t *testing.T) {
+	assert.NoError(t, DefaultPreDeleter(context.Background(), nil))
 }
 
-func TestSetupLinks(t *testing.T) {
+func Test_SetupLinks(t *testing.T) {
 	ll := SetupLinks("http://yoursite.com/user")
 	require.NotNil(t, ll)
 	assert.Equal(t, "http://yoursite.com/user/activ?token=%s",
@@ -157,7 +161,7 @@ func TestSetupLinks(t *testing.T) {
 		ll[httpflow.LinkRecoveryCancel])
 }
 
-func TestHandlerRegister(t *testing.T) {
+func Test_Handler_Register(t *testing.T) {
 	type check func(*testing.T, *DatabaseMock, *EmailSenderMock, *httptest.ResponseRecorder)
 
 	checks := func(cc ...check) []check { return cc }
@@ -167,15 +171,19 @@ func TestHandlerRegister(t *testing.T) {
 			if err {
 				assert.LessOrEqual(t, 400, rec.Code)
 				assert.NotZero(t, rec.Body.Len())
+
 				return
 			}
+
 			co := rec.Header().Get("Set-Cookie")
 			assert.NotZero(t, co)
+
 			if rem {
 				assert.Contains(t, co, "Expires")
 			} else {
 				assert.NotContains(t, co, "Expires")
 			}
+
 			assert.Greater(t, 400, rec.Code)
 			assert.Zero(t, rec.Body.Len())
 		}
@@ -185,6 +193,7 @@ func TestHandlerRegister(t *testing.T) {
 		return func(t *testing.T, db *DatabaseMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := db.CreateCalls()
 			require.Equal(t, count, len(ff))
+
 			if count == 0 {
 				return
 			}
@@ -201,6 +210,7 @@ func TestHandlerRegister(t *testing.T) {
 		return func(t *testing.T, _ *DatabaseMock, es *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := es.SendAccountActivationCalls()
 			require.Equal(t, count, len(ff))
+
 			if count == 0 {
 				return
 			}
@@ -233,8 +243,6 @@ func TestHandlerRegister(t *testing.T) {
 		}
 	}
 
-	inpEml := "user@email.com"
-
 	cc := map[string]struct {
 		SessionStore *StoreMock
 		DB           *DatabaseMock
@@ -259,7 +267,7 @@ func TestHandlerRegister(t *testing.T) {
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil),
 			Email:        emailStub(),
-			Body:         toJSON(inpEml, "password1", false),
+			Body:         toJSON(_email, "password1", false),
 			Creator: func(ctx context.Context, inp Inputer) (User, error) {
 				return nil, assert.AnError
 			},
@@ -273,11 +281,14 @@ func TestHandlerRegister(t *testing.T) {
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil),
 			Email:        emailStub(),
-			Body:         toJSON(inpEml, "password1", false),
+			Body:         toJSON(_email, "password1", false),
 			Creator: func(ctx context.Context, inp Inputer) (User, error) {
 				usr, _ := NewCore(inp)
-				usr.ExposeCore().InitVerification(
+				_, err := usr.ExposeCore().InitVerification(
 					TokenTimes{time.Hour, time.Hour})
+
+				require.NoError(t, err)
+
 				return usr, nil
 			},
 			Checks: checks(
@@ -290,11 +301,11 @@ func TestHandlerRegister(t *testing.T) {
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(assert.AnError),
 			Email:        emailStub(),
-			Body:         toJSON(inpEml, "password1", false),
+			Body:         toJSON(_email, "password1", false),
 			Creator:      DefaultCreator,
 			Checks: checks(
 				hasResp(true, false),
-				wasCreateCalled(1, inpEml),
+				wasCreateCalled(1, _email),
 				wasSendAccountActivationCalled(0, ""),
 			),
 		},
@@ -302,11 +313,11 @@ func TestHandlerRegister(t *testing.T) {
 			SessionStore: sessionStoreStub(assert.AnError),
 			DB:           dbStub(nil),
 			Email:        emailStub(),
-			Body:         toJSON(inpEml, "password1", true),
+			Body:         toJSON(_email, "password1", true),
 			Creator:      DefaultCreator,
 			Checks: checks(
 				hasResp(true, false),
-				wasCreateCalled(1, inpEml),
+				wasCreateCalled(1, _email),
 				wasSendAccountActivationCalled(0, ""),
 			),
 		},
@@ -314,32 +325,34 @@ func TestHandlerRegister(t *testing.T) {
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil),
 			Email:        emailStub(),
-			Body:         toJSON(inpEml, "password1", true),
+			Body:         toJSON(_email, "password1", true),
 			Creator:      DefaultCreator,
 			Checks: checks(
 				hasResp(false, true),
-				wasCreateCalled(1, inpEml),
-				wasSendAccountActivationCalled(1, inpEml),
+				wasCreateCalled(1, _email),
+				wasSendAccountActivationCalled(1, _email),
 			),
 		},
 		"Successful user creation with temporary session": {
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil),
 			Email:        emailStub(),
-			Body:         toJSON(inpEml, "password1", false),
+			Body:         toJSON(_email, "password1", false),
 			Creator:      DefaultCreator,
 			Checks: checks(
 				hasResp(false, false),
-				wasCreateCalled(1, inpEml),
-				wasSendAccountActivationCalled(1, inpEml),
+				wasCreateCalled(1, _email),
+				wasSendAccountActivationCalled(1, _email),
 			),
 		},
 	}
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
 			req := httptest.NewRequest("GET", "http://test.com/",
 				c.Body)
 			rec := httptest.NewRecorder()
@@ -358,7 +371,7 @@ func TestHandlerRegister(t *testing.T) {
 	}
 }
 
-func TestHandlerLogIn(t *testing.T) {
+func Test_Handler_LogIn(t *testing.T) {
 	type check func(*testing.T, *DatabaseMock, *httptest.ResponseRecorder)
 
 	checks := func(cc ...check) []check { return cc }
@@ -366,6 +379,7 @@ func TestHandlerLogIn(t *testing.T) {
 	hasResp := func(rem bool, code int) check {
 		return func(t *testing.T, _ *DatabaseMock, rec *httptest.ResponseRecorder) {
 			assert.Equal(t, code, rec.Code)
+
 			if code >= 400 {
 				assert.NotZero(t, rec.Body.Len())
 				return
@@ -373,11 +387,13 @@ func TestHandlerLogIn(t *testing.T) {
 
 			co := rec.Header().Get("Set-Cookie")
 			assert.NotZero(t, co)
+
 			if rem {
 				assert.Contains(t, co, "Expires")
 			} else {
 				assert.NotContains(t, co, "Expires")
 			}
+
 			assert.Zero(t, rec.Body.Len())
 		}
 	}
@@ -386,6 +402,7 @@ func TestHandlerLogIn(t *testing.T) {
 		return func(t *testing.T, db *DatabaseMock, _ *httptest.ResponseRecorder) {
 			ff := db.FetchByEmailCalls()
 			require.Equal(t, count, len(ff))
+
 			if count == 0 {
 				return
 			}
@@ -399,6 +416,7 @@ func TestHandlerLogIn(t *testing.T) {
 		return func(t *testing.T, db *DatabaseMock, _ *httptest.ResponseRecorder) {
 			ff := db.UpdateCalls()
 			require.Equal(t, count, len(ff))
+
 			if count == 0 {
 				return
 			}
@@ -428,9 +446,10 @@ func TestHandlerLogIn(t *testing.T) {
 		}
 	}
 
-	inpUsr := Core{Email: "user@email.com"}
+	inpUsr := Core{Email: _email}
 	inpPass := "password1"
-	inpUsr.SetPassword(inpPass)
+	_, err := inpUsr.SetPassword(inpPass)
+	require.NoError(t, err)
 
 	cc := map[string]struct {
 		Open         bool
@@ -596,8 +615,10 @@ func TestHandlerLogIn(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
 			req := httptest.NewRequest("GET", "http://test.com/",
 				c.Body)
 			rec := httptest.NewRecorder()
@@ -614,7 +635,7 @@ func TestHandlerLogIn(t *testing.T) {
 	}
 }
 
-func TestHandlerLogout(t *testing.T) {
+func Test_Handler_Logout(t *testing.T) {
 	type check func(*testing.T, *httptest.ResponseRecorder)
 
 	checks := func(cc ...check) []check { return cc }
@@ -624,8 +645,10 @@ func TestHandlerLogout(t *testing.T) {
 			if err {
 				assert.LessOrEqual(t, 400, rec.Code)
 				assert.NotZero(t, rec.Body.Len())
+
 				return
 			}
+
 			assert.Greater(t, 400, rec.Code)
 			assert.Zero(t, rec.Body.Len())
 		}
@@ -659,8 +682,10 @@ func TestHandlerLogout(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
 			req := httptest.NewRequest("GET", "http://test.com/", nil)
 			rec := httptest.NewRecorder()
 			hdl := newHandler()
@@ -676,7 +701,7 @@ func TestHandlerLogout(t *testing.T) {
 	}
 }
 
-func TestHandlerFetch(t *testing.T) {
+func Test_Handler_Fetch(t *testing.T) {
 	type check func(*testing.T, *DatabaseMock, *httptest.ResponseRecorder)
 
 	checks := func(cc ...check) []check { return cc }
@@ -686,8 +711,10 @@ func TestHandlerFetch(t *testing.T) {
 			if err {
 				assert.LessOrEqual(t, 400, rec.Code)
 				assert.NotZero(t, rec.Body.Len())
+
 				return
 			}
+
 			assert.Greater(t, 400, rec.Code)
 			assert.NotZero(t, rec.Body.Len())
 		}
@@ -697,6 +724,7 @@ func TestHandlerFetch(t *testing.T) {
 		return func(t *testing.T, db *DatabaseMock, _ *httptest.ResponseRecorder) {
 			ff := db.FetchByIDCalls()
 			require.Equal(t, count, len(ff))
+
 			if count == 0 {
 				return
 			}
@@ -748,8 +776,10 @@ func TestHandlerFetch(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
 			req := httptest.NewRequest("GET", "http://test.com/",
 				nil)
 			rec := httptest.NewRecorder()
@@ -768,7 +798,8 @@ func TestHandlerFetch(t *testing.T) {
 	}
 }
 
-func TestHandlerUpdate(t *testing.T) {
+//nolint:gocognit // complex testing is required.
+func Test_Handler_Update(t *testing.T) {
 	type check func(*testing.T, *DatabaseMock, *EmailSenderMock, *httptest.ResponseRecorder)
 
 	checks := func(cc ...check) []check { return cc }
@@ -778,8 +809,10 @@ func TestHandlerUpdate(t *testing.T) {
 			if err {
 				assert.LessOrEqual(t, 400, rec.Code)
 				assert.NotZero(t, rec.Body.Len())
+
 				return
 			}
+
 			assert.Greater(t, 400, rec.Code)
 			assert.Zero(t, rec.Body.Len())
 		}
@@ -789,6 +822,7 @@ func TestHandlerUpdate(t *testing.T) {
 		return func(t *testing.T, db *DatabaseMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := db.FetchByIDCalls()
 			require.Equal(t, count, len(ff))
+
 			if count == 0 {
 				return
 			}
@@ -802,6 +836,7 @@ func TestHandlerUpdate(t *testing.T) {
 		return func(t *testing.T, db *DatabaseMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := db.UpdateCalls()
 			require.Equal(t, count, len(ff))
+
 			if count == 0 {
 				return
 			}
@@ -821,6 +856,7 @@ func TestHandlerUpdate(t *testing.T) {
 		return func(t *testing.T, _ *DatabaseMock, es *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := es.SendEmailVerificationCalls()
 			require.Equal(t, count, len(ff))
+
 			if count == 0 {
 				return
 			}
@@ -835,6 +871,7 @@ func TestHandlerUpdate(t *testing.T) {
 		return func(t *testing.T, _ *DatabaseMock, es *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := es.SendPasswordChangedCalls()
 			require.Equal(t, count, len(ff))
+
 			if count == 0 {
 				return
 			}
@@ -873,7 +910,7 @@ func TestHandlerUpdate(t *testing.T) {
 
 	inpUsr := Core{
 		ID:           xid.New(),
-		Email:        "user@email.com",
+		Email:        _email,
 		PasswordHash: []byte("password1"),
 	}
 	inpNewEml := "user123@email.com"
@@ -1035,8 +1072,10 @@ func TestHandlerUpdate(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
 			req := httptest.NewRequest("GET", "http://test.com/",
 				c.Body)
 			rec := httptest.NewRecorder()
@@ -1059,7 +1098,7 @@ func TestHandlerUpdate(t *testing.T) {
 	}
 }
 
-func TestHandlerDelete(t *testing.T) {
+func Test_Handler_Delete(t *testing.T) {
 	type check func(*testing.T, *DatabaseMock, *EmailSenderMock, *httptest.ResponseRecorder)
 
 	checks := func(cc ...check) []check { return cc }
@@ -1069,8 +1108,10 @@ func TestHandlerDelete(t *testing.T) {
 			if err {
 				assert.LessOrEqual(t, 400, rec.Code)
 				assert.NotZero(t, rec.Body.Len())
+
 				return
 			}
+
 			assert.Greater(t, 400, rec.Code)
 			assert.Zero(t, rec.Body.Len())
 		}
@@ -1080,6 +1121,7 @@ func TestHandlerDelete(t *testing.T) {
 		return func(t *testing.T, db *DatabaseMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := db.FetchByIDCalls()
 			require.Equal(t, count, len(ff))
+
 			if count == 0 {
 				return
 			}
@@ -1093,6 +1135,7 @@ func TestHandlerDelete(t *testing.T) {
 		return func(t *testing.T, db *DatabaseMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := db.DeleteByIDCalls()
 			require.Equal(t, count, len(ff))
+
 			if count == 0 {
 				return
 			}
@@ -1106,6 +1149,7 @@ func TestHandlerDelete(t *testing.T) {
 		return func(t *testing.T, _ *DatabaseMock, es *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := es.SendAccountDeletedCalls()
 			require.Equal(t, count, len(ff))
+
 			if count == 0 {
 				return
 			}
@@ -1142,9 +1186,10 @@ func TestHandlerDelete(t *testing.T) {
 
 	inpUsr := Core{
 		ID:    xid.New(),
-		Email: "user@email.com",
+		Email: _email,
 	}
-	inpUsr.SetPassword("password1")
+	_, err := inpUsr.SetPassword("password1")
+	require.NoError(t, err)
 
 	inpPass := "password1"
 
@@ -1273,8 +1318,10 @@ func TestHandlerDelete(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
 			req := httptest.NewRequest("GET", "http://test.com/",
 				c.Body)
 			rec := httptest.NewRecorder()
@@ -1298,7 +1345,7 @@ func TestHandlerDelete(t *testing.T) {
 	}
 }
 
-func TestHandlerFetchSessions(t *testing.T) {
+func Test_Handler_FetchSessions(t *testing.T) {
 	type check func(*testing.T, *httptest.ResponseRecorder)
 
 	checks := func(cc ...check) []check { return cc }
@@ -1308,8 +1355,10 @@ func TestHandlerFetchSessions(t *testing.T) {
 			if err {
 				assert.LessOrEqual(t, 400, rec.Code)
 				assert.NotZero(t, rec.Body.Len())
+
 				return
 			}
+
 			assert.Greater(t, 400, rec.Code)
 			assert.NotZero(t, rec.Body.Len())
 		}
@@ -1354,8 +1403,10 @@ func TestHandlerFetchSessions(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
 			req := httptest.NewRequest("GET", "http://test.com/", nil)
 			rec := httptest.NewRecorder()
 			hdl := newHandler()
@@ -1371,7 +1422,7 @@ func TestHandlerFetchSessions(t *testing.T) {
 	}
 }
 
-func TestHandlerRevokeSession(t *testing.T) {
+func Test_Handler_RevokeSession(t *testing.T) {
 	type check func(*testing.T, *httptest.ResponseRecorder)
 
 	checks := func(cc ...check) []check { return cc }
@@ -1381,8 +1432,10 @@ func TestHandlerRevokeSession(t *testing.T) {
 			if err {
 				assert.LessOrEqual(t, 400, rec.Code)
 				assert.NotZero(t, rec.Body.Len())
+
 				return
 			}
+
 			assert.Greater(t, 400, rec.Code)
 			assert.Zero(t, rec.Body.Len())
 		}
@@ -1450,8 +1503,10 @@ func TestHandlerRevokeSession(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
 			req := httptest.NewRequest("GET", "http://test.com/", nil)
 			rec := httptest.NewRecorder()
 			hdl := newHandler()
@@ -1476,7 +1531,7 @@ func TestHandlerRevokeSession(t *testing.T) {
 	}
 }
 
-func TestHandlerRevokeOtherSessions(t *testing.T) {
+func Test_Handler_RevokeOtherSessions(t *testing.T) {
 	type check func(*testing.T, *httptest.ResponseRecorder)
 
 	checks := func(cc ...check) []check { return cc }
@@ -1486,8 +1541,10 @@ func TestHandlerRevokeOtherSessions(t *testing.T) {
 			if err {
 				assert.LessOrEqual(t, 400, rec.Code)
 				assert.NotZero(t, rec.Body.Len())
+
 				return
 			}
+
 			assert.Greater(t, 400, rec.Code)
 			assert.Zero(t, rec.Body.Len())
 		}
@@ -1521,8 +1578,10 @@ func TestHandlerRevokeOtherSessions(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
 			req := httptest.NewRequest("GET", "http://test.com/", nil)
 			rec := httptest.NewRecorder()
 			hdl := newHandler()
@@ -1538,7 +1597,8 @@ func TestHandlerRevokeOtherSessions(t *testing.T) {
 	}
 }
 
-func TestHandlerResendVerification(t *testing.T) {
+//nolint:gocognit // complex testing is required.
+func Test_Handler_ResendVerification(t *testing.T) {
 	type check func(*testing.T, *DatabaseMock, *EmailSenderMock, *httptest.ResponseRecorder)
 
 	checks := func(cc ...check) []check { return cc }
@@ -1548,8 +1608,10 @@ func TestHandlerResendVerification(t *testing.T) {
 			if err {
 				assert.LessOrEqual(t, 400, rec.Code)
 				assert.NotZero(t, rec.Body.Len())
+
 				return
 			}
+
 			assert.Greater(t, 400, rec.Code)
 			assert.Zero(t, rec.Body.Len())
 		}
@@ -1559,6 +1621,7 @@ func TestHandlerResendVerification(t *testing.T) {
 		return func(t *testing.T, db *DatabaseMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := db.FetchByIDCalls()
 			require.Equal(t, count, len(ff))
+
 			if count == 0 {
 				return
 			}
@@ -1572,6 +1635,7 @@ func TestHandlerResendVerification(t *testing.T) {
 		return func(t *testing.T, db *DatabaseMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := db.UpdateCalls()
 			require.Equal(t, count, len(ff))
+
 			if count == 0 {
 				return
 			}
@@ -1586,6 +1650,7 @@ func TestHandlerResendVerification(t *testing.T) {
 		return func(t *testing.T, _ *DatabaseMock, es *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := es.SendEmailVerificationCalls()
 			require.Equal(t, count, len(ff))
+
 			if count == 0 {
 				return
 			}
@@ -1600,6 +1665,7 @@ func TestHandlerResendVerification(t *testing.T) {
 		return func(t *testing.T, _ *DatabaseMock, es *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := es.SendAccountActivationCalls()
 			require.Equal(t, count, len(ff))
+
 			if count == 0 {
 				return
 			}
@@ -1630,7 +1696,7 @@ func TestHandlerResendVerification(t *testing.T) {
 
 	inpUsr := Core{
 		ID:           xid.New(),
-		Email:        "user@email.com",
+		Email:        _email,
 		PasswordHash: []byte("password1"),
 		Verification: Token{
 			Hash: []byte("12345"),
@@ -1744,8 +1810,10 @@ func TestHandlerResendVerification(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
 			req := httptest.NewRequest("GET", "http://test.com/", nil)
 			rec := httptest.NewRecorder()
 			hdl := newHandler()
@@ -1765,7 +1833,7 @@ func TestHandlerResendVerification(t *testing.T) {
 	}
 }
 
-func TestHandlerVerify(t *testing.T) {
+func Test_Handler_Verify(t *testing.T) {
 	type check func(*testing.T, *DatabaseMock, *EmailSenderMock, *httptest.ResponseRecorder)
 
 	checks := func(cc ...check) []check { return cc }
@@ -1775,8 +1843,10 @@ func TestHandlerVerify(t *testing.T) {
 			if err {
 				assert.LessOrEqual(t, 400, rec.Code)
 				assert.NotZero(t, rec.Body.Len())
+
 				return
 			}
+
 			assert.Greater(t, 400, rec.Code)
 			assert.Zero(t, rec.Body.Len())
 		}
@@ -1786,6 +1856,7 @@ func TestHandlerVerify(t *testing.T) {
 		return func(t *testing.T, db *DatabaseMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := db.UpdateCalls()
 			require.Equal(t, count, len(ff))
+
 			if count == 0 {
 				return
 			}
@@ -1801,6 +1872,7 @@ func TestHandlerVerify(t *testing.T) {
 		return func(t *testing.T, _ *DatabaseMock, es *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := es.SendEmailChangedCalls()
 			require.Equal(t, count, len(ff))
+
 			if count == 0 {
 				return
 			}
@@ -1831,7 +1903,7 @@ func TestHandlerVerify(t *testing.T) {
 	inpUsr := Core{
 		ActivatedAt:     zero.TimeFrom(time.Now()),
 		ID:              xid.New(),
-		Email:           "user@email.com",
+		Email:           _email,
 		UnverifiedEmail: zero.StringFrom("user123@email.com"),
 	}
 
@@ -1920,8 +1992,10 @@ func TestHandlerVerify(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
 			req := httptest.NewRequest("GET", "http://test.com/", nil)
 			rec := httptest.NewRecorder()
 			hdl := newHandler()
@@ -1936,7 +2010,7 @@ func TestHandlerVerify(t *testing.T) {
 	}
 }
 
-func TestHandlerCancelVerification(t *testing.T) {
+func Test_Handler_CancelVerification(t *testing.T) {
 	type check func(*testing.T, *DatabaseMock, *httptest.ResponseRecorder)
 
 	checks := func(cc ...check) []check { return cc }
@@ -1946,8 +2020,10 @@ func TestHandlerCancelVerification(t *testing.T) {
 			if err {
 				assert.LessOrEqual(t, 400, rec.Code)
 				assert.NotZero(t, rec.Body.Len())
+
 				return
 			}
+
 			assert.Greater(t, 400, rec.Code)
 			assert.Zero(t, rec.Body.Len())
 		}
@@ -1957,6 +2033,7 @@ func TestHandlerCancelVerification(t *testing.T) {
 		return func(t *testing.T, db *DatabaseMock, _ *httptest.ResponseRecorder) {
 			ff := db.UpdateCalls()
 			require.Equal(t, count, len(ff))
+
 			if count == 0 {
 				return
 			}
@@ -1981,7 +2058,7 @@ func TestHandlerCancelVerification(t *testing.T) {
 	inpUsr := Core{
 		ActivatedAt:     zero.TimeFrom(time.Now()),
 		ID:              xid.New(),
-		Email:           "user@email.com",
+		Email:           _email,
 		UnverifiedEmail: zero.StringFrom("user123@email.com"),
 	}
 
@@ -2032,8 +2109,10 @@ func TestHandlerCancelVerification(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
 			req := httptest.NewRequest("GET", "http://test.com/", nil)
 			rec := httptest.NewRecorder()
 			hdl := newHandler()
@@ -2047,7 +2126,7 @@ func TestHandlerCancelVerification(t *testing.T) {
 	}
 }
 
-func TestHandlerInitRecovery(t *testing.T) {
+func Test_Handler_InitRecovery(t *testing.T) {
 	type check func(*testing.T, *DatabaseMock, *EmailSenderMock, *httptest.ResponseRecorder)
 
 	checks := func(cc ...check) []check { return cc }
@@ -2057,8 +2136,10 @@ func TestHandlerInitRecovery(t *testing.T) {
 			if err {
 				assert.LessOrEqual(t, 400, rec.Code)
 				assert.NotZero(t, rec.Body.Len())
+
 				return
 			}
+
 			assert.Greater(t, 400, rec.Code)
 			assert.Zero(t, rec.Body.Len())
 		}
@@ -2068,6 +2149,7 @@ func TestHandlerInitRecovery(t *testing.T) {
 		return func(t *testing.T, db *DatabaseMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := db.FetchByEmailCalls()
 			require.Equal(t, count, len(ff))
+
 			if count == 0 {
 				return
 			}
@@ -2081,6 +2163,7 @@ func TestHandlerInitRecovery(t *testing.T) {
 		return func(t *testing.T, db *DatabaseMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := db.UpdateCalls()
 			require.Equal(t, count, len(ff))
+
 			if count == 0 {
 				return
 			}
@@ -2095,6 +2178,7 @@ func TestHandlerInitRecovery(t *testing.T) {
 		return func(t *testing.T, _ *DatabaseMock, es *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := es.SendRecoveryCalls()
 			require.Equal(t, count, len(ff))
+
 			if count == 0 {
 				return
 			}
@@ -2124,7 +2208,7 @@ func TestHandlerInitRecovery(t *testing.T) {
 
 	inpUsr := Core{
 		ID:    xid.New(),
-		Email: "user@email.com",
+		Email: _email,
 	}
 
 	cc := map[string]struct {
@@ -2158,7 +2242,7 @@ func TestHandlerInitRecovery(t *testing.T) {
 		"User error returned by Database.FetchByEmail": {
 			DB:    dbStub(httpflow.NewError(nil, 400, "123"), nil, nil),
 			Email: emailStub(),
-			Body:  toJSON("user@email.com", "", false),
+			Body:  toJSON(_email, "", false),
 			Checks: checks(
 				hasResp(false),
 				wasFetchByEmailCalled(1, inpUsr.Email),
@@ -2169,7 +2253,7 @@ func TestHandlerInitRecovery(t *testing.T) {
 		"Error returned by Database.FetchByEmail": {
 			DB:    dbStub(assert.AnError, nil, nil),
 			Email: emailStub(),
-			Body:  toJSON("user@email.com", "", false),
+			Body:  toJSON(_email, "", false),
 			Checks: checks(
 				hasResp(true),
 				wasFetchByEmailCalled(1, inpUsr.Email),
@@ -2184,7 +2268,7 @@ func TestHandlerInitRecovery(t *testing.T) {
 				return tmp
 			}())),
 			Email: emailStub(),
-			Body:  toJSON("user@email.com", "", false),
+			Body:  toJSON(_email, "", false),
 			Checks: checks(
 				hasResp(true),
 				wasFetchByEmailCalled(1, inpUsr.Email),
@@ -2196,7 +2280,7 @@ func TestHandlerInitRecovery(t *testing.T) {
 			DB: dbStub(nil, httpflow.NewError(nil, 400, "123"),
 				toPointer(inpUsr)),
 			Email: emailStub(),
-			Body:  toJSON("user@email.com", "", false),
+			Body:  toJSON(_email, "", false),
 			Checks: checks(
 				hasResp(false),
 				wasFetchByEmailCalled(1, inpUsr.Email),
@@ -2207,7 +2291,7 @@ func TestHandlerInitRecovery(t *testing.T) {
 		"Error returned by Database.Update": {
 			DB:    dbStub(nil, assert.AnError, toPointer(inpUsr)),
 			Email: emailStub(),
-			Body:  toJSON("user@email.com", "", false),
+			Body:  toJSON(_email, "", false),
 			Checks: checks(
 				hasResp(true),
 				wasFetchByEmailCalled(1, inpUsr.Email),
@@ -2218,7 +2302,7 @@ func TestHandlerInitRecovery(t *testing.T) {
 		"Successful recovery init": {
 			DB:    dbStub(nil, nil, toPointer(inpUsr)),
 			Email: emailStub(),
-			Body:  toJSON("user@email.com", "", false),
+			Body:  toJSON(_email, "", false),
 			Checks: checks(
 				hasResp(false),
 				wasFetchByEmailCalled(1, inpUsr.Email),
@@ -2230,8 +2314,10 @@ func TestHandlerInitRecovery(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
 			req := httptest.NewRequest("GET", "http://test.com/",
 				c.Body)
 			rec := httptest.NewRecorder()
@@ -2247,7 +2333,7 @@ func TestHandlerInitRecovery(t *testing.T) {
 	}
 }
 
-func TestHandlerRecover(t *testing.T) {
+func Test_Handler_Recover(t *testing.T) {
 	type check func(*testing.T, *DatabaseMock, *EmailSenderMock, *httptest.ResponseRecorder)
 
 	checks := func(cc ...check) []check { return cc }
@@ -2257,8 +2343,10 @@ func TestHandlerRecover(t *testing.T) {
 			if err {
 				assert.LessOrEqual(t, 400, rec.Code)
 				assert.NotZero(t, rec.Body.Len())
+
 				return
 			}
+
 			assert.Greater(t, 400, rec.Code)
 			assert.Zero(t, rec.Body.Len())
 		}
@@ -2268,6 +2356,7 @@ func TestHandlerRecover(t *testing.T) {
 		return func(t *testing.T, db *DatabaseMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := db.UpdateCalls()
 			require.Equal(t, count, len(ff))
+
 			if count == 0 {
 				return
 			}
@@ -2283,6 +2372,7 @@ func TestHandlerRecover(t *testing.T) {
 		return func(t *testing.T, _ *DatabaseMock, es *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := es.SendPasswordChangedCalls()
 			require.Equal(t, count, len(ff))
+
 			if count == 0 {
 				return
 			}
@@ -2321,7 +2411,7 @@ func TestHandlerRecover(t *testing.T) {
 	inpUsr := Core{
 		ActivatedAt: zero.TimeFrom(time.Now()),
 		ID:          xid.New(),
-		Email:       "user@email.com",
+		Email:       _email,
 	}
 
 	inpTok, _ := inpUsr.InitRecovery(TokenTimes{time.Hour, time.Hour})
@@ -2414,8 +2504,10 @@ func TestHandlerRecover(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
 			req := httptest.NewRequest("GET", "http://test.com/",
 				c.Body)
 			rec := httptest.NewRecorder()
@@ -2433,7 +2525,7 @@ func TestHandlerRecover(t *testing.T) {
 	}
 }
 
-func TestHandlerPingRecovery(t *testing.T) {
+func Test_Handler_PingRecovery(t *testing.T) {
 	type check func(*testing.T, *DatabaseMock, *httptest.ResponseRecorder)
 
 	checks := func(cc ...check) []check { return cc }
@@ -2443,8 +2535,10 @@ func TestHandlerPingRecovery(t *testing.T) {
 			if err {
 				assert.LessOrEqual(t, 400, rec.Code)
 				assert.NotZero(t, rec.Body.Len())
+
 				return
 			}
+
 			assert.Greater(t, 400, rec.Code)
 			assert.Zero(t, rec.Body.Len())
 		}
@@ -2461,7 +2555,7 @@ func TestHandlerPingRecovery(t *testing.T) {
 	inpUsr := Core{
 		ActivatedAt: zero.TimeFrom(time.Now()),
 		ID:          xid.New(),
-		Email:       "user@email.com",
+		Email:       _email,
 	}
 
 	inpTok, _ := inpUsr.InitRecovery(TokenTimes{time.Hour, time.Hour})
@@ -2501,8 +2595,10 @@ func TestHandlerPingRecovery(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
 			req := httptest.NewRequest("GET", "http://test.com/", nil)
 			rec := httptest.NewRecorder()
 			hdl := newHandler()
@@ -2515,7 +2611,7 @@ func TestHandlerPingRecovery(t *testing.T) {
 	}
 }
 
-func TestHandlerCancelRecovery(t *testing.T) {
+func Test_Handler_CancelRecovery(t *testing.T) {
 	type check func(*testing.T, *DatabaseMock, *httptest.ResponseRecorder)
 
 	checks := func(cc ...check) []check { return cc }
@@ -2525,8 +2621,10 @@ func TestHandlerCancelRecovery(t *testing.T) {
 			if err {
 				assert.LessOrEqual(t, 400, rec.Code)
 				assert.NotZero(t, rec.Body.Len())
+
 				return
 			}
+
 			assert.Greater(t, 400, rec.Code)
 			assert.Zero(t, rec.Body.Len())
 		}
@@ -2536,6 +2634,7 @@ func TestHandlerCancelRecovery(t *testing.T) {
 		return func(t *testing.T, db *DatabaseMock, _ *httptest.ResponseRecorder) {
 			ff := db.UpdateCalls()
 			require.Equal(t, count, len(ff))
+
 			if count == 0 {
 				return
 			}
@@ -2560,7 +2659,7 @@ func TestHandlerCancelRecovery(t *testing.T) {
 	inpUsr := Core{
 		ActivatedAt: zero.TimeFrom(time.Now()),
 		ID:          xid.New(),
-		Email:       "user@email.com",
+		Email:       _email,
 	}
 
 	inpTok, _ := inpUsr.InitRecovery(TokenTimes{time.Hour, time.Hour})
@@ -2610,8 +2709,10 @@ func TestHandlerCancelRecovery(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
 			req := httptest.NewRequest("GET", "http://test.com/", nil)
 			rec := httptest.NewRecorder()
 			hdl := newHandler()
@@ -2624,7 +2725,7 @@ func TestHandlerCancelRecovery(t *testing.T) {
 	}
 }
 
-func TestHandlerFetchByToken(t *testing.T) {
+func Test_Handler_FetchByToken(t *testing.T) {
 	type check func(*testing.T, *DatabaseMock, User, string, error)
 
 	checks := func(cc ...check) []check { return cc }
@@ -2644,10 +2745,11 @@ func TestHandlerFetchByToken(t *testing.T) {
 	hasError := func(err bool) check {
 		return func(t *testing.T, _ *DatabaseMock, _ User, _ string, res error) {
 			if err {
-				assert.NotNil(t, res)
+				assert.Error(t, res)
 				return
 			}
-			assert.Nil(t, res)
+
+			assert.NoError(t, res)
 		}
 	}
 
@@ -2655,6 +2757,7 @@ func TestHandlerFetchByToken(t *testing.T) {
 		return func(t *testing.T, db *DatabaseMock, _ User, _ string, _ error) {
 			ff := db.FetchByIDCalls()
 			require.Equal(t, count, len(ff))
+
 			if count == 0 {
 				return
 			}
@@ -2725,8 +2828,10 @@ func TestHandlerFetchByToken(t *testing.T) {
 
 	for cn, c := range cc {
 		c := c
+
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
 			req := httptest.NewRequest("GET", "http://test.com/", nil)
 			hdl := newHandler()
 			hdl.db = c.DB
@@ -2740,21 +2845,25 @@ func TestHandlerFetchByToken(t *testing.T) {
 	}
 }
 
-func TestExtractSession(t *testing.T) {
+func Test_ExtractSession(t *testing.T) {
 	s, err := ExtractSession(context.Background())
 	assert.Zero(t, s)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 
 	s, err = ExtractSession(sessionup.NewContext(context.Background(),
 		sessionup.Session{UserKey: "123"}))
 	assert.NotZero(t, s)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 }
 
 func toJSON(eml, pass string, rem bool) *bytes.Buffer {
 	b := &bytes.Buffer{}
-	json.NewEncoder(b).Encode(CoreInput{Email: eml, Password: pass,
-		RememberMe: rem})
+
+	err := json.NewEncoder(b).Encode(CoreInput{Email: eml, Password: pass, RememberMe: rem})
+	if err != nil {
+		panic(err)
+	}
+
 	return b
 }
 
@@ -2762,10 +2871,11 @@ func toPointer(c Core) *Core {
 	return &c
 }
 
-func addQueryParam(r *http.Request, k, v string) *http.Request {
+func addQueryParam(r *http.Request, k, v string) *http.Request { //nolint:unparam // might become dynamic in the future
 	q := url.Values{}
 	q.Add(k, v)
 	r.URL.RawQuery = q.Encode()
+
 	return r
 }
 
@@ -2773,8 +2883,10 @@ func addChiCtx(ctx context.Context, k, v string) context.Context {
 	if ctx == nil {
 		ctx = context.Background()
 	}
+
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add(k, v)
+
 	return context.WithValue(ctx, chi.RouteCtxKey, rctx)
 }
 
