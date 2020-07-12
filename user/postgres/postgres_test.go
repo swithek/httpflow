@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/swithek/httpflow"
+	"github.com/swithek/httpflow/testutil"
 	"github.com/swithek/httpflow/user"
 	"gopkg.in/guregu/null.v3"
 	"gopkg.in/guregu/null.v3/zero"
@@ -124,16 +125,11 @@ func TestStoreDeleteInactive(t *testing.T) {
 			c.Expect()
 
 			err = s.deleteInactive()
-			if c.Err != nil {
-				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
-					assert.Error(t, err)
-				} else {
-					assert.Equal(t, c.Err, err)
-				}
+			testutil.AssertEqualError(t, c.Err, err)
+			if err != nil {
 				return
 			}
 
-			assert.NoError(t, err)
 			assert.NoError(t, mock.ExpectationsWereMet())
 		})
 	}
@@ -175,14 +171,9 @@ func TestStoreStats(t *testing.T) {
 			c.Expect()
 
 			st, err := s.Stats(context.Background())
-			if c.Err != nil {
-				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
-					assert.Error(t, err)
-				} else {
-					assert.Equal(t, c.Err, err)
-				}
-			} else {
-				assert.NoError(t, err)
+			testutil.AssertEqualError(t, c.Err, err)
+			if err != nil {
+				return
 			}
 
 			assert.Equal(t, c.Stats, st)
@@ -243,16 +234,11 @@ func TestStoreCreate(t *testing.T) {
 			c.Expect()
 
 			err = s.Create(context.Background(), c.User)
-			if c.Err != nil {
-				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
-					assert.Error(t, err)
-				} else {
-					assert.Equal(t, c.Err, err)
-				}
+			testutil.AssertEqualError(t, c.Err, err)
+			if err != nil {
 				return
 			}
 
-			assert.NoError(t, err)
 			assert.NoError(t, mock.ExpectationsWereMet())
 		})
 	}
@@ -282,7 +268,7 @@ func TestStoryFetchMany(t *testing.T) {
 		"Invalid query data": {
 			Expect: func() {},
 			Query: httpflow.Query{
-				Count:     5,
+				Limit:     5,
 				Page:      10,
 				FilterBy:  "email123",
 				FilterVal: inpEml,
@@ -311,7 +297,7 @@ FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY created_at DESC LIMIT $2 O
 					WillReturnError(assert.AnError)
 			},
 			Query: httpflow.Query{
-				Count:     5,
+				Limit:     5,
 				Page:      10,
 				FilterBy:  "email",
 				FilterVal: inpEml,
@@ -340,7 +326,7 @@ FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY created_at DESC LIMIT $2 O
 					WillReturnRows(usrsToRows(inpUsrs...))
 			},
 			Query: httpflow.Query{
-				Count:     5,
+				Limit:     5,
 				Page:      10,
 				FilterBy:  "email",
 				FilterVal: inpEml,
@@ -369,7 +355,7 @@ FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY created_at ASC LIMIT $2 OF
 					WillReturnRows(usrsToRows(inpUsrs...))
 			},
 			Query: httpflow.Query{
-				Count:     5,
+				Limit:     5,
 				Page:      10,
 				FilterBy:  "email",
 				FilterVal: inpEml,
@@ -398,7 +384,7 @@ FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY updated_at DESC LIMIT $2 O
 					WillReturnRows(usrsToRows(inpUsrs...))
 			},
 			Query: httpflow.Query{
-				Count:     5,
+				Limit:     5,
 				Page:      10,
 				FilterBy:  "email",
 				FilterVal: inpEml,
@@ -427,7 +413,7 @@ FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY updated_at ASC LIMIT $2 OF
 					WillReturnRows(usrsToRows(inpUsrs...))
 			},
 			Query: httpflow.Query{
-				Count:     5,
+				Limit:     5,
 				Page:      10,
 				FilterBy:  "email",
 				FilterVal: inpEml,
@@ -456,7 +442,7 @@ FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY activated_at DESC LIMIT $2
 					WillReturnRows(usrsToRows(inpUsrs...))
 			},
 			Query: httpflow.Query{
-				Count:     5,
+				Limit:     5,
 				Page:      10,
 				FilterBy:  "email",
 				FilterVal: inpEml,
@@ -485,7 +471,7 @@ FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY activated_at ASC LIMIT $2 
 					WillReturnRows(usrsToRows(inpUsrs...))
 			},
 			Query: httpflow.Query{
-				Count:     5,
+				Limit:     5,
 				Page:      10,
 				FilterBy:  "email",
 				FilterVal: inpEml,
@@ -514,7 +500,7 @@ FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY email DESC LIMIT $2 OFFSET
 					WillReturnRows(usrsToRows(inpUsrs...))
 			},
 			Query: httpflow.Query{
-				Count:     5,
+				Limit:     5,
 				Page:      10,
 				FilterBy:  "email",
 				FilterVal: inpEml,
@@ -543,7 +529,7 @@ FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY email ASC LIMIT $2 OFFSET 
 					WillReturnRows(usrsToRows(inpUsrs...))
 			},
 			Query: httpflow.Query{
-				Count:     5,
+				Limit:     5,
 				Page:      10,
 				FilterBy:  "email",
 				FilterVal: inpEml,
@@ -561,14 +547,9 @@ FROM users WHERE email LIKE '%' || $1 || '%' ORDER BY email ASC LIMIT $2 OFFSET 
 			c.Expect()
 
 			usrs, err := s.FetchMany(context.Background(), c.Query)
-			if c.Err != nil {
-				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
-					assert.Error(t, err)
-				} else {
-					assert.Equal(t, c.Err, err)
-				}
-			} else {
-				assert.NoError(t, err)
+			testutil.AssertEqualError(t, c.Err, err)
+			if err != nil {
+				return
 			}
 
 			assert.Equal(t, c.Users, usrs)
@@ -642,17 +623,12 @@ FROM users WHERE id = $1 LIMIT 1;`).
 		t.Run(cn, func(t *testing.T) {
 			c.Expect()
 
-			usr, err := s.FetchByID(context.Background(), c.User.ID.String())
-			if c.Err != nil {
-				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
-					assert.Error(t, err)
-				} else {
-					assert.Equal(t, c.Err, err)
-				}
+			usr, err := s.FetchByID(context.Background(), c.User.ID)
+			testutil.AssertEqualError(t, c.Err, err)
+			if err != nil {
 				return
 			}
 
-			assert.NoError(t, err)
 			assert.Equal(t, c.User, usr)
 			assert.NoError(t, mock.ExpectationsWereMet())
 		})
@@ -725,16 +701,11 @@ FROM users WHERE email = $1 LIMIT 1;`).
 			c.Expect()
 
 			usr, err := s.FetchByEmail(context.Background(), c.User.Email)
-			if c.Err != nil {
-				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
-					assert.Error(t, err)
-				} else {
-					assert.Equal(t, c.Err, err)
-				}
+			testutil.AssertEqualError(t, c.Err, err)
+			if err != nil {
 				return
 			}
 
-			assert.NoError(t, err)
 			assert.Equal(t, c.User, usr)
 			assert.NoError(t, mock.ExpectationsWereMet())
 		})
@@ -811,16 +782,11 @@ recovery_expires_at = $11 WHERE id = $12;`).
 			c.Expect()
 
 			err = s.Update(context.Background(), c.User)
-			if c.Err != nil {
-				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
-					assert.Error(t, err)
-				} else {
-					assert.Equal(t, c.Err, err)
-				}
+			testutil.AssertEqualError(t, c.Err, err)
+			if err != nil {
 				return
 			}
 
-			assert.NoError(t, err)
 			assert.NoError(t, mock.ExpectationsWereMet())
 		})
 	}
@@ -862,17 +828,12 @@ func TestStoreDeleteByID(t *testing.T) {
 		t.Run(cn, func(t *testing.T) {
 			c.Expect()
 
-			err = s.DeleteByID(context.Background(), inpUsr.ID.String())
-			if c.Err != nil {
-				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
-					assert.Error(t, err)
-				} else {
-					assert.Equal(t, c.Err, err)
-				}
+			err = s.DeleteByID(context.Background(), inpUsr.ID)
+			testutil.AssertEqualError(t, c.Err, err)
+			if err != nil {
 				return
 			}
 
-			assert.NoError(t, err)
 			assert.NoError(t, mock.ExpectationsWereMet())
 		})
 	}

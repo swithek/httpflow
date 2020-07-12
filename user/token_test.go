@@ -7,6 +7,7 @@ import (
 	"github.com/dchest/uniuri"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
+	"github.com/swithek/httpflow/testutil"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/guregu/null.v3"
 )
@@ -19,7 +20,7 @@ func Test_Token_IsEmpty(t *testing.T) {
 	assert.False(t, tok.IsEmpty())
 }
 
-func Test_Token_Init(t *testing.T) {
+func Test_Token_init(t *testing.T) {
 	cc := map[string]struct {
 		Token Token
 		Err   error
@@ -41,11 +42,9 @@ func Test_Token_Init(t *testing.T) {
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
 
-			tok, err := c.Token.init(TokenTimes{time.Minute,
-				time.Minute})
-
-			if c.Err != nil {
-				assert.Equal(t, c.Err, err)
+			tok, err := c.Token.init(TokenTimes{time.Minute, time.Minute})
+			testutil.AssertEqualError(t, c.Err, err)
+			if err != nil {
 				return
 			}
 
@@ -107,7 +106,7 @@ func Test_Token_Check(t *testing.T) {
 			t.Parallel()
 
 			err := c.Token.Check(c.Input)
-			assert.Equal(t, c.Err, err)
+			testutil.AssertEqualError(t, c.Err, err)
 		})
 	}
 }
@@ -164,9 +163,13 @@ func Test_FromFullToken(t *testing.T) {
 			t.Parallel()
 
 			tok, id, err := FromFullToken(c.Input)
+			testutil.AssertEqualError(t, c.Err, err)
+			if err != nil {
+				return
+			}
+
 			assert.Equal(t, c.Token, tok)
 			assert.Equal(t, c.ID, id)
-			assert.Equal(t, c.Err, err)
 		})
 	}
 }

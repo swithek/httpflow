@@ -45,10 +45,10 @@ func NewError(err error, code int, msg string, args ...interface{}) error {
 // Error converts the error to string.
 func (e *statusError) Error() string {
 	if e.err != nil {
-		return fmt.Sprintf("%d - %s: %v", e.Code, e.Message, e.err)
+		return fmt.Sprintf("[%d] %s: %v", e.Code, e.Message, e.err)
 	}
 
-	return fmt.Sprintf("%d - %s", e.Code, e.Message)
+	return fmt.Sprintf("[%d] %s", e.Code, e.Message)
 }
 
 // Unwrap returns the wrapped error, if it exists.

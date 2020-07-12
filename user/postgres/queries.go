@@ -213,7 +213,7 @@ var _escData = map[string]*_escFile{
 		name:    "queries.sql",
 		local:   "./queries.sql",
 		size:    6023,
-		modtime: 1583514726,
+		modtime: 1594559388,
 		compressed: `
 H4sIAAAAAAAC/+yX32+bOhTHn+O/4ijiqsmVe3Vp97vjgSaOhkqgA2dt9oIoeCpaSjpwulbKHz/ZpMEU
 WKXlYY3ESyQ4X/scn8/3EDg8hDS8YR8gyljIWbDKWZYHPLxaMDTyiEkJUPPUJmBNwHEpkEvLpz5IGQxQ

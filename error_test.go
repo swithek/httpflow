@@ -29,11 +29,11 @@ func Test_statusError_Error(t *testing.T) {
 		Message: "bad request",
 	}
 
-	assert.Equal(t, "400 - bad request", sErr.Error())
+	assert.Equal(t, "[400] bad request", sErr.Error())
 
 	sErr.err = errors.New("invalid JSON body")
 
-	assert.Equal(t, "400 - bad request: invalid JSON body", sErr.Error())
+	assert.Equal(t, "[400] bad request: invalid JSON body", sErr.Error())
 }
 
 func Test_statusError_Unwrap(t *testing.T) {

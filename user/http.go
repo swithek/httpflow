@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/rs/xid"
 	"github.com/swithek/httpflow"
 	"github.com/swithek/sessionup"
 )
@@ -15,8 +16,7 @@ import (
 var (
 	// ErrNotActivated is returned when an action which is allowed only
 	// by activated users is performed.
-	ErrNotActivated = httpflow.NewError(nil, http.StatusForbidden,
-		"not activated")
+	ErrNotActivated = httpflow.NewError(nil, http.StatusForbidden, "not activated")
 )
 
 var (
@@ -25,11 +25,11 @@ var (
 )
 
 // Handler holds dependencies required for user management.
-//go:generate moq -out ./http_mock_test.go . Database EmailSender
+//go:generate moq -out ./mock_test.go . DB EmailSender
 type Handler struct {
 	sessions *sessionup.Manager
 	sesDur   time.Duration
-	db       Database
+	db       DB
 	email    EmailSender
 
 	onError httpflow.ErrorExec
@@ -103,7 +103,7 @@ func SetRecoveryTimes(t TokenTimes) Setter {
 }
 
 // NewHandler creates a new handler instance with the options provided.
-func NewHandler(sm *sessionup.Manager, db Database, es EmailSender, ss ...Setter) *Handler {
+func NewHandler(sm *sessionup.Manager, db DB, es EmailSender, ss ...Setter) *Handler {
 	h := &Handler{
 		sessions: sm,
 		db:       db,
@@ -186,15 +186,15 @@ func DefaultPreDeleter(_ context.Context, _ User) error {
 // ServeHTTP handles all core user routes.
 // Registration is allowed (use Routes method to override this).
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.Routes(true).ServeHTTP(w, r)
+	h.Router(true).ServeHTTP(w, r)
 }
 
-// Routes returns a chi router instance with all core user
+// Router returns a chi router instance with all core user
 // routes. Bool parameter determines whether registration is allowed
 // or not (useful for applications where users are invited rather
 // than allowed to register themselves).
-func (h *Handler) Routes(open bool) chi.Router {
-	r := h.BasicRoutes(open)
+func (h *Handler) Router(open bool) chi.Router {
+	r := h.BasicRouter(open)
 
 	r.Group(func(sr chi.Router) {
 		sr.Use(h.sessions.Auth)
@@ -235,11 +235,11 @@ func (h *Handler) Routes(open bool) chi.Router {
 	return r
 }
 
-// BasicRoutes returns a chi router instance with basic user
+// BasicRouter returns a chi router instance with basic user
 // routes. Bool parameter determines whether registration is allowed or
 // not (useful for applications where users are invited rather than
 // allowed to register themselves).
-func (h *Handler) BasicRoutes(open bool) chi.Router {
+func (h *Handler) BasicRouter(open bool) chi.Router {
 	r := chi.NewRouter()
 	r.Use(middleware.AllowContentType("application/json"))
 
@@ -259,7 +259,7 @@ func (h *Handler) BasicRoutes(open bool) chi.Router {
 }
 
 // SetupLinks creates a link string map that should be used for email
-// sending etc.
+// sending, etc.
 // The parameter specifies the root of the link, example:
 // "http://yoursite.com/user"
 func SetupLinks(r string) map[httpflow.LinkKey]string {
@@ -314,7 +314,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go h.email.SendAccountActivation(ctx, usrC.Email, tok)
+	go h.email.SendAccountActivation(context.Background(), usrC.Email, tok)
 
 	httpflow.Respond(w, r, nil, http.StatusCreated, h.onError)
 }
@@ -393,13 +393,13 @@ func (h *Handler) LogOut(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Fetch(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	ses, err := ExtractSession(ctx)
+	_, id, err := httpflow.ExtractSession(ctx)
 	if err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}
 
-	usr, err := h.db.FetchByID(ctx, ses.UserKey)
+	usr, err := h.db.FetchByID(ctx, id)
 	if err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
@@ -415,7 +415,7 @@ func (h *Handler) Fetch(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	ses, err := ExtractSession(ctx)
+	_, id, err := httpflow.ExtractSession(ctx)
 	if err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
@@ -427,7 +427,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	usr, err := h.db.FetchByID(ctx, ses.UserKey)
+	usr, err := h.db.FetchByID(ctx, id)
 	if err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
@@ -463,11 +463,11 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		go h.email.SendPasswordChanged(ctx, usrC.Email, false)
+		go h.email.SendPasswordChanged(context.Background(), usrC.Email, false)
 	}
 
 	if tok != "" {
-		go h.email.SendEmailVerification(ctx,
+		go h.email.SendEmailVerification(context.Background(),
 			usrC.UnverifiedEmail.String, tok)
 	}
 
@@ -479,7 +479,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	ses, err := ExtractSession(ctx)
+	_, id, err := httpflow.ExtractSession(ctx)
 	if err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
@@ -491,7 +491,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	usr, err := h.db.FetchByID(ctx, ses.UserKey)
+	usr, err := h.db.FetchByID(ctx, id)
 	if err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
@@ -509,7 +509,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = h.db.DeleteByID(ctx, ses.UserKey); err != nil {
+	if err = h.db.DeleteByID(ctx, id); err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}
@@ -519,7 +519,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go h.email.SendAccountDeleted(ctx, usrC.Email)
+	go h.email.SendAccountDeleted(context.Background(), usrC.Email)
 
 	httpflow.Respond(w, r, nil, http.StatusNoContent, h.onError)
 }
@@ -546,7 +546,7 @@ func (h *Handler) FetchSessions(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) RevokeSession(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	ses, err := ExtractSession(ctx)
+	ses, _, err := httpflow.ExtractSession(ctx)
 	if err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
@@ -592,13 +592,13 @@ func (h *Handler) RevokeOtherSessions(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ResendVerification(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	ses, ok := sessionup.FromContext(ctx)
-	if !ok {
-		httpflow.RespondError(w, r, httpflow.ErrUnauthorized, h.onError)
+	_, id, err := httpflow.ExtractSession(ctx)
+	if err != nil {
+		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}
 
-	usr, err := h.db.FetchByID(ctx, ses.UserKey)
+	usr, err := h.db.FetchByID(ctx, id)
 	if err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
@@ -626,10 +626,10 @@ func (h *Handler) ResendVerification(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if usrC.IsActivated() {
-		go h.email.SendEmailVerification(ctx,
+		go h.email.SendEmailVerification(context.Background(),
 			usrC.UnverifiedEmail.String, tok)
 	} else {
-		go h.email.SendAccountActivation(ctx, usrC.Email, tok)
+		go h.email.SendAccountActivation(context.Background(), usrC.Email, tok)
 	}
 
 	httpflow.Respond(w, r, nil, http.StatusAccepted, h.onError)
@@ -662,7 +662,7 @@ func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if oEml != usrC.Email { // email was changed
-		go h.email.SendEmailChanged(ctx, oEml, usrC.Email)
+		go h.email.SendEmailChanged(context.Background(), oEml, usrC.Email)
 	}
 
 	httpflow.Respond(w, r, nil, http.StatusNoContent, h.onError)
@@ -739,7 +739,7 @@ func (h *Handler) InitRecovery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go h.email.SendRecovery(ctx, usrC.Email, tok)
+	go h.email.SendRecovery(context.Background(), usrC.Email, tok)
 
 	httpflow.Respond(w, r, nil, http.StatusAccepted, h.onError)
 }
@@ -779,7 +779,7 @@ func (h *Handler) Recover(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go h.email.SendPasswordChanged(ctx, usrC.Email, true)
+	go h.email.SendPasswordChanged(context.Background(), usrC.Email, true)
 
 	httpflow.Respond(w, r, nil, http.StatusNoContent, h.onError)
 }
@@ -838,7 +838,7 @@ func (h *Handler) FetchByToken(r *http.Request) (User, string, error) {
 		return nil, "", err
 	}
 
-	usr, err := h.db.FetchByID(r.Context(), id.String())
+	usr, err := h.db.FetchByID(r.Context(), id)
 	if err != nil {
 		return nil, "", err
 	}
@@ -846,19 +846,9 @@ func (h *Handler) FetchByToken(r *http.Request) (User, string, error) {
 	return usr, tok, nil
 }
 
-// ExtractSession checks whether the session is present and returns it.
-func ExtractSession(ctx context.Context) (sessionup.Session, error) {
-	ses, ok := sessionup.FromContext(ctx)
-	if !ok {
-		return sessionup.Session{}, httpflow.ErrUnauthorized
-	}
-
-	return ses, nil
-}
-
-// Database is an interface which should be implemented by the user data
+// DB is an interface which should be implemented by the user data
 // store layer.
-type Database interface {
+type DB interface {
 	// Stats should return users' data statistics from the underlying
 	// data store.
 	Stats(ctx context.Context) (Stats, error)
@@ -873,7 +863,7 @@ type Database interface {
 
 	// FetchByID should retrieve a user from the underlying data store
 	// by their ID.
-	FetchByID(ctx context.Context, id string) (User, error)
+	FetchByID(ctx context.Context, id xid.ID) (User, error)
 
 	// FetchByEmail should retrieve a user from the underlying data store
 	// by their email address.
@@ -884,7 +874,7 @@ type Database interface {
 
 	// DeleteByID should delete a user from the underlying data store
 	// by their ID.
-	DeleteByID(ctx context.Context, id string) error
+	DeleteByID(ctx context.Context, id xid.ID) error
 }
 
 // EmailSender is an interface which should be implemented by email

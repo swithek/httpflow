@@ -1,3 +1,4 @@
+// Package user provides user data handling functionality.
 package user
 
 import (
@@ -13,18 +14,15 @@ import (
 
 var (
 	// ErrInvalidEmail is returned when email is determined to be invalid.
-	ErrInvalidEmail = httpflow.NewError(nil, http.StatusBadRequest,
-		"invalid email")
+	ErrInvalidEmail = httpflow.NewError(nil, http.StatusBadRequest, "invalid email")
 
 	// ErrInvalidPassword is returned when password is determined to be
 	// invalid.
-	ErrInvalidPassword = httpflow.NewError(nil, http.StatusBadRequest,
-		"invalid password")
+	ErrInvalidPassword = httpflow.NewError(nil, http.StatusBadRequest, "invalid password")
 
 	// ErrInvalidCredentials is returned when login credentials are
 	// determined to be incorrect.
-	ErrInvalidCredentials = httpflow.NewError(nil, http.StatusUnauthorized,
-		"incorrect credentials")
+	ErrInvalidCredentials = httpflow.NewError(nil, http.StatusUnauthorized, "incorrect credentials")
 )
 
 var (
@@ -43,7 +41,7 @@ var (
 
 	// RecovTimes is the default / recommended recovery token times value.
 	RecovTimes = TokenTimes{ //nolint:gochecknoglobals // used as a constant
-		Interval: time.Hour * 24, // one day
+		Interval: time.Hour * 3, // one day
 		Cooldown: time.Minute,
 	}
 )
@@ -205,6 +203,7 @@ func (c *Core) SetPassword(p string) (bool, error) {
 
 	h, err := bcrypt.GenerateFromPassword([]byte(p), bcrypt.DefaultCost)
 	if err != nil {
+		// unlikely to happen
 		return false, err
 	}
 

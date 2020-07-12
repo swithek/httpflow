@@ -6,6 +6,7 @@ import (
 
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
+	"github.com/swithek/httpflow/testutil"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/guregu/null.v3"
 	"gopkg.in/guregu/null.v3/zero"
@@ -58,18 +59,10 @@ func Test_Core_ApplyInput(t *testing.T) {
 
 			cr := Core{}
 			res, err := cr.ApplyInput(c.Input)
-
-			if c.Err != nil {
-				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
-					assert.Error(t, err)
-				} else {
-					assert.Equal(t, c.Err, err)
-				}
-
+			testutil.AssertEqualError(t, c.Err, err)
+			if err != nil {
 				return
 			}
-
-			assert.NoError(t, err)
 
 			if c.Input.Email != "" {
 				assert.True(t, res.ExposeCore().Email)
@@ -152,16 +145,11 @@ func Test_Core_SetEmail(t *testing.T) {
 			cr.Email = c.Current
 
 			res, err := cr.SetEmail(c.New)
-			if c.Err != nil {
-				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
-					assert.Error(t, err)
-				} else {
-					assert.Equal(t, c.Err, err)
-				}
+			testutil.AssertEqualError(t, c.Err, err)
+			if err != nil {
 				return
 			}
 
-			assert.NoError(t, err)
 			assert.Equal(t, c.Applied, res)
 
 			if c.Applied {
@@ -214,16 +202,11 @@ func Test_Core_SetUnverifiedEmail(t *testing.T) {
 			cr.UnverifiedEmail = zero.StringFrom(c.Current)
 
 			res, err := cr.SetUnverifiedEmail(c.New)
-			if c.Err != nil {
-				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
-					assert.Error(t, err)
-				} else {
-					assert.Equal(t, c.Err, err)
-				}
+			testutil.AssertEqualError(t, c.Err, err)
+			if err != nil {
 				return
 			}
 
-			assert.NoError(t, err)
 			assert.Equal(t, c.Applied, res)
 
 			if c.Applied {
@@ -272,16 +255,11 @@ func Test_Core_SetPassword(t *testing.T) {
 			cr := Core{PasswordHash: c.Hash}
 
 			res, err := cr.SetPassword(c.Password)
-			if c.Err != nil {
-				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
-					assert.Error(t, err)
-				} else {
-					assert.Equal(t, c.Err, err)
-				}
+			testutil.AssertEqualError(t, c.Err, err)
+			if err != nil {
 				return
 			}
 
-			assert.NoError(t, err)
 			assert.Equal(t, c.Applied, res)
 
 			if c.Applied {
@@ -326,16 +304,11 @@ func Test_Core_InitVerification(t *testing.T) {
 			cr := Core{ID: xid.New(), Verification: c.Token}
 			tok, err := cr.InitVerification(TokenTimes{time.Minute,
 				time.Minute})
-			if c.Err != nil {
-				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
-					assert.Error(t, err)
-				} else {
-					assert.Equal(t, c.Err, err)
-				}
+			testutil.AssertEqualError(t, c.Err, err)
+			if err != nil {
 				return
 			}
 
-			assert.NoError(t, err)
 			assert.NotZero(t, tok)
 			assert.NotZero(t, cr.Verification)
 		})
@@ -414,16 +387,11 @@ func Test_Core_Verify(t *testing.T) {
 			t.Parallel()
 
 			err := c.Core.Verify(c.Token)
-			if c.Err != nil {
-				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
-					assert.Error(t, err)
-				} else {
-					assert.Equal(t, c.Err, err)
-				}
+			testutil.AssertEqualError(t, c.Err, err)
+			if err != nil {
 				return
 			}
 
-			assert.NoError(t, err)
 			assert.True(t, c.Core.Verification.IsEmpty())
 			if c.UnverifiedEmail {
 				assert.Zero(t, c.Core.UnverifiedEmail)
@@ -470,16 +438,11 @@ func Test_Core_CancelVerification(t *testing.T) {
 			t.Parallel()
 
 			err := c.Core.CancelVerification(c.Token)
-			if c.Err != nil {
-				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
-					assert.Error(t, err)
-				} else {
-					assert.Equal(t, c.Err, err)
-				}
+			testutil.AssertEqualError(t, c.Err, err)
+			if err != nil {
 				return
 			}
 
-			assert.NoError(t, err)
 			assert.True(t, c.Core.Verification.IsEmpty())
 		})
 	}
@@ -508,16 +471,11 @@ func Test_Core_InitRecovery(t *testing.T) {
 			cr := Core{ID: xid.New(), Recovery: c.Token}
 			tok, err := cr.InitRecovery(TokenTimes{time.Minute,
 				time.Minute})
-			if c.Err != nil {
-				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
-					assert.Error(t, err)
-				} else {
-					assert.Equal(t, c.Err, err)
-				}
+			testutil.AssertEqualError(t, c.Err, err)
+			if err != nil {
 				return
 			}
 
-			assert.NoError(t, err)
 			assert.NotZero(t, tok)
 			assert.NotZero(t, cr.Recovery)
 		})
@@ -578,16 +536,11 @@ func Test_Core_Recover(t *testing.T) {
 			t.Parallel()
 
 			err := c.Core.Recover(c.Token, c.Password)
-			if c.Err != nil {
-				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
-					assert.Error(t, err)
-				} else {
-					assert.Equal(t, c.Err, err)
-				}
+			testutil.AssertEqualError(t, c.Err, err)
+			if err != nil {
 				return
 			}
 
-			assert.NoError(t, err)
 			assert.True(t, c.Core.Recovery.IsEmpty())
 			assert.NoError(t, bcrypt.CompareHashAndPassword(
 				c.Core.PasswordHash, []byte(c.Password)))
@@ -629,16 +582,11 @@ func Test_Core_CancelRecovery(t *testing.T) {
 			t.Parallel()
 
 			err := c.Core.CancelRecovery(c.Token)
-			if c.Err != nil {
-				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
-					assert.Error(t, err)
-				} else {
-					assert.Equal(t, c.Err, err)
-				}
+			testutil.AssertEqualError(t, c.Err, err)
+			if err != nil {
 				return
 			}
 
-			assert.NoError(t, err)
 			assert.True(t, c.Core.Recovery.IsEmpty())
 		})
 	}
@@ -689,16 +637,7 @@ func Test_CheckEmail(t *testing.T) {
 			t.Parallel()
 
 			err := CheckEmail(c.Email)
-			if c.Err != nil {
-				if c.Err == assert.AnError { //nolint:goerr113 // direct check is needed
-					assert.Error(t, err)
-				} else {
-					assert.Equal(t, c.Err, err)
-				}
-				return
-			}
-
-			assert.NoError(t, err)
+			testutil.AssertEqualError(t, c.Err, err)
 		})
 	}
 }

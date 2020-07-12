@@ -5,40 +5,41 @@ package user
 
 import (
 	"context"
+	"github.com/rs/xid"
 	"github.com/swithek/httpflow"
 	"sync"
 )
 
 var (
-	lockDatabaseMockCreate       sync.RWMutex
-	lockDatabaseMockDeleteByID   sync.RWMutex
-	lockDatabaseMockFetchByEmail sync.RWMutex
-	lockDatabaseMockFetchByID    sync.RWMutex
-	lockDatabaseMockFetchMany    sync.RWMutex
-	lockDatabaseMockStats        sync.RWMutex
-	lockDatabaseMockUpdate       sync.RWMutex
+	lockDBMockCreate       sync.RWMutex
+	lockDBMockDeleteByID   sync.RWMutex
+	lockDBMockFetchByEmail sync.RWMutex
+	lockDBMockFetchByID    sync.RWMutex
+	lockDBMockFetchMany    sync.RWMutex
+	lockDBMockStats        sync.RWMutex
+	lockDBMockUpdate       sync.RWMutex
 )
 
-// Ensure, that DatabaseMock does implement Database.
+// Ensure, that DBMock does implement DB.
 // If this is not the case, regenerate this file with moq.
-var _ Database = &DatabaseMock{}
+var _ DB = &DBMock{}
 
-// DatabaseMock is a mock implementation of Database.
+// DBMock is a mock implementation of DB.
 //
-//     func TestSomethingThatUsesDatabase(t *testing.T) {
+//     func TestSomethingThatUsesDB(t *testing.T) {
 //
-//         // make and configure a mocked Database
-//         mockedDatabase := &DatabaseMock{
+//         // make and configure a mocked DB
+//         mockedDB := &DBMock{
 //             CreateFunc: func(ctx context.Context, usr User) error {
 // 	               panic("mock out the Create method")
 //             },
-//             DeleteByIDFunc: func(ctx context.Context, id string) error {
+//             DeleteByIDFunc: func(ctx context.Context, id xid.ID) error {
 // 	               panic("mock out the DeleteByID method")
 //             },
 //             FetchByEmailFunc: func(ctx context.Context, eml string) (User, error) {
 // 	               panic("mock out the FetchByEmail method")
 //             },
-//             FetchByIDFunc: func(ctx context.Context, id string) (User, error) {
+//             FetchByIDFunc: func(ctx context.Context, id xid.ID) (User, error) {
 // 	               panic("mock out the FetchByID method")
 //             },
 //             FetchManyFunc: func(ctx context.Context, qr httpflow.Query) ([]User, error) {
@@ -52,22 +53,22 @@ var _ Database = &DatabaseMock{}
 //             },
 //         }
 //
-//         // use mockedDatabase in code that requires Database
+//         // use mockedDB in code that requires DB
 //         // and then make assertions.
 //
 //     }
-type DatabaseMock struct {
+type DBMock struct {
 	// CreateFunc mocks the Create method.
 	CreateFunc func(ctx context.Context, usr User) error
 
 	// DeleteByIDFunc mocks the DeleteByID method.
-	DeleteByIDFunc func(ctx context.Context, id string) error
+	DeleteByIDFunc func(ctx context.Context, id xid.ID) error
 
 	// FetchByEmailFunc mocks the FetchByEmail method.
 	FetchByEmailFunc func(ctx context.Context, eml string) (User, error)
 
 	// FetchByIDFunc mocks the FetchByID method.
-	FetchByIDFunc func(ctx context.Context, id string) (User, error)
+	FetchByIDFunc func(ctx context.Context, id xid.ID) (User, error)
 
 	// FetchManyFunc mocks the FetchMany method.
 	FetchManyFunc func(ctx context.Context, qr httpflow.Query) ([]User, error)
@@ -92,7 +93,7 @@ type DatabaseMock struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// ID is the id argument value.
-			ID string
+			ID xid.ID
 		}
 		// FetchByEmail holds details about calls to the FetchByEmail method.
 		FetchByEmail []struct {
@@ -106,7 +107,7 @@ type DatabaseMock struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// ID is the id argument value.
-			ID string
+			ID xid.ID
 		}
 		// FetchMany holds details about calls to the FetchMany method.
 		FetchMany []struct {
@@ -131,9 +132,9 @@ type DatabaseMock struct {
 }
 
 // Create calls CreateFunc.
-func (mock *DatabaseMock) Create(ctx context.Context, usr User) error {
+func (mock *DBMock) Create(ctx context.Context, usr User) error {
 	if mock.CreateFunc == nil {
-		panic("DatabaseMock.CreateFunc: method is nil but Database.Create was just called")
+		panic("DBMock.CreateFunc: method is nil but DB.Create was just called")
 	}
 	callInfo := struct {
 		Ctx context.Context
@@ -142,16 +143,16 @@ func (mock *DatabaseMock) Create(ctx context.Context, usr User) error {
 		Ctx: ctx,
 		Usr: usr,
 	}
-	lockDatabaseMockCreate.Lock()
+	lockDBMockCreate.Lock()
 	mock.calls.Create = append(mock.calls.Create, callInfo)
-	lockDatabaseMockCreate.Unlock()
+	lockDBMockCreate.Unlock()
 	return mock.CreateFunc(ctx, usr)
 }
 
 // CreateCalls gets all the calls that were made to Create.
 // Check the length with:
-//     len(mockedDatabase.CreateCalls())
-func (mock *DatabaseMock) CreateCalls() []struct {
+//     len(mockedDB.CreateCalls())
+func (mock *DBMock) CreateCalls() []struct {
 	Ctx context.Context
 	Usr User
 } {
@@ -159,51 +160,51 @@ func (mock *DatabaseMock) CreateCalls() []struct {
 		Ctx context.Context
 		Usr User
 	}
-	lockDatabaseMockCreate.RLock()
+	lockDBMockCreate.RLock()
 	calls = mock.calls.Create
-	lockDatabaseMockCreate.RUnlock()
+	lockDBMockCreate.RUnlock()
 	return calls
 }
 
 // DeleteByID calls DeleteByIDFunc.
-func (mock *DatabaseMock) DeleteByID(ctx context.Context, id string) error {
+func (mock *DBMock) DeleteByID(ctx context.Context, id xid.ID) error {
 	if mock.DeleteByIDFunc == nil {
-		panic("DatabaseMock.DeleteByIDFunc: method is nil but Database.DeleteByID was just called")
+		panic("DBMock.DeleteByIDFunc: method is nil but DB.DeleteByID was just called")
 	}
 	callInfo := struct {
 		Ctx context.Context
-		ID  string
+		ID  xid.ID
 	}{
 		Ctx: ctx,
 		ID:  id,
 	}
-	lockDatabaseMockDeleteByID.Lock()
+	lockDBMockDeleteByID.Lock()
 	mock.calls.DeleteByID = append(mock.calls.DeleteByID, callInfo)
-	lockDatabaseMockDeleteByID.Unlock()
+	lockDBMockDeleteByID.Unlock()
 	return mock.DeleteByIDFunc(ctx, id)
 }
 
 // DeleteByIDCalls gets all the calls that were made to DeleteByID.
 // Check the length with:
-//     len(mockedDatabase.DeleteByIDCalls())
-func (mock *DatabaseMock) DeleteByIDCalls() []struct {
+//     len(mockedDB.DeleteByIDCalls())
+func (mock *DBMock) DeleteByIDCalls() []struct {
 	Ctx context.Context
-	ID  string
+	ID  xid.ID
 } {
 	var calls []struct {
 		Ctx context.Context
-		ID  string
+		ID  xid.ID
 	}
-	lockDatabaseMockDeleteByID.RLock()
+	lockDBMockDeleteByID.RLock()
 	calls = mock.calls.DeleteByID
-	lockDatabaseMockDeleteByID.RUnlock()
+	lockDBMockDeleteByID.RUnlock()
 	return calls
 }
 
 // FetchByEmail calls FetchByEmailFunc.
-func (mock *DatabaseMock) FetchByEmail(ctx context.Context, eml string) (User, error) {
+func (mock *DBMock) FetchByEmail(ctx context.Context, eml string) (User, error) {
 	if mock.FetchByEmailFunc == nil {
-		panic("DatabaseMock.FetchByEmailFunc: method is nil but Database.FetchByEmail was just called")
+		panic("DBMock.FetchByEmailFunc: method is nil but DB.FetchByEmail was just called")
 	}
 	callInfo := struct {
 		Ctx context.Context
@@ -212,16 +213,16 @@ func (mock *DatabaseMock) FetchByEmail(ctx context.Context, eml string) (User, e
 		Ctx: ctx,
 		Eml: eml,
 	}
-	lockDatabaseMockFetchByEmail.Lock()
+	lockDBMockFetchByEmail.Lock()
 	mock.calls.FetchByEmail = append(mock.calls.FetchByEmail, callInfo)
-	lockDatabaseMockFetchByEmail.Unlock()
+	lockDBMockFetchByEmail.Unlock()
 	return mock.FetchByEmailFunc(ctx, eml)
 }
 
 // FetchByEmailCalls gets all the calls that were made to FetchByEmail.
 // Check the length with:
-//     len(mockedDatabase.FetchByEmailCalls())
-func (mock *DatabaseMock) FetchByEmailCalls() []struct {
+//     len(mockedDB.FetchByEmailCalls())
+func (mock *DBMock) FetchByEmailCalls() []struct {
 	Ctx context.Context
 	Eml string
 } {
@@ -229,51 +230,51 @@ func (mock *DatabaseMock) FetchByEmailCalls() []struct {
 		Ctx context.Context
 		Eml string
 	}
-	lockDatabaseMockFetchByEmail.RLock()
+	lockDBMockFetchByEmail.RLock()
 	calls = mock.calls.FetchByEmail
-	lockDatabaseMockFetchByEmail.RUnlock()
+	lockDBMockFetchByEmail.RUnlock()
 	return calls
 }
 
 // FetchByID calls FetchByIDFunc.
-func (mock *DatabaseMock) FetchByID(ctx context.Context, id string) (User, error) {
+func (mock *DBMock) FetchByID(ctx context.Context, id xid.ID) (User, error) {
 	if mock.FetchByIDFunc == nil {
-		panic("DatabaseMock.FetchByIDFunc: method is nil but Database.FetchByID was just called")
+		panic("DBMock.FetchByIDFunc: method is nil but DB.FetchByID was just called")
 	}
 	callInfo := struct {
 		Ctx context.Context
-		ID  string
+		ID  xid.ID
 	}{
 		Ctx: ctx,
 		ID:  id,
 	}
-	lockDatabaseMockFetchByID.Lock()
+	lockDBMockFetchByID.Lock()
 	mock.calls.FetchByID = append(mock.calls.FetchByID, callInfo)
-	lockDatabaseMockFetchByID.Unlock()
+	lockDBMockFetchByID.Unlock()
 	return mock.FetchByIDFunc(ctx, id)
 }
 
 // FetchByIDCalls gets all the calls that were made to FetchByID.
 // Check the length with:
-//     len(mockedDatabase.FetchByIDCalls())
-func (mock *DatabaseMock) FetchByIDCalls() []struct {
+//     len(mockedDB.FetchByIDCalls())
+func (mock *DBMock) FetchByIDCalls() []struct {
 	Ctx context.Context
-	ID  string
+	ID  xid.ID
 } {
 	var calls []struct {
 		Ctx context.Context
-		ID  string
+		ID  xid.ID
 	}
-	lockDatabaseMockFetchByID.RLock()
+	lockDBMockFetchByID.RLock()
 	calls = mock.calls.FetchByID
-	lockDatabaseMockFetchByID.RUnlock()
+	lockDBMockFetchByID.RUnlock()
 	return calls
 }
 
 // FetchMany calls FetchManyFunc.
-func (mock *DatabaseMock) FetchMany(ctx context.Context, qr httpflow.Query) ([]User, error) {
+func (mock *DBMock) FetchMany(ctx context.Context, qr httpflow.Query) ([]User, error) {
 	if mock.FetchManyFunc == nil {
-		panic("DatabaseMock.FetchManyFunc: method is nil but Database.FetchMany was just called")
+		panic("DBMock.FetchManyFunc: method is nil but DB.FetchMany was just called")
 	}
 	callInfo := struct {
 		Ctx context.Context
@@ -282,16 +283,16 @@ func (mock *DatabaseMock) FetchMany(ctx context.Context, qr httpflow.Query) ([]U
 		Ctx: ctx,
 		Qr:  qr,
 	}
-	lockDatabaseMockFetchMany.Lock()
+	lockDBMockFetchMany.Lock()
 	mock.calls.FetchMany = append(mock.calls.FetchMany, callInfo)
-	lockDatabaseMockFetchMany.Unlock()
+	lockDBMockFetchMany.Unlock()
 	return mock.FetchManyFunc(ctx, qr)
 }
 
 // FetchManyCalls gets all the calls that were made to FetchMany.
 // Check the length with:
-//     len(mockedDatabase.FetchManyCalls())
-func (mock *DatabaseMock) FetchManyCalls() []struct {
+//     len(mockedDB.FetchManyCalls())
+func (mock *DBMock) FetchManyCalls() []struct {
 	Ctx context.Context
 	Qr  httpflow.Query
 } {
@@ -299,47 +300,47 @@ func (mock *DatabaseMock) FetchManyCalls() []struct {
 		Ctx context.Context
 		Qr  httpflow.Query
 	}
-	lockDatabaseMockFetchMany.RLock()
+	lockDBMockFetchMany.RLock()
 	calls = mock.calls.FetchMany
-	lockDatabaseMockFetchMany.RUnlock()
+	lockDBMockFetchMany.RUnlock()
 	return calls
 }
 
 // Stats calls StatsFunc.
-func (mock *DatabaseMock) Stats(ctx context.Context) (Stats, error) {
+func (mock *DBMock) Stats(ctx context.Context) (Stats, error) {
 	if mock.StatsFunc == nil {
-		panic("DatabaseMock.StatsFunc: method is nil but Database.Stats was just called")
+		panic("DBMock.StatsFunc: method is nil but DB.Stats was just called")
 	}
 	callInfo := struct {
 		Ctx context.Context
 	}{
 		Ctx: ctx,
 	}
-	lockDatabaseMockStats.Lock()
+	lockDBMockStats.Lock()
 	mock.calls.Stats = append(mock.calls.Stats, callInfo)
-	lockDatabaseMockStats.Unlock()
+	lockDBMockStats.Unlock()
 	return mock.StatsFunc(ctx)
 }
 
 // StatsCalls gets all the calls that were made to Stats.
 // Check the length with:
-//     len(mockedDatabase.StatsCalls())
-func (mock *DatabaseMock) StatsCalls() []struct {
+//     len(mockedDB.StatsCalls())
+func (mock *DBMock) StatsCalls() []struct {
 	Ctx context.Context
 } {
 	var calls []struct {
 		Ctx context.Context
 	}
-	lockDatabaseMockStats.RLock()
+	lockDBMockStats.RLock()
 	calls = mock.calls.Stats
-	lockDatabaseMockStats.RUnlock()
+	lockDBMockStats.RUnlock()
 	return calls
 }
 
 // Update calls UpdateFunc.
-func (mock *DatabaseMock) Update(ctx context.Context, usr User) error {
+func (mock *DBMock) Update(ctx context.Context, usr User) error {
 	if mock.UpdateFunc == nil {
-		panic("DatabaseMock.UpdateFunc: method is nil but Database.Update was just called")
+		panic("DBMock.UpdateFunc: method is nil but DB.Update was just called")
 	}
 	callInfo := struct {
 		Ctx context.Context
@@ -348,16 +349,16 @@ func (mock *DatabaseMock) Update(ctx context.Context, usr User) error {
 		Ctx: ctx,
 		Usr: usr,
 	}
-	lockDatabaseMockUpdate.Lock()
+	lockDBMockUpdate.Lock()
 	mock.calls.Update = append(mock.calls.Update, callInfo)
-	lockDatabaseMockUpdate.Unlock()
+	lockDBMockUpdate.Unlock()
 	return mock.UpdateFunc(ctx, usr)
 }
 
 // UpdateCalls gets all the calls that were made to Update.
 // Check the length with:
-//     len(mockedDatabase.UpdateCalls())
-func (mock *DatabaseMock) UpdateCalls() []struct {
+//     len(mockedDB.UpdateCalls())
+func (mock *DBMock) UpdateCalls() []struct {
 	Ctx context.Context
 	Usr User
 } {
@@ -365,9 +366,9 @@ func (mock *DatabaseMock) UpdateCalls() []struct {
 		Ctx context.Context
 		Usr User
 	}
-	lockDatabaseMockUpdate.RLock()
+	lockDBMockUpdate.RLock()
 	calls = mock.calls.Update
-	lockDatabaseMockUpdate.RUnlock()
+	lockDBMockUpdate.RUnlock()
 	return calls
 }
 

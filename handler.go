@@ -1,7 +1,11 @@
+// Package httpflow provides helper functions and types to simplify work
+// with HTTP requests.
 package httpflow
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -9,6 +13,8 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/gorilla/schema"
+	"github.com/rs/xid"
+	"github.com/swithek/sessionup"
 )
 
 var (
@@ -44,6 +50,7 @@ func Respond(w http.ResponseWriter, r *http.Request, data interface{}, code int,
 	w.WriteHeader(code)
 
 	if err := json.NewEncoder(w).Encode(data); err != nil {
+		// unlikely to happen
 		w.Header().Del("Content-Type")
 		w.WriteHeader(http.StatusInternalServerError)
 		onError(err)
@@ -74,6 +81,7 @@ func DecodeJSON(r *http.Request, v interface{}) error {
 // DecodeForm decodes request's form values into destination object.
 func DecodeForm(r *http.Request, v interface{}) error {
 	if err := r.ParseForm(); err != nil {
+		// unlikely to happen
 		return ErrInvalidForm
 	}
 
@@ -109,11 +117,18 @@ func MethodNotAllowed(onError ErrorExec) http.HandlerFunc {
 	}
 }
 
-// ExtractID extracts ID from URL.
+// ExtractID extracts ID from the URL.
 func ExtractID(r *http.Request) (string, error) {
-	id := chi.URLParam(r, "id")
+	return ExtractParam(r, "id")
+}
+
+// ExtractParam extracts a value by the the provided parameter name from
+// the URL.
+func ExtractParam(r *http.Request, p string) (string, error) {
+	id := chi.URLParam(r, p)
 	if id == "" {
-		return "", NewError(nil, http.StatusBadRequest, "id not found")
+		return "", NewError(nil, http.StatusBadRequest,
+			fmt.Sprintf("invalid %s parameter", p))
 	}
 
 	return id, nil
@@ -138,4 +153,20 @@ func ExtractIP(r *http.Request) (net.IP, error) {
 	}
 
 	return net.ParseIP(ip), nil
+}
+
+// ExtractSession checks whether the session is present and returns it as
+// well as user's ID.
+func ExtractSession(ctx context.Context) (sessionup.Session, xid.ID, error) {
+	ses, ok := sessionup.FromContext(ctx)
+	if !ok {
+		return sessionup.Session{}, xid.ID{}, ErrUnauthorized
+	}
+
+	id, err := xid.FromString(ses.UserKey)
+	if err != nil {
+		return sessionup.Session{}, xid.ID{}, ErrUnauthorized
+	}
+
+	return ses, id, nil
 }

@@ -14,13 +14,11 @@ import (
 var (
 	// ErrTooManyTokens is returned when too many requests for new tokens
 	// have been received.
-	ErrTooManyTokens = httpflow.NewError(nil, http.StatusTooManyRequests,
-		"too many requests")
+	ErrTooManyTokens = httpflow.NewError(nil, http.StatusTooManyRequests, "too many requests")
 
 	// ErrInvalidToken is returned when the provided token is incorrect or
 	// already expired.
-	ErrInvalidToken = httpflow.NewError(nil, http.StatusBadRequest,
-		"invalid token")
+	ErrInvalidToken = httpflow.NewError(nil, http.StatusBadRequest, "invalid token")
 )
 
 var (
@@ -55,8 +53,7 @@ type Token struct {
 
 // IsEmpty checks whether the token is active or not.
 func (t *Token) IsEmpty() bool {
-	return t.ExpiresAt.Time.IsZero() && t.NextAt.Time.IsZero() &&
-		len(t.Hash) == 0
+	return t.ExpiresAt.Time.IsZero() && t.NextAt.Time.IsZero() && len(t.Hash) == 0
 }
 
 // init generates a new token. Provided values determine the expiration time
@@ -70,6 +67,7 @@ func (t *Token) init(tt TokenTimes) (string, error) {
 
 	h, err := bcrypt.GenerateFromPassword([]byte(v), bcrypt.DefaultCost)
 	if err != nil {
+		// unlikely to happen
 		return "", err
 	}
 

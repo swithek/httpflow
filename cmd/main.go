@@ -53,7 +53,7 @@ func main() {
 	router := chi.NewRouter()
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.Logger)
-	router.Mount("/", hdl.Routes(true))
+	router.Mount("/", hdl.Router(true))
 
 	if err := http.ListenAndServe(":8080", router); errors.Is(err, http.ErrServerClosed) {
 		l.Fatal(err)

@@ -1,3 +1,5 @@
+// Package postgres provides functionality for interaction
+// with postgres database.
 package postgres
 
 import (
@@ -11,6 +13,7 @@ import (
 	"github.com/gchaincl/dotsql"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
+	"github.com/rs/xid"
 	"github.com/swithek/httpflow"
 	"github.com/swithek/httpflow/user"
 )
@@ -141,8 +144,8 @@ func (s *Store) FetchMany(ctx context.Context, qr httpflow.Query) ([]user.User, 
 		return nil, err
 	}
 
-	rr, err := s.db.QueryxContext(ctx, q, qr.FilterVal, qr.Count,
-		qr.Count*(qr.Page-1))
+	rr, err := s.db.QueryxContext(ctx, q, qr.FilterVal, qr.Limit,
+		qr.Limit*(qr.Page-1))
 	if err != nil {
 		return nil, detectErr(err)
 	}
@@ -154,7 +157,7 @@ func (s *Store) FetchMany(ctx context.Context, qr httpflow.Query) ([]user.User, 
 
 		if err = rr.StructScan(cr); err != nil {
 			// unlikely to happen
-			rr.Close() //nolint:gosec,errcheck // no need to check for close errors during reading
+			rr.Close() //nolint:gosec,errcheck,sqlclosecheck // no need to check for close errors during reading
 			return nil, detectErr(err)
 		}
 
@@ -171,7 +174,7 @@ func (s *Store) FetchMany(ctx context.Context, qr httpflow.Query) ([]user.User, 
 
 // FetchByID retrieves a user from the underlying data store
 // by their ID.
-func (s *Store) FetchByID(ctx context.Context, id string) (user.User, error) {
+func (s *Store) FetchByID(ctx context.Context, id xid.ID) (user.User, error) {
 	q, err := s.q.Raw("select_user_by_id")
 	if err != nil {
 		// unlikely to happen
@@ -226,7 +229,7 @@ func (s *Store) Update(ctx context.Context, usr user.User) error {
 
 // DeleteByID deletes the user from the underlying data store
 // by their ID.
-func (s *Store) DeleteByID(ctx context.Context, id string) error {
+func (s *Store) DeleteByID(ctx context.Context, id xid.ID) error {
 	_, err := s.q.ExecContext(ctx, s.db, "delete_user_by_id", id)
 	return detectErr(err)
 }

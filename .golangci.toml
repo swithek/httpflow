@@ -29,7 +29,11 @@ enable = [
 	"goerr113",
 	"godot",
 	"nestif",
-	"nolintlint"
+	"nolintlint",
+	"exhaustive",
+	"sqlclosecheck",
+	"exportloopref",
+	"noctx"
 ]
 
 [linters-settings.gocyclo]
@@ -44,6 +48,11 @@ suggest-new = true
 [linters-settings.depguard]
 type = "blacklist"
 packages = ["gotest.tools/assert"]
+
+[linters-settings.misspell]
+ignore-words = [
+	"strat"
+]
 
 [linters-settings.nakedret]
 max-func-lines = 20
@@ -71,23 +80,23 @@ multi-func = true
 [linters-settings.wsl]
 force-err-cuddling = true
 
+[linters-settings.exhaustive]
+default-signifies-exhaustive = true
+
 [issues]
 exclude-use-default = false
 
-# don't require package comments
-[[issues.exclude-rules]]
-text = "ST1000"
-linters = ["stylecheck"]
-
+# allow defer usage
 [[issues.exclude-rules]]
 text = "unnecessaryDefer: defer"
 linters = ["gocritic"]
 
+# allow inits in test files
 [[issues.exclude-rules]]
 path = "_test.go"
 linters = ["gochecknoinits"]
 
-# allow global vars prefixed with underscore
+# exclude global vars prefixed with underscore
 [[issues.exclude-rules]]
 text = "^`_.+` " 
 linters = ["gochecknoglobals"]

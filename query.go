@@ -7,8 +7,8 @@ import (
 // Query is used to filter and retrieve bulk data from
 // data stores.
 type Query struct {
-	// Count specifies the total amount of data elements per page.
-	Count int `schema:"count"`
+	// Limit specifies the total amount of data elements per page.
+	Limit int `schema:"count"`
 
 	// Page specifies data batch number.
 	Page int `schema:"page"`
@@ -43,14 +43,12 @@ func (q Query) Validate(fck, sck func(v string) error) error {
 		return err
 	}
 
-	if q.Count < 1 {
-		return NewError(nil, http.StatusBadRequest,
-			"count cannot be lower than 1")
+	if q.Limit < 1 {
+		return NewError(nil, http.StatusBadRequest, "invalid limit")
 	}
 
-	if q.Page < 0 {
-		return NewError(nil, http.StatusBadRequest,
-			"page cannot be lower than 0")
+	if q.Page < 1 {
+		return NewError(nil, http.StatusBadRequest, "invalid page")
 	}
 
 	return nil

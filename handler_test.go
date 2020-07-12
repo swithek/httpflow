@@ -9,7 +9,9 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi"
+	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
+	"github.com/swithek/sessionup"
 )
 
 func Test_DefaultErrorExec(t *testing.T) {
@@ -142,7 +144,23 @@ func Test_ExtractID(t *testing.T) {
 
 	id, err = ExtractID(req)
 	assert.Equal(t, "123", id)
+	assert.NoError(t, err)
+}
+
+func Test_ExtractParam(t *testing.T) {
+	req := httptest.NewRequest("GET", "http://test.com/", nil)
+	val, err := ExtractParam(req, "key")
+	assert.Zero(t, val)
 	assert.Error(t, err)
+
+	ctx := chi.NewRouteContext()
+	ctx.URLParams.Add("key", "123")
+	req = req.WithContext(context.WithValue(context.Background(),
+		chi.RouteCtxKey, ctx))
+
+	val, err = ExtractParam(req, "key")
+	assert.Equal(t, "123", val)
+	assert.NoError(t, err)
 }
 
 func Test_ExtractIP(t *testing.T) {
@@ -169,5 +187,25 @@ func Test_ExtractIP(t *testing.T) {
 	req.RemoteAddr = "127.0.0.1:3000"
 	ip1, err = ExtractIP(req)
 	assert.Equal(t, ip, ip1)
+	assert.NoError(t, err)
+}
+
+func Test_ExtractSession(t *testing.T) {
+	s, id, err := ExtractSession(context.Background())
+	assert.Zero(t, s)
+	assert.Zero(t, id)
+	assert.Equal(t, ErrUnauthorized, err)
+
+	s, id, err = ExtractSession(sessionup.NewContext(context.Background(),
+		sessionup.Session{UserKey: "12345"}))
+	assert.Zero(t, s)
+	assert.Zero(t, id)
+	assert.Equal(t, ErrUnauthorized, err)
+
+	inpID := xid.New()
+	s, id, err = ExtractSession(sessionup.NewContext(context.Background(),
+		sessionup.Session{UserKey: inpID.String()}))
+	assert.NotZero(t, s)
+	assert.Equal(t, inpID, id)
 	assert.NoError(t, err)
 }
