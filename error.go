@@ -28,15 +28,15 @@ var (
 // statusError is a custom error type used to carry both error
 // message and status code.
 type statusError struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
+	Message string `json:"error"`
+	code    int
 	err     error
 }
 
 // NewError creates a new status error by optionally wrapping another error.
 func NewError(err error, code int, msg string, args ...interface{}) error {
 	return &statusError{
-		Code:    code,
+		code:    code,
 		Message: fmt.Sprintf(msg, args...),
 		err:     err,
 	}
@@ -45,10 +45,10 @@ func NewError(err error, code int, msg string, args ...interface{}) error {
 // Error converts the error to string.
 func (e *statusError) Error() string {
 	if e.err != nil {
-		return fmt.Sprintf("[%d] %s: %v", e.Code, e.Message, e.err)
+		return fmt.Sprintf("[%d] %s: %v", e.code, e.Message, e.err)
 	}
 
-	return fmt.Sprintf("[%d] %s", e.Code, e.Message)
+	return fmt.Sprintf("[%d] %s", e.code, e.Message)
 }
 
 // Unwrap returns the wrapped error, if it exists.
@@ -85,7 +85,7 @@ func ErrorCode(err error) int {
 		return http.StatusInternalServerError
 	}
 
-	return serr.Code
+	return serr.code
 }
 
 // ErrorMessage returns message associated with the error.

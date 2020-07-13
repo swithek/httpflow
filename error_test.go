@@ -19,13 +19,13 @@ func Test_NewError(t *testing.T) {
 	sErr := err.(*statusError)
 
 	assert.Equal(t, sErr.err, assert.AnError)
-	assert.Equal(t, sErr.Code, 400)
+	assert.Equal(t, sErr.code, 400)
 	assert.Equal(t, sErr.Message, "bad request 123")
 }
 
 func Test_statusError_Error(t *testing.T) {
 	sErr := statusError{
-		Code:    400,
+		code:    400,
 		Message: "bad request",
 	}
 
@@ -85,7 +85,7 @@ func Test_DetectError(t *testing.T) {
 			require.IsType(t, &statusError{}, err)
 			sErr := err.(*statusError)
 			assert.Equal(t, c.Message, sErr.Message)
-			assert.Equal(t, c.Code, sErr.Code)
+			assert.Equal(t, c.Code, sErr.code)
 		})
 	}
 }
