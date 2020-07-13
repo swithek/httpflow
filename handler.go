@@ -5,6 +5,7 @@ package httpflow
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -118,8 +119,18 @@ func MethodNotAllowed(onError ErrorExec) http.HandlerFunc {
 }
 
 // ExtractID extracts ID from the URL.
-func ExtractID(r *http.Request) (string, error) {
-	return ExtractParam(r, "id")
+func ExtractID(r *http.Request) (xid.ID, error) {
+	strID, err := ExtractParam(r, "id")
+	if err != nil {
+		return xid.ID{}, errors.New("invalid id")
+	}
+
+	id, err := xid.FromString(strID)
+	if err != nil {
+		return xid.ID{}, errors.New("invalid id")
+	}
+
+	return id, nil
 }
 
 // ExtractParam extracts a value by the the provided parameter name from

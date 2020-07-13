@@ -552,7 +552,7 @@ func (h *Handler) RevokeSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, err := httpflow.ExtractID(r)
+	id, err := httpflow.ExtractParam(r, "id")
 	if err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return

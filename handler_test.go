@@ -143,7 +143,17 @@ func Test_ExtractID(t *testing.T) {
 		chi.RouteCtxKey, ctx))
 
 	id, err = ExtractID(req)
-	assert.Equal(t, "123", id)
+	assert.Zero(t, id)
+	assert.Error(t, err)
+
+	inpID := xid.New()
+	ctx = chi.NewRouteContext()
+	ctx.URLParams.Add("id", inpID.String())
+	req = req.WithContext(context.WithValue(context.Background(),
+		chi.RouteCtxKey, ctx))
+
+	id, err = ExtractID(req)
+	assert.Equal(t, inpID, id)
 	assert.NoError(t, err)
 }
 
