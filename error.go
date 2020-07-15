@@ -12,17 +12,14 @@ import (
 
 var (
 	// ErrUnauthorized is returned when authorization process fails.
-	ErrUnauthorized = NewError(nil, http.StatusUnauthorized,
-		strings.ToLower(http.StatusText(http.StatusUnauthorized)))
+	ErrUnauthorized = NewError(nil, http.StatusUnauthorized, "")
 
 	// ErrNotFound is returned when target resources is not found.
-	ErrNotFound = NewError(nil, http.StatusNotFound,
-		strings.ToLower(http.StatusText(http.StatusNotFound)))
+	ErrNotFound = NewError(nil, http.StatusNotFound, "")
 
 	// ErrMethodNotAllowed is returned when request's method is not
 	// supported for the requested endpoint.
-	ErrMethodNotAllowed = NewError(nil, http.StatusMethodNotAllowed,
-		strings.ToLower(http.StatusText(http.StatusMethodNotAllowed)))
+	ErrMethodNotAllowed = NewError(nil, http.StatusMethodNotAllowed, "")
 )
 
 // statusError is a custom error type used to carry both error
@@ -35,6 +32,10 @@ type statusError struct {
 
 // NewError creates a new status error by optionally wrapping another error.
 func NewError(err error, code int, msg string, args ...interface{}) error {
+	if msg == "" {
+		msg = strings.ToLower(http.StatusText(code))
+	}
+
 	return &statusError{
 		code:    code,
 		Message: fmt.Sprintf(msg, args...),

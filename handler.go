@@ -5,7 +5,6 @@ package httpflow
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -21,8 +20,7 @@ import (
 var (
 	// ErrInvalidJSON is returned when request's body contains invalid JSON
 	// data.
-	ErrInvalidJSON = NewError(nil, http.StatusBadRequest,
-		"invalid JSON body")
+	ErrInvalidJSON = NewError(nil, http.StatusBadRequest, "invalid JSON body")
 
 	// ErrInvalidForm is returned when request's form contains invalid JSON
 	// data.
@@ -122,12 +120,12 @@ func MethodNotAllowed(onError ErrorExec) http.HandlerFunc {
 func ExtractID(r *http.Request) (xid.ID, error) {
 	strID, err := ExtractParam(r, "id")
 	if err != nil {
-		return xid.ID{}, errors.New("invalid id")
+		return xid.ID{}, NewError(nil, http.StatusBadRequest, "invalid id")
 	}
 
 	id, err := xid.FromString(strID)
 	if err != nil {
-		return xid.ID{}, errors.New("invalid id")
+		return xid.ID{}, NewError(nil, http.StatusBadRequest, "invalid id")
 	}
 
 	return id, nil
@@ -138,8 +136,7 @@ func ExtractID(r *http.Request) (xid.ID, error) {
 func ExtractParam(r *http.Request, p string) (string, error) {
 	id := chi.URLParam(r, p)
 	if id == "" {
-		return "", NewError(nil, http.StatusBadRequest,
-			fmt.Sprintf("invalid %s parameter", p))
+		return "", NewError(nil, http.StatusBadRequest, fmt.Sprintf("invalid %s parameter", p))
 	}
 
 	return id, nil
@@ -159,8 +156,7 @@ func ExtractIP(r *http.Request) (net.IP, error) {
 	}
 
 	if ip == "" {
-		return nil, NewError(nil,
-			http.StatusNotAcceptable, "invalid ip address")
+		return nil, NewError(nil, http.StatusBadRequest, "invalid ip address")
 	}
 
 	return net.ParseIP(ip), nil

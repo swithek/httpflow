@@ -13,13 +13,18 @@ import (
 )
 
 func Test_NewError(t *testing.T) {
-	err := NewError(assert.AnError, 400, "bad request %s", "123")
-
+	err := NewError(assert.AnError, http.StatusBadRequest, "")
 	require.IsType(t, &statusError{}, err)
 	sErr := err.(*statusError)
-
 	assert.Equal(t, sErr.err, assert.AnError)
-	assert.Equal(t, sErr.code, 400)
+	assert.Equal(t, sErr.code, http.StatusBadRequest)
+	assert.Equal(t, sErr.Message, "bad request")
+
+	err = NewError(assert.AnError, http.StatusBadRequest, "bad request %s", "123")
+	require.IsType(t, &statusError{}, err)
+	sErr = err.(*statusError)
+	assert.Equal(t, sErr.err, assert.AnError)
+	assert.Equal(t, sErr.code, http.StatusBadRequest)
 	assert.Equal(t, sErr.Message, "bad request 123")
 }
 
