@@ -90,6 +90,7 @@ func Test_DecodeJSON(t *testing.T) {
 
 func Test_DecodeForm(t *testing.T) {
 	v := struct{ Msg string }{}
+
 	req := httptest.NewRequest("GET", "http://test.com/", nil)
 	assert.Equal(t, ErrInvalidForm, DecodeForm(req, v))
 

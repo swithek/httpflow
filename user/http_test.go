@@ -191,7 +191,7 @@ func Test_Handler_Register(t *testing.T) {
 	wasCreateCalled := func(count int, eml string) check {
 		return func(t *testing.T, db *DBMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := db.CreateCalls()
-			require.Equal(t, count, len(ff))
+			require.Len(t, ff, count)
 
 			if count == 0 {
 				return
@@ -208,7 +208,7 @@ func Test_Handler_Register(t *testing.T) {
 	wasSendAccountActivationCalled := func(count int, eml string) check {
 		return func(t *testing.T, _ *DBMock, es *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := es.SendAccountActivationCalls()
-			require.Equal(t, count, len(ff))
+			require.Len(t, ff, count)
 
 			if count == 0 {
 				return
@@ -400,7 +400,7 @@ func Test_Handler_LogIn(t *testing.T) {
 	wasFetchByEmailCalled := func(count int, eml string) check {
 		return func(t *testing.T, db *DBMock, _ *httptest.ResponseRecorder) {
 			ff := db.FetchByEmailCalls()
-			require.Equal(t, count, len(ff))
+			require.Len(t, ff, count)
 
 			if count == 0 {
 				return
@@ -414,7 +414,7 @@ func Test_Handler_LogIn(t *testing.T) {
 	wasUpdateCalled := func(count int) check {
 		return func(t *testing.T, db *DBMock, _ *httptest.ResponseRecorder) {
 			ff := db.UpdateCalls()
-			require.Equal(t, count, len(ff))
+			require.Len(t, ff, count)
 
 			if count == 0 {
 				return
@@ -722,7 +722,7 @@ func Test_Handler_Fetch(t *testing.T) {
 	wasFetchByIDCalled := func(count int, id xid.ID) check {
 		return func(t *testing.T, db *DBMock, _ *httptest.ResponseRecorder) {
 			ff := db.FetchByIDCalls()
-			require.Equal(t, count, len(ff))
+			require.Len(t, ff, count)
 
 			if count == 0 {
 				return
@@ -820,7 +820,7 @@ func Test_Handler_Update(t *testing.T) {
 	wasFetchByIDCalled := func(count int, id xid.ID) check {
 		return func(t *testing.T, db *DBMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := db.FetchByIDCalls()
-			require.Equal(t, count, len(ff))
+			require.Len(t, ff, count)
 
 			if count == 0 {
 				return
@@ -834,7 +834,7 @@ func Test_Handler_Update(t *testing.T) {
 	wasUpdateCalled := func(count int, eml string, verif bool) check {
 		return func(t *testing.T, db *DBMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := db.UpdateCalls()
-			require.Equal(t, count, len(ff))
+			require.Len(t, ff, count)
 
 			if count == 0 {
 				return
@@ -854,7 +854,7 @@ func Test_Handler_Update(t *testing.T) {
 	wasSendEmailVerificationCalled := func(count int, eml string) check {
 		return func(t *testing.T, _ *DBMock, es *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := es.SendEmailVerificationCalls()
-			require.Equal(t, count, len(ff))
+			require.Len(t, ff, count)
 
 			if count == 0 {
 				return
@@ -869,7 +869,7 @@ func Test_Handler_Update(t *testing.T) {
 	wasSendPasswordChangedCalled := func(count int, eml string) check {
 		return func(t *testing.T, _ *DBMock, es *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := es.SendPasswordChangedCalls()
-			require.Equal(t, count, len(ff))
+			require.Len(t, ff, count)
 
 			if count == 0 {
 				return
@@ -1118,7 +1118,7 @@ func Test_Handler_Delete(t *testing.T) {
 	wasFetchByIDCalled := func(count int, id xid.ID) check {
 		return func(t *testing.T, db *DBMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := db.FetchByIDCalls()
-			require.Equal(t, count, len(ff))
+			require.Len(t, ff, count)
 
 			if count == 0 {
 				return
@@ -1132,7 +1132,7 @@ func Test_Handler_Delete(t *testing.T) {
 	wasDeleteByIDCalled := func(count int, id xid.ID) check {
 		return func(t *testing.T, db *DBMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := db.DeleteByIDCalls()
-			require.Equal(t, count, len(ff))
+			require.Len(t, ff, count)
 
 			if count == 0 {
 				return
@@ -1146,7 +1146,7 @@ func Test_Handler_Delete(t *testing.T) {
 	wasSendAccountDeletedCalled := func(count int, eml string) check {
 		return func(t *testing.T, _ *DBMock, es *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := es.SendAccountDeletedCalls()
-			require.Equal(t, count, len(ff))
+			require.Len(t, ff, count)
 
 			if count == 0 {
 				return
@@ -1617,7 +1617,7 @@ func Test_Handler_ResendVerification(t *testing.T) {
 	wasFetchByIDCalled := func(count int, id xid.ID) check {
 		return func(t *testing.T, db *DBMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := db.FetchByIDCalls()
-			require.Equal(t, count, len(ff))
+			require.Len(t, ff, count)
 
 			if count == 0 {
 				return
@@ -1631,7 +1631,7 @@ func Test_Handler_ResendVerification(t *testing.T) {
 	wasUpdateCalled := func(count int) check {
 		return func(t *testing.T, db *DBMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := db.UpdateCalls()
-			require.Equal(t, count, len(ff))
+			require.Len(t, ff, count)
 
 			if count == 0 {
 				return
@@ -1646,7 +1646,7 @@ func Test_Handler_ResendVerification(t *testing.T) {
 	wasSendEmailVerificationCalled := func(count int, eml string) check {
 		return func(t *testing.T, _ *DBMock, es *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := es.SendEmailVerificationCalls()
-			require.Equal(t, count, len(ff))
+			require.Len(t, ff, count)
 
 			if count == 0 {
 				return
@@ -1661,7 +1661,7 @@ func Test_Handler_ResendVerification(t *testing.T) {
 	wasSendAccountActivationCalled := func(count int, eml string) check {
 		return func(t *testing.T, _ *DBMock, es *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := es.SendAccountActivationCalls()
-			require.Equal(t, count, len(ff))
+			require.Len(t, ff, count)
 
 			if count == 0 {
 				return
@@ -1851,7 +1851,7 @@ func Test_Handler_Verify(t *testing.T) {
 	wasUpdateCalled := func(count int) check {
 		return func(t *testing.T, db *DBMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := db.UpdateCalls()
-			require.Equal(t, count, len(ff))
+			require.Len(t, ff, count)
 
 			if count == 0 {
 				return
@@ -1867,7 +1867,7 @@ func Test_Handler_Verify(t *testing.T) {
 	wasSendEmailChangedCalled := func(count int, oEml, nEml string) check {
 		return func(t *testing.T, _ *DBMock, es *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := es.SendEmailChangedCalls()
-			require.Equal(t, count, len(ff))
+			require.Len(t, ff, count)
 
 			if count == 0 {
 				return
@@ -2028,7 +2028,7 @@ func Test_Handler_CancelVerification(t *testing.T) {
 	wasUpdateCalled := func(count int) check {
 		return func(t *testing.T, db *DBMock, _ *httptest.ResponseRecorder) {
 			ff := db.UpdateCalls()
-			require.Equal(t, count, len(ff))
+			require.Len(t, ff, count)
 
 			if count == 0 {
 				return
@@ -2144,7 +2144,7 @@ func Test_Handler_InitRecovery(t *testing.T) {
 	wasFetchByEmailCalled := func(count int, eml string) check {
 		return func(t *testing.T, db *DBMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := db.FetchByEmailCalls()
-			require.Equal(t, count, len(ff))
+			require.Len(t, ff, count)
 
 			if count == 0 {
 				return
@@ -2158,7 +2158,7 @@ func Test_Handler_InitRecovery(t *testing.T) {
 	wasUpdateCalled := func(count int) check {
 		return func(t *testing.T, db *DBMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := db.UpdateCalls()
-			require.Equal(t, count, len(ff))
+			require.Len(t, ff, count)
 
 			if count == 0 {
 				return
@@ -2173,7 +2173,7 @@ func Test_Handler_InitRecovery(t *testing.T) {
 	wasSendRecoveryCalled := func(count int, eml string) check {
 		return func(t *testing.T, _ *DBMock, es *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := es.SendRecoveryCalls()
-			require.Equal(t, count, len(ff))
+			require.Len(t, ff, count)
 
 			if count == 0 {
 				return
@@ -2351,7 +2351,7 @@ func Test_Handler_Recover(t *testing.T) {
 	wasUpdateCalled := func(count int) check {
 		return func(t *testing.T, db *DBMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := db.UpdateCalls()
-			require.Equal(t, count, len(ff))
+			require.Len(t, ff, count)
 
 			if count == 0 {
 				return
@@ -2367,7 +2367,7 @@ func Test_Handler_Recover(t *testing.T) {
 	wasSendPasswordChangedCalled := func(count int, eml string) check {
 		return func(t *testing.T, _ *DBMock, es *EmailSenderMock, _ *httptest.ResponseRecorder) {
 			ff := es.SendPasswordChangedCalls()
-			require.Equal(t, count, len(ff))
+			require.Len(t, ff, count)
 
 			if count == 0 {
 				return
@@ -2629,7 +2629,7 @@ func Test_Handler_CancelRecovery(t *testing.T) {
 	wasUpdateCalled := func(count int) check {
 		return func(t *testing.T, db *DBMock, _ *httptest.ResponseRecorder) {
 			ff := db.UpdateCalls()
-			require.Equal(t, count, len(ff))
+			require.Len(t, ff, count)
 
 			if count == 0 {
 				return
@@ -2752,7 +2752,7 @@ func Test_Handler_FetchByToken(t *testing.T) {
 	wasFetchByIDCalled := func(count int, id xid.ID) check {
 		return func(t *testing.T, db *DBMock, _ User, _ string, _ error) {
 			ff := db.FetchByIDCalls()
-			require.Equal(t, count, len(ff))
+			require.Len(t, ff, count)
 
 			if count == 0 {
 				return
