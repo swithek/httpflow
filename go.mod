@@ -17,8 +17,6 @@ require (
 	github.com/swithek/sessionup v1.3.1
 	github.com/swithek/sessionup-pgstore v1.0.1
 	golang.org/x/crypto v0.0.0-20200117160349-530e935923ad
-	golang.org/x/net v0.0.0-20190620200207-3b0461eec859 // indirect
-	google.golang.org/appengine v1.6.5 // indirect
+	google.golang.org/appengine v1.6.6 // indirect
 	gopkg.in/guregu/null.v3 v3.4.0
-	xojoc.pw/useragent v0.0.0-20200116211053-1ec61d55e8fe // indirect
 )
