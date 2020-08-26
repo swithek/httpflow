@@ -996,24 +996,24 @@ func Test_Handler_Update(t *testing.T) {
 				wasSendPasswordChangedCalled(0, ""),
 			),
 		},
-		"Error returned by Database.Update": {
-			DB:           dbStub(nil, assert.AnError, toPointer(inpUsr)),
+		"Other sessions revokation error": {
+			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			Email:        emailStub(),
-			SessionStore: sessionStoreStub(nil),
+			SessionStore: sessionStoreStub(assert.AnError),
 			Body:         toJSON(inpNewEml, inpNewPass, false),
 			Session:      true,
 			Checks: checks(
 				hasResp(true),
 				wasFetchByIDCalled(1, inpUsr.ID),
-				wasUpdateCalled(1, inpNewEml, true),
+				wasUpdateCalled(0, "", false),
 				wasSendEmailVerificationCalled(0, ""),
 				wasSendPasswordChangedCalled(0, ""),
 			),
 		},
-		"Other sessions revokation error": {
-			DB:           dbStub(nil, nil, toPointer(inpUsr)),
+		"Error returned by Database.Update": {
+			DB:           dbStub(nil, assert.AnError, toPointer(inpUsr)),
 			Email:        emailStub(),
-			SessionStore: sessionStoreStub(assert.AnError),
+			SessionStore: sessionStoreStub(nil),
 			Body:         toJSON(inpNewEml, inpNewPass, false),
 			Session:      true,
 			Checks: checks(
@@ -1269,24 +1269,24 @@ func Test_Handler_Delete(t *testing.T) {
 				wasSendAccountDeletedCalled(0, ""),
 			),
 		},
-		"Error returned by Database.DeleteByID": {
-			DB:           dbStub(nil, assert.AnError, toPointer(inpUsr)),
+		"Sessions revokation error": {
+			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			Email:        emailStub(),
-			SessionStore: sessionStoreStub(nil),
+			SessionStore: sessionStoreStub(assert.AnError),
 			PreDeleter:   DefaultPreDeleter,
 			Body:         toJSON("", inpPass, false),
 			Session:      true,
 			Checks: checks(
 				hasResp(true),
 				wasFetchByIDCalled(1, inpUsr.ID),
-				wasDeleteByIDCalled(1, inpUsr.ID),
+				wasDeleteByIDCalled(0, xid.ID{}),
 				wasSendAccountDeletedCalled(0, ""),
 			),
 		},
-		"Sessions revokation error": {
-			DB:           dbStub(nil, nil, toPointer(inpUsr)),
+		"Error returned by Database.DeleteByID": {
+			DB:           dbStub(nil, assert.AnError, toPointer(inpUsr)),
 			Email:        emailStub(),
-			SessionStore: sessionStoreStub(assert.AnError),
+			SessionStore: sessionStoreStub(nil),
 			PreDeleter:   DefaultPreDeleter,
 			Body:         toJSON("", inpPass, false),
 			Session:      true,
@@ -2460,22 +2460,22 @@ func Test_Handler_Recover(t *testing.T) {
 				wasSendPasswordChangedCalled(0, ""),
 			),
 		},
-		"Error returned by Database.Update": {
-			DB:           dbStub(nil, assert.AnError, toPointer(inpUsr)),
-			Email:        emailStub(),
-			SessionStore: sessionStoreStub(nil),
-			Token:        inpTok,
-			Body:         toJSON("", "password1", false),
-			Checks: checks(
-				hasResp(true),
-				wasUpdateCalled(1),
-				wasSendPasswordChangedCalled(0, ""),
-			),
-		},
 		"Sessions revokation error": {
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(assert.AnError),
+			Token:        inpTok,
+			Body:         toJSON("", "password1", false),
+			Checks: checks(
+				hasResp(true),
+				wasUpdateCalled(0),
+				wasSendPasswordChangedCalled(0, ""),
+			),
+		},
+		"Error returned by Database.Update": {
+			DB:           dbStub(nil, assert.AnError, toPointer(inpUsr)),
+			Email:        emailStub(),
+			SessionStore: sessionStoreStub(nil),
 			Token:        inpTok,
 			Body:         toJSON("", "password1", false),
 			Checks: checks(

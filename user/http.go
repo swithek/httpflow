@@ -452,17 +452,19 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if updC.Password {
+		if err := h.sessions.RevokeOther(ctx); err != nil {
+			httpflow.RespondError(w, r, err, h.onError)
+			return
+		}
+	}
+
 	if err = h.db.Update(ctx, usr); err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}
 
 	if updC.Password {
-		if err := h.sessions.RevokeOther(r.Context()); err != nil {
-			httpflow.RespondError(w, r, err, h.onError)
-			return
-		}
-
 		go h.email.SendPasswordChanged(context.Background(), usrC.Email, false)
 	}
 
@@ -509,12 +511,12 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = h.db.DeleteByID(ctx, id); err != nil {
+	if err = h.sessions.RevokeAll(ctx, w); err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}
 
-	if err = h.sessions.RevokeAll(ctx, w); err != nil {
+	if err = h.db.DeleteByID(ctx, id); err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}
@@ -769,12 +771,12 @@ func (h *Handler) Recover(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = h.db.Update(ctx, usr); err != nil {
+	if err = h.sessions.RevokeByUserKey(ctx, usrC.ID.String()); err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}
 
-	if err = h.sessions.RevokeByUserKey(ctx, usrC.ID.String()); err != nil {
+	if err = h.db.Update(ctx, usr); err != nil {
 		httpflow.RespondError(w, r, err, h.onError)
 		return
 	}
