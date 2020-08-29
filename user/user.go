@@ -32,16 +32,17 @@ var (
 )
 
 var (
-	// VerifTimes is the default / recommended verification token times
-	// value.
-	VerifTimes = TokenTimes{ //nolint:gochecknoglobals // used as a constant
-		Interval: time.Hour * 24 * 7, // one week
+	// VerifLifetime is the default / recommended verification token
+	// lifetime value.
+	VerifLifetime = TokenLifetime{ //nolint:gochecknoglobals // used as a constant
+		Interval: time.Hour * 24 * 7,
 		Cooldown: time.Minute,
 	}
 
-	// RecovTimes is the default / recommended recovery token times value.
-	RecovTimes = TokenTimes{ //nolint:gochecknoglobals // used as a constant
-		Interval: time.Hour * 3, // one day
+	// RecovLifetime is the default / recommended recovery token lifetime
+	// value.
+	RecovLifetime = TokenLifetime{ //nolint:gochecknoglobals // used as a constant
+		Interval: time.Hour * 3,
 		Cooldown: time.Minute,
 	}
 )
@@ -224,8 +225,8 @@ func (c *Core) IsPasswordCorrect(p string) bool {
 // First parameter determines how long the verification Token should be active.
 // Second parameter determines how much time has to pass until another Token
 // can be generated.
-func (c *Core) InitVerification(tt TokenTimes) (string, error) {
-	t, err := c.Verification.init(tt)
+func (c *Core) InitVerification(tl TokenLifetime) (string, error) {
+	t, err := c.Verification.gen(tl)
 	if err != nil {
 		return "", err
 	}
@@ -267,8 +268,8 @@ func (c *Core) Verify(t string) error {
 
 // CancelVerification checks whether the provided Token is valid and clears
 // the active verification Token data.
-// NOTE: provided Token must in its original / raw form - not combined with
-// user's ID (as InitVerification method returns).
+// NOTE: provided Token must be in its original / raw form - not combined
+// with user's ID (as InitVerification method returns).
 func (c *Core) CancelVerification(t string) error {
 	if err := c.Verification.Check(t); err != nil {
 		return err
@@ -284,8 +285,8 @@ func (c *Core) CancelVerification(t string) error {
 // First parameter determines how long the recovery Token should be active.
 // Second parameter determines how much time has to pass until another Token
 // can be generated.
-func (c *Core) InitRecovery(tt TokenTimes) (string, error) {
-	t, err := c.Recovery.init(tt)
+func (c *Core) InitRecovery(tl TokenLifetime) (string, error) {
+	t, err := c.Recovery.gen(tl)
 	if err != nil {
 		return "", err
 	}
@@ -295,8 +296,8 @@ func (c *Core) InitRecovery(tt TokenTimes) (string, error) {
 
 // Recover checks whether the provided Token is valid and sets the provided
 // password as the new account password.
-// NOTE: provided Token must in its original / raw form - not combined with
-// user's ID (as InitRecovery method returns).
+// NOTE: provided Token must be in its original / raw form - not combined
+// with user's ID (as InitRecovery method returns).
 func (c *Core) Recover(t, p string) error {
 	if err := c.Recovery.Check(t); err != nil {
 		return err
@@ -366,8 +367,8 @@ type CoreInput struct {
 	// further processing.
 	Password string `json:"password"`
 
-	// RememberMe specifies whether a session should be created on
-	// registration / log in or not.
+	// RememberMe specifies whether a persistent session should be
+	// created on registration / log in or not.
 	RememberMe bool `json:"remember_me"`
 }
 
@@ -424,8 +425,7 @@ func CheckFilterKey(fk string) error {
 		return nil
 	}
 
-	return httpflow.NewError(nil, http.StatusBadRequest,
-		"invalid filter key")
+	return httpflow.NewError(nil, http.StatusBadRequest, "invalid filter key")
 }
 
 // CheckSortKey determines whether the sort key is valid or not.
@@ -435,6 +435,5 @@ func CheckSortKey(sk string) error {
 		return nil
 	}
 
-	return httpflow.NewError(nil, http.StatusBadRequest,
-		"invalid sort key")
+	return httpflow.NewError(nil, http.StatusBadRequest, "invalid sort key")
 }

@@ -68,8 +68,7 @@ func DetectError(err error) error {
 	case errors.Is(err, sql.ErrNoRows):
 		return ErrNotFound
 	case errors.Is(err, http.ErrNoCookie):
-		return NewError(err, http.StatusBadRequest,
-			"session cookie is invalid")
+		return NewError(err, http.StatusBadRequest, "session cookie is invalid")
 	case errors.Is(err, sessionup.ErrUnauthorized):
 		return NewError(err, http.StatusUnauthorized,
 			strings.ToLower(http.StatusText(http.StatusUnauthorized)))

@@ -1,22 +1,23 @@
 package httpflow
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/go-chi/chi"
 	"github.com/rs/xid"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/swithek/sessionup"
 )
-
-func Test_DefaultErrorExec(t *testing.T) {
-	DefaultErrorExec(assert.AnError) // nothing to test
-}
 
 func Test_Respond(t *testing.T) {
 	cc := map[string]struct {
@@ -24,14 +25,19 @@ func Test_Respond(t *testing.T) {
 		Data interface{}
 		Body bool
 	}{
-		"Successful response with body": {
-			Code: 400,
-			Data: &statusError{Message: "error"},
+		"Invalid data": {
+			Code: http.StatusInternalServerError,
+			Data: func() {},
 			Body: true,
 		},
 		"Successful response without body": {
 			Code: 200,
 			Body: false,
+		},
+		"Successful response with body": {
+			Code: 400,
+			Data: &statusError{Message: "error"},
+			Body: true,
 		},
 	}
 
@@ -40,49 +46,82 @@ func Test_Respond(t *testing.T) {
 
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
+
+			var b bytes.Buffer
+			out := bufio.NewWriter(&b)
+			log := zerolog.New(out)
+
 			req := httptest.NewRequest("GET", "http://test.com/", nil)
 			rec := httptest.NewRecorder()
 
-			Respond(rec, req, c.Data, c.Code, DefaultErrorExec)
+			Respond(log, rec, req, c.Data, c.Code)
 
 			assert.Equal(t, c.Code, rec.Code)
 			if c.Body {
 				assert.Equal(t, "application/json",
 					rec.Header().Get("Content-Type"))
 				assert.NotZero(t, rec.Body.String())
+			} else {
+				assert.Zero(t, rec.Header().Get("Content-Type"))
+				assert.Zero(t, rec.Body.String())
+			}
+
+			require.NoError(t, out.Flush())
+
+			if c.Code < 500 {
+				assert.Zero(t, b.String())
+
 				return
 			}
 
-			assert.Zero(t, rec.Header().Get("Content-Type"))
-			assert.Zero(t, rec.Body.String())
+			strs := strings.Split(b.String(), "\n")
+			require.Len(t, strs, 2)
+			assert.Regexp(t, regexp.MustCompile(`"message":"cannot send a response"`), strs[0])
 		})
 	}
 }
 
 func Test_RespondError(t *testing.T) {
+	var b bytes.Buffer
+	out := bufio.NewWriter(&b)
+	log := zerolog.New(out)
+
 	req := httptest.NewRequest("GET", "http://test.com/", nil)
 	rec := httptest.NewRecorder()
 
-	RespondError(rec, req, assert.AnError, func(error) {})
-
-	assert.Equal(t, http.StatusInternalServerError, rec.Code)
-	assert.Equal(t, "application/json",
-		rec.Header().Get("Content-Type"))
+	RespondError(log, rec, req, ErrInvalidJSON)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 	assert.NotZero(t, rec.Body.String())
+
+	require.NoError(t, out.Flush())
+	assert.Zero(t, b.String())
+
+	req = httptest.NewRequest("GET", "http://test.com/", nil)
+	rec = httptest.NewRecorder()
+
+	RespondError(log, rec, req, assert.AnError)
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+	assert.NotZero(t, rec.Body.String())
+
+	require.NoError(t, out.Flush())
+
+	strs := strings.Split(b.String(), "\n")
+	require.Len(t, strs, 2)
+	assert.Regexp(t, regexp.MustCompile(`"message":"internal server error"`), strs[0])
 }
 
 func Test_DecodeJSON(t *testing.T) {
 	v := struct {
 		Msg string `json:"msg"`
 	}{}
-	req := httptest.NewRequest("GET", "http://test.com/",
-		strings.NewReader("{"))
+	req := httptest.NewRequest("GET", "http://test.com/", strings.NewReader("{"))
 	err := DecodeJSON(req, &v)
 	assert.Equal(t, ErrInvalidJSON, err)
 	assert.Zero(t, v)
 
-	req = httptest.NewRequest("GET", "http://test.com/",
-		strings.NewReader("{\"msg\":\"test\"}"))
+	req = httptest.NewRequest("GET", "http://test.com/", strings.NewReader(`{"msg":"test"}`))
 	err = DecodeJSON(req, &v)
 	assert.NoError(t, err)
 	assert.Equal(t, "test", v.Msg)
@@ -105,7 +144,7 @@ func Test_DecodeForm(t *testing.T) {
 func Test_SessionReject(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://test.com/", nil)
 	rec := httptest.NewRecorder()
-	SessionReject(func(error) {})(assert.AnError).ServeHTTP(rec, req)
+	SessionReject(zerolog.Nop())(assert.AnError).ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusInternalServerError, rec.Code)
 	assert.Equal(t, "application/json",
 		rec.Header().Get("Content-Type"))
@@ -115,9 +154,8 @@ func Test_SessionReject(t *testing.T) {
 func Test_NotFound(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://test.com/", nil)
 	rec := httptest.NewRecorder()
-	NotFound(func(error) {})(rec, req)
-	assert.Equal(t, "application/json",
-		rec.Header().Get("Content-Type"))
+	NotFound(zerolog.Nop())(rec, req)
+	assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 	assert.Equal(t, http.StatusNotFound, rec.Code)
 	assert.NotZero(t, rec.Body.Len())
 }
@@ -125,16 +163,15 @@ func Test_NotFound(t *testing.T) {
 func Test_MethodNotAllowed(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://test.com/", nil)
 	rec := httptest.NewRecorder()
-	MethodNotAllowed(func(error) {})(rec, req)
-	assert.Equal(t, "application/json",
-		rec.Header().Get("Content-Type"))
+	MethodNotAllowed(zerolog.Nop())(rec, req)
+	assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 	assert.Equal(t, http.StatusMethodNotAllowed, rec.Code)
 	assert.NotZero(t, rec.Body.Len())
 }
 
-func Test_ExtractID(t *testing.T) {
+func Test_ExtractTargetID(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://test.com/", nil)
-	id, err := ExtractID(req)
+	id, err := ExtractTargetID(req)
 	assert.Zero(t, id)
 	assert.Error(t, err)
 
@@ -143,7 +180,7 @@ func Test_ExtractID(t *testing.T) {
 	req = req.WithContext(context.WithValue(context.Background(),
 		chi.RouteCtxKey, ctx))
 
-	id, err = ExtractID(req)
+	id, err = ExtractTargetID(req)
 	assert.Zero(t, id)
 	assert.Error(t, err)
 
@@ -153,7 +190,7 @@ func Test_ExtractID(t *testing.T) {
 	req = req.WithContext(context.WithValue(context.Background(),
 		chi.RouteCtxKey, ctx))
 
-	id, err = ExtractID(req)
+	id, err = ExtractTargetID(req)
 	assert.Equal(t, inpID, id)
 	assert.NoError(t, err)
 }

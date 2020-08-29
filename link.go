@@ -24,7 +24,7 @@ type Links struct {
 	ll map[LinkKey]string
 }
 
-// NewLinks creates new link store.
+// NewLinks creates a new link store.
 func NewLinks(ll map[LinkKey]string) Links {
 	return Links{
 		ll: ll,

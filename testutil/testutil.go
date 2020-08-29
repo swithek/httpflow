@@ -6,8 +6,16 @@
 package testutil
 
 import (
+	"net/http"
+	"net/url"
+
+	"reflect"
 	"testing"
 
+	"github.com/jarcoal/httpmock"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -50,4 +58,55 @@ func RequireEqualError(t *testing.T, exp, err error) {
 	}
 
 	require.NoError(t, err)
+}
+
+// AssertFilterEqual asserts that two objects are equal.
+// All ignored types found on any of the provided objects will not
+// be compared.
+func AssertFilterEqual(t *testing.T, v1, v2 interface{}, ignoreTypes []interface{}) {
+	t.Helper()
+
+	diff := cmp.Diff(v1, v2, cmpopts.IgnoreTypes(ignoreTypes...),
+		cmp.Exporter(func(reflect.Type) bool { return true }))
+	if diff != "" {
+		t.Errorf("Not equal:\n%s", diff)
+	}
+}
+
+// RequireFilterEqual asserts that two objects are equal.
+// All ignored types found on any of the provided objects will not be compared.
+func RequireFilterEqual(t *testing.T, v1, v2 interface{}, ignoreTypes []interface{}) {
+	t.Helper()
+
+	diff := cmp.Diff(v1, v2, cmpopts.IgnoreTypes(ignoreTypes...),
+		cmp.Exporter(func(reflect.Type) bool { return true }))
+	if diff != "" {
+		t.Errorf("Not equal:\n%s", diff)
+		t.FailNow()
+	}
+}
+
+// MockHTTP returns mocked http environment.
+func MockHTTP() (*http.Client, *httpmock.MockTransport) {
+	t := httpmock.NewMockTransport()
+	return &http.Client{Transport: t}, t
+}
+
+// QueryResponder asserts the required query values are present in the
+// request.
+func QueryResponder(t *testing.T, resp httpmock.Responder, q url.Values) httpmock.Responder {
+	return func(r *http.Request) (*http.Response, error) {
+		t.Helper()
+
+		for k := range q {
+			if q.Get(k) != "" {
+				assert.Equal(t, q.Get(k), r.URL.Query().Get(k))
+				continue
+			}
+
+			assert.Zero(t, r.URL.Query().Get(k))
+		}
+
+		return resp(r)
+	}
 }

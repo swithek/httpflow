@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/rs/xid"
+	"github.com/rs/zerolog"
 	"github.com/swithek/httpflow"
 	"github.com/swithek/sessionup"
 )
@@ -20,95 +21,93 @@ var (
 )
 
 var (
-	// SessionDuration is the default / recommended session duration value.
+	// SessionDuration is the default / recommended session duration
+	// value.
 	SessionDuration = time.Hour * 24 * 30 //nolint:gochecknoglobals // used as a constant
 )
 
 // Handler holds dependencies required for user management.
 //go:generate moq -out ./mock_test.go . DB EmailSender
 type Handler struct {
-	sessions *sessionup.Manager
-	sesDur   time.Duration
-	db       DB
-	email    EmailSender
-
-	onError httpflow.ErrorExec
-	parse   Parser
-	create  Creator
-	gKeep   GateKeeper
-	pDel    PreDeleter
-
-	verif TokenTimes
-	recov TokenTimes
-}
-
-// Setter is used to set Handler configuration options.
-type Setter func(*Handler)
-
-// SetSessionDuration sets the duration of permanent sessions.
-func SetSessionDuration(sd time.Duration) Setter {
-	return func(h *Handler) {
-		h.sesDur = sd
+	log     zerolog.Logger
+	db      DB
+	email   EmailSender
+	session struct {
+		manager  *sessionup.Manager
+		duration time.Duration
+	}
+	token struct {
+		verif TokenLifetime
+		recov TokenLifetime
+	}
+	ext struct { // behaviour extensions, useful for custom logic
+		parse       Parser
+		create      Creator
+		loginCheck  LoginCheck
+		deleteCheck DeleteCheck
 	}
 }
 
-// SetErrorExec sets a function that will be used during critical errors
-// detection.
-func SetErrorExec(ex httpflow.ErrorExec) Setter {
+// setter is used to set Handler configuration options.
+type setter func(*Handler)
+
+// SetSessionDuration sets the duration of persistent sessions.
+func SetSessionDuration(sd time.Duration) setter { //nolint:golint // setter must remain private
 	return func(h *Handler) {
-		h.onError = ex
+		h.session.duration = sd
+	}
+}
+
+// SetVerificationLifetime sets token time values for verification process.
+func SetVerificationLifetime(t TokenLifetime) setter { //nolint:golint // setter must remain private
+	return func(h *Handler) {
+		h.token.verif = t
+	}
+}
+
+// SetRecoveryLifetime sets token time values for recovery process.
+func SetRecoveryLifetime(t TokenLifetime) setter { //nolint:golint // setter must remain private
+	return func(h *Handler) {
+		h.token.recov = t
 	}
 }
 
 // SetParser sets a function that will be used to parse user's request input.
-func SetParser(p Parser) Setter {
+func SetParser(p Parser) setter { //nolint:golint // setter must remain private
 	return func(h *Handler) {
-		h.parse = p
+		h.ext.parse = p
 	}
 }
 
 // SetCreator sets a function that will be used to construct a new user.
-func SetCreator(c Creator) Setter {
+func SetCreator(c Creator) setter { //nolint:golint // setter must remain private
 	return func(h *Handler) {
-		h.create = c
+		h.ext.create = c
 	}
 }
 
-// SetGateKeeper sets a function that will be called before user auth.
-func SetGateKeeper(gk GateKeeper) Setter {
+// SetLoginCheck sets a function that will be called before user auth.
+func SetLoginCheck(c LoginCheck) setter { //nolint:golint // setter must remain private
 	return func(h *Handler) {
-		h.gKeep = gk
+		h.ext.loginCheck = c
 	}
 }
 
-// SetPreDeleter sets a function that will be called before user deletion.
-func SetPreDeleter(pd PreDeleter) Setter {
+// SetDeleteCheck sets a function that will be called before user deletion.
+func SetDeleteCheck(c DeleteCheck) setter { //nolint:golint // setter must remain private
 	return func(h *Handler) {
-		h.pDel = pd
-	}
-}
-
-// SetVerificationTimes sets token time values for verification process.
-func SetVerificationTimes(t TokenTimes) Setter {
-	return func(h *Handler) {
-		h.verif = t
-	}
-}
-
-// SetRecoveryTimes sets token time values for recovery process.
-func SetRecoveryTimes(t TokenTimes) Setter {
-	return func(h *Handler) {
-		h.recov = t
+		h.ext.deleteCheck = c
 	}
 }
 
 // NewHandler creates a new handler instance with the options provided.
-func NewHandler(sm *sessionup.Manager, db DB, es EmailSender, ss ...Setter) *Handler {
+func NewHandler(log zerolog.Logger, db DB, es EmailSender, sm *sessionup.Manager, ss ...setter) *Handler {
 	h := &Handler{
-		sessions: sm,
-		db:       db,
-		email:    es,
+		log:   log,
+		db:    db,
+		email: es,
 	}
+	h.session.manager = sm
 
 	h.Defaults()
 
@@ -121,14 +120,13 @@ func NewHandler(sm *sessionup.Manager, db DB, es EmailSender, ss ...Setter) *Han
 
 // Defaults sets all optional handler's values to sane defaults.
 func (h *Handler) Defaults() {
-	h.sesDur = SessionDuration
-	h.onError = httpflow.DefaultErrorExec
-	h.parse = DefaultParser
-	h.create = DefaultCreator
-	h.gKeep = DefaultGateKeeper(true)
-	h.pDel = DefaultPreDeleter
-	h.verif = VerifTimes
-	h.recov = RecovTimes
+	h.session.duration = SessionDuration
+	h.token.verif = VerifLifetime
+	h.token.recov = RecovLifetime
+	h.ext.parse = DefaultParser
+	h.ext.create = DefaultCreator
+	h.ext.loginCheck = DefaultLoginCheck(true)
+	h.ext.deleteCheck = DefaultDeleteCheck
 }
 
 // Parser is a function that should be used for custom input parsing.
@@ -156,14 +154,14 @@ func DefaultCreator(_ context.Context, inp Inputer) (User, error) {
 	return NewCore(inp)
 }
 
-// GateKeeper is a function that should be used for custom user data
+// LoginCheck is a function that should be used for custom user data
 // checks before authentication.
 // Used before non-registration type authentication (e.g. login).
-type GateKeeper func(usr User) error
+type LoginCheck func(usr User) error
 
-// DefaultGateKeeper checks whether the user has to be activated before
+// DefaultLoginCheck checks whether the user has to be activated before
 // authentication or not.
-func DefaultGateKeeper(open bool) GateKeeper {
+func DefaultLoginCheck(open bool) LoginCheck {
 	return func(usr User) error {
 		if !open && !usr.ExposeCore().IsActivated() {
 			return ErrNotActivated
@@ -173,18 +171,19 @@ func DefaultGateKeeper(open bool) GateKeeper {
 	}
 }
 
-// PreDeleter is function that should be used for custom account checks
+// DeleteCheck is function that should be used for custom account checks
 // before user deletion (e.g. check whether at least one admin user exists
 // or not).
-type PreDeleter func(ctx context.Context, usr User) error
+type DeleteCheck func(ctx context.Context, usr User) error
 
-// DefaultPreDeleter does nothing, just fills the space and contemplates life.
-func DefaultPreDeleter(_ context.Context, _ User) error {
+// DefaultDeleteCheck does nothing, just fills the space and
+// contemplates life.
+func DefaultDeleteCheck(_ context.Context, _ User) error {
 	return nil
 }
 
 // ServeHTTP handles all core user routes.
-// Registration is allowed (use Routes method to override this).
+// Registration is allowed (use Router method to override this).
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.Router(true).ServeHTTP(w, r)
 }
@@ -197,40 +196,40 @@ func (h *Handler) Router(open bool) chi.Router {
 	r := h.BasicRouter(open)
 
 	r.Group(func(sr chi.Router) {
-		sr.Use(h.sessions.Auth)
+		sr.Use(h.session.manager.Auth)
 		sr.Get("/", h.Fetch)
 		sr.Patch("/", h.Update)
 		sr.Delete("/", h.Delete)
 	})
 
 	r.Route("/sessions", func(sr chi.Router) {
-		sr.Use(h.sessions.Auth)
+		sr.Use(h.session.manager.Auth)
 		sr.Get("/", h.FetchSessions)
 		sr.Delete("/{id}", h.RevokeSession)
 		sr.Delete("/", h.RevokeOtherSessions)
 	})
 
-	r.Route("/activ", func(sr chi.Router) {
-		sr.With(h.sessions.Auth).Put("/", h.ResendVerification)
+	r.Route("/activation", func(sr chi.Router) {
+		sr.With(h.session.manager.Auth).Put("/", h.ResendVerification)
 		sr.Get("/", h.Verify)
 		sr.Get("/cancel", h.CancelVerification)
 	})
 
-	r.Route("/verif", func(sr chi.Router) {
-		sr.With(h.sessions.Auth).Put("/", h.ResendVerification)
+	r.Route("/verification", func(sr chi.Router) {
+		sr.With(h.session.manager.Auth).Put("/", h.ResendVerification)
 		sr.Get("/", h.Verify)
 		sr.Get("/cancel", h.CancelVerification)
 	})
 
-	r.Route("/recov", func(sr chi.Router) {
+	r.Route("/recovery", func(sr chi.Router) {
 		sr.Put("/", h.InitRecovery)
 		sr.Post("/", h.Recover)
 		sr.Get("/", h.PingRecovery)
 		sr.Get("/cancel", h.CancelRecovery)
 	})
 
-	r.NotFound(httpflow.NotFound(h.onError))
-	r.MethodNotAllowed(httpflow.MethodNotAllowed(h.onError))
+	r.NotFound(httpflow.NotFound(h.log))
+	r.MethodNotAllowed(httpflow.MethodNotAllowed(h.log))
 
 	return r
 }
@@ -249,11 +248,11 @@ func (h *Handler) BasicRouter(open bool) chi.Router {
 
 	r.Route("/auth", func(sr chi.Router) {
 		sr.Post("/", h.LogIn)
-		sr.With(h.sessions.Auth).Delete("/", h.LogOut)
+		sr.With(h.session.manager.Auth).Delete("/", h.LogOut)
 	})
 
-	r.NotFound(httpflow.NotFound(h.onError))
-	r.MethodNotAllowed(httpflow.MethodNotAllowed(h.onError))
+	r.NotFound(httpflow.NotFound(h.log))
+	r.MethodNotAllowed(httpflow.MethodNotAllowed(h.log))
 
 	return r
 }
@@ -264,12 +263,12 @@ func (h *Handler) BasicRouter(open bool) chi.Router {
 // "http://yoursite.com/user"
 func SetupLinks(r string) map[httpflow.LinkKey]string {
 	return map[httpflow.LinkKey]string{
-		httpflow.LinkActivation:         r + "/activ?token=%s",
-		httpflow.LinkActivationCancel:   r + "/activ/cancel?token=%s",
-		httpflow.LinkVerification:       r + "/verif?token=%s",
-		httpflow.LinkVerificationCancel: r + "/verif/cancel?token=%s",
-		httpflow.LinkRecovery:           r + "/recov?token=%s",
-		httpflow.LinkRecoveryCancel:     r + "/recov/cancel?token=%s",
+		httpflow.LinkActivation:         r + "/activation?token=%s",
+		httpflow.LinkActivationCancel:   r + "/activation/cancel?token=%s",
+		httpflow.LinkVerification:       r + "/verification?token=%s",
+		httpflow.LinkVerificationCancel: r + "/verification/cancel?token=%s",
+		httpflow.LinkRecovery:           r + "/recovery?token=%s",
+		httpflow.LinkRecoveryCancel:     r + "/recovery/cancel?token=%s",
 	}
 }
 
@@ -277,116 +276,115 @@ func SetupLinks(r string) map[httpflow.LinkKey]string {
 // On successful execution, a session will be created and account activation
 // email will sent.
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
-	inp, err := h.parse(r)
+	inp, err := h.ext.parse(r)
 	if err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
 	ctx := r.Context()
 
-	usr, err := h.create(ctx, inp)
+	usr, err := h.ext.create(ctx, inp)
 	if err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
 	usrC := usr.ExposeCore()
 
-	tok, err := usrC.InitVerification(h.verif)
+	tok, err := usrC.InitVerification(h.token.verif)
 	if err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
-	if err = h.db.Create(ctx, usr); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+	if err = h.db.CreateUser(ctx, usr); err != nil {
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
-	sessions := h.sessions
+	sm := h.session.manager
 	if inp.ExposeCore().RememberMe {
-		sessions = sessions.Clone(sessionup.ExpiresIn(h.sesDur))
+		sm = sm.Clone(sessionup.ExpiresIn(h.session.duration))
 	}
 
-	if err = sessions.Init(w, r, usrC.ID.String()); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+	if err = sm.Init(w, r, usrC.ID.String()); err != nil {
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
 	go h.email.SendAccountActivation(context.Background(), usrC.Email, tok)
 
-	httpflow.Respond(w, r, nil, http.StatusCreated, h.onError)
+	httpflow.Respond(h.log, w, r, nil, http.StatusCreated)
 }
 
 // LogIn handles user's credentials checking and new session creation.
 // On successful execution, a session will be created.
-// Boolean parameters determines whether inactive users can log in or not.
 func (h *Handler) LogIn(w http.ResponseWriter, r *http.Request) {
 	var cInp CoreInput
 	if err := httpflow.DecodeJSON(r, &cInp); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
 	if err := CheckEmail(cInp.Email); err != nil {
-		httpflow.RespondError(w, r, ErrInvalidCredentials, h.onError)
+		httpflow.RespondError(h.log, w, r, ErrInvalidCredentials)
 		return
 	}
 
 	ctx := r.Context()
 
-	usr, err := h.db.FetchByEmail(ctx, cInp.Email)
+	usr, err := h.db.FetchUserByEmail(ctx, cInp.Email)
 	if err != nil {
 		if errors.Is(err, httpflow.ErrNotFound) {
 			err = ErrInvalidCredentials
 		}
 
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 
 		return
 	}
 
-	if err = h.gKeep(usr); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+	if err = h.ext.loginCheck(usr); err != nil {
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
 	usrC := usr.ExposeCore()
 
 	if !usrC.IsPasswordCorrect(cInp.Password) {
-		httpflow.RespondError(w, r, ErrInvalidCredentials, h.onError)
+		httpflow.RespondError(h.log, w, r, ErrInvalidCredentials)
 		return
 	}
 
 	usrC.Recovery.Clear()
 
-	if err = h.db.Update(ctx, usr); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+	if err = h.db.UpdateUser(ctx, usr); err != nil {
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
-	sessions := h.sessions
+	sm := h.session.manager
 	if cInp.RememberMe {
-		sessions = sessions.Clone(sessionup.ExpiresIn(h.sesDur))
+		sm = sm.Clone(sessionup.ExpiresIn(h.session.duration))
 	}
 
-	if err = sessions.Init(w, r, usrC.ID.String()); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+	if err = sm.Init(w, r, usrC.ID.String()); err != nil {
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
-	httpflow.Respond(w, r, nil, http.StatusNoContent, h.onError)
+	httpflow.Respond(h.log, w, r, nil, http.StatusNoContent)
 }
 
 // LogOut handles user's active session revokation.
 func (h *Handler) LogOut(w http.ResponseWriter, r *http.Request) {
-	if err := h.sessions.Revoke(r.Context(), w); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+	if err := h.session.manager.Revoke(r.Context(), w); err != nil {
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
-	httpflow.Respond(w, r, nil, http.StatusNoContent, h.onError)
+	httpflow.Respond(h.log, w, r, nil, http.StatusNoContent)
 }
 
 // Fetch handles user's data retrieval.
@@ -395,17 +393,17 @@ func (h *Handler) Fetch(w http.ResponseWriter, r *http.Request) {
 
 	_, id, err := httpflow.ExtractSession(ctx)
 	if err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
-	usr, err := h.db.FetchByID(ctx, id)
+	usr, err := h.db.FetchUserByID(ctx, id)
 	if err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
-	httpflow.Respond(w, r, usr, http.StatusOK, h.onError)
+	httpflow.Respond(h.log, w, r, usr, http.StatusOK)
 }
 
 // Update handles user's data update in the data store.
@@ -417,25 +415,25 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 	_, id, err := httpflow.ExtractSession(ctx)
 	if err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
-	inp, err := h.parse(r)
+	inp, err := h.ext.parse(r)
 	if err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
-	usr, err := h.db.FetchByID(ctx, id)
+	usr, err := h.db.FetchUserByID(ctx, id)
 	if err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
 	upd, err := usr.ApplyInput(inp)
 	if err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
@@ -445,22 +443,22 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	var tok string
 
 	if updC.Email {
-		tok, err = usrC.InitVerification(h.verif)
+		tok, err = usrC.InitVerification(h.token.verif)
 		if err != nil {
-			httpflow.RespondError(w, r, err, h.onError)
+			httpflow.RespondError(h.log, w, r, err)
 			return
 		}
 	}
 
 	if updC.Password {
-		if err := h.sessions.RevokeOther(ctx); err != nil {
-			httpflow.RespondError(w, r, err, h.onError)
+		if err := h.session.manager.RevokeOther(ctx); err != nil {
+			httpflow.RespondError(h.log, w, r, err)
 			return
 		}
 	}
 
-	if err = h.db.Update(ctx, usr); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+	if err = h.db.UpdateUser(ctx, usr); err != nil {
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
@@ -473,7 +471,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 			usrC.UnverifiedEmail.String, tok)
 	}
 
-	httpflow.Respond(w, r, nil, http.StatusNoContent, h.onError)
+	httpflow.Respond(h.log, w, r, nil, http.StatusNoContent)
 }
 
 // Delete handles user's data removal from the data store.
@@ -483,64 +481,63 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	_, id, err := httpflow.ExtractSession(ctx)
 	if err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
 	var cInp CoreInput
 	if err = httpflow.DecodeJSON(r, &cInp); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
-	usr, err := h.db.FetchByID(ctx, id)
+	usr, err := h.db.FetchUserByID(ctx, id)
 	if err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
-	if err = h.pDel(ctx, usr); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+	if err = h.ext.deleteCheck(ctx, usr); err != nil {
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
 	usrC := usr.ExposeCore()
 
 	if !usrC.IsPasswordCorrect(cInp.Password) {
-		httpflow.RespondError(w, r, ErrInvalidCredentials, h.onError)
+		httpflow.RespondError(h.log, w, r, ErrInvalidCredentials)
 		return
 	}
 
-	if err = h.sessions.RevokeAll(ctx, w); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+	if err = h.session.manager.RevokeAll(ctx, w); err != nil {
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
-	if err = h.db.DeleteByID(ctx, id); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+	if err = h.db.DeleteUserByID(ctx, id); err != nil {
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
 	go h.email.SendAccountDeleted(context.Background(), usrC.Email)
 
-	httpflow.Respond(w, r, nil, http.StatusNoContent, h.onError)
+	httpflow.Respond(h.log, w, r, nil, http.StatusNoContent)
 }
 
 // FetchSessions retrieves all sessions of the same user.
 func (h *Handler) FetchSessions(w http.ResponseWriter, r *http.Request) {
-	ss, err := h.sessions.FetchAll(r.Context())
+	ss, err := h.session.manager.FetchAll(r.Context())
 	if err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
 	if len(ss) == 0 {
-		httpflow.RespondError(w, r, httpflow.NewError(nil,
-			http.StatusNotFound, "not found"), h.onError)
+		httpflow.RespondError(h.log, w, r, httpflow.ErrNotFound)
 		return
 	}
 
-	httpflow.Respond(w, r, ss, http.StatusOK, h.onError)
+	httpflow.Respond(h.log, w, r, ss, http.StatusOK)
 }
 
 // RevokeSession revokes one specific session of the user with the
@@ -550,41 +547,40 @@ func (h *Handler) RevokeSession(w http.ResponseWriter, r *http.Request) {
 
 	ses, _, err := httpflow.ExtractSession(ctx)
 	if err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
 	id, err := httpflow.ExtractParam(r, "id")
 	if err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
 	if ses.ID == id {
-		httpflow.RespondError(w, r, httpflow.NewError(nil,
-			http.StatusBadRequest,
-			"current session cannot be revoked"), h.onError)
+		err = httpflow.NewError(nil, http.StatusBadRequest, "current session cannot be revoked")
+		httpflow.RespondError(h.log, w, r, err)
 
 		return
 	}
 
-	if err = h.sessions.RevokeByIDExt(ctx, id); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+	if err = h.session.manager.RevokeByIDExt(ctx, id); err != nil {
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
-	httpflow.Respond(w, r, nil, http.StatusNoContent, h.onError)
+	httpflow.Respond(h.log, w, r, nil, http.StatusNoContent)
 }
 
 // RevokeOtherSessions revokes all sessions of the same user besides the
 // current one.
 func (h *Handler) RevokeOtherSessions(w http.ResponseWriter, r *http.Request) {
-	if err := h.sessions.RevokeOther(r.Context()); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+	if err := h.session.manager.RevokeOther(r.Context()); err != nil {
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
-	httpflow.Respond(w, r, nil, http.StatusNoContent, h.onError)
+	httpflow.Respond(h.log, w, r, nil, http.StatusNoContent)
 }
 
 // ResendVerification attempts to send and generate the verification token
@@ -596,45 +592,43 @@ func (h *Handler) ResendVerification(w http.ResponseWriter, r *http.Request) {
 
 	_, id, err := httpflow.ExtractSession(ctx)
 	if err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
-	usr, err := h.db.FetchByID(ctx, id)
+	usr, err := h.db.FetchUserByID(ctx, id)
 	if err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
 	usrC := usr.ExposeCore()
 
 	if usrC.Verification.IsEmpty() {
-		httpflow.RespondError(w, r, httpflow.NewError(nil,
-			http.StatusBadRequest,
-			"verification has not been initiated"), h.onError)
+		err = httpflow.NewError(nil, http.StatusBadRequest, "verification has not been initiated")
+		httpflow.RespondError(h.log, w, r, err)
 
 		return
 	}
 
-	tok, err := usrC.InitVerification(h.verif)
+	tok, err := usrC.InitVerification(h.token.verif)
 	if err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
-	if err = h.db.Update(ctx, usr); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+	if err = h.db.UpdateUser(ctx, usr); err != nil {
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
 	if usrC.IsActivated() {
-		go h.email.SendEmailVerification(context.Background(),
-			usrC.UnverifiedEmail.String, tok)
+		go h.email.SendEmailVerification(context.Background(), usrC.UnverifiedEmail.String, tok)
 	} else {
 		go h.email.SendAccountActivation(context.Background(), usrC.Email, tok)
 	}
 
-	httpflow.Respond(w, r, nil, http.StatusAccepted, h.onError)
+	httpflow.Respond(h.log, w, r, nil, http.StatusAccepted)
 }
 
 // Verify checks whether the token in the URL is valid and activates either
@@ -644,7 +638,7 @@ func (h *Handler) ResendVerification(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
 	usr, tok, err := h.FetchByToken(r)
 	if err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
@@ -652,14 +646,14 @@ func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
 	oEml := usrC.Email
 
 	if err = usrC.Verify(tok); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
 	ctx := r.Context()
 
-	if err = h.db.Update(ctx, usr); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+	if err = h.db.UpdateUser(ctx, usr); err != nil {
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
@@ -667,7 +661,7 @@ func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
 		go h.email.SendEmailChanged(context.Background(), oEml, usrC.Email)
 	}
 
-	httpflow.Respond(w, r, nil, http.StatusNoContent, h.onError)
+	httpflow.Respond(h.log, w, r, nil, http.StatusNoContent)
 }
 
 // CancelVerification checks whether the token in the URL is valid and stops
@@ -675,21 +669,21 @@ func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) CancelVerification(w http.ResponseWriter, r *http.Request) {
 	usr, tok, err := h.FetchByToken(r)
 	if err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
 	if err = usr.ExposeCore().CancelVerification(tok); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
-	if err = h.db.Update(r.Context(), usr); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+	if err = h.db.UpdateUser(r.Context(), usr); err != nil {
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
-	httpflow.Respond(w, r, nil, http.StatusNoContent, h.onError)
+	httpflow.Respond(h.log, w, r, nil, http.StatusNoContent)
 }
 
 // InitRecovery initializes recovery token for the user associated with the
@@ -699,30 +693,29 @@ func (h *Handler) CancelVerification(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) InitRecovery(w http.ResponseWriter, r *http.Request) {
 	var cInp CoreInput
 	if err := httpflow.DecodeJSON(r, &cInp); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
 	if err := CheckEmail(cInp.Email); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
 	// if email is not found, etc. we don't want the user or attacker
-	// know this.
+	// to know this.
 	respErr := func(err error) {
 		if httpflow.ErrorCode(err) < 500 {
-			httpflow.Respond(w, r, nil, http.StatusAccepted,
-				h.onError)
+			httpflow.Respond(h.log, w, r, nil, http.StatusAccepted)
 			return
 		}
 
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 	}
 
 	ctx := r.Context()
 
-	usr, err := h.db.FetchByEmail(ctx, cInp.Email)
+	usr, err := h.db.FetchUserByEmail(ctx, cInp.Email)
 	if err != nil {
 		respErr(err)
 		return
@@ -730,20 +723,20 @@ func (h *Handler) InitRecovery(w http.ResponseWriter, r *http.Request) {
 
 	usrC := usr.ExposeCore()
 
-	tok, err := usrC.InitRecovery(h.recov)
+	tok, err := usrC.InitRecovery(h.token.recov)
 	if err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
-	if err = h.db.Update(ctx, usr); err != nil {
+	if err = h.db.UpdateUser(ctx, usr); err != nil {
 		respErr(err)
 		return
 	}
 
 	go h.email.SendRecovery(context.Background(), usrC.Email, tok)
 
-	httpflow.Respond(w, r, nil, http.StatusAccepted, h.onError)
+	httpflow.Respond(h.log, w, r, nil, http.StatusAccepted)
 }
 
 // Recover checks the token in the URL and applies the provided password
@@ -753,13 +746,13 @@ func (h *Handler) InitRecovery(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Recover(w http.ResponseWriter, r *http.Request) {
 	usr, tok, err := h.FetchByToken(r)
 	if err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
 	var cInp CoreInput
 	if err = httpflow.DecodeJSON(r, &cInp); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
@@ -767,23 +760,24 @@ func (h *Handler) Recover(w http.ResponseWriter, r *http.Request) {
 	usrC := usr.ExposeCore()
 
 	if err = usrC.Recover(tok, cInp.Password); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
-	if err = h.sessions.RevokeByUserKey(ctx, usrC.ID.String()); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+	err = h.session.manager.RevokeByUserKey(ctx, usrC.ID.String())
+	if err != nil {
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
-	if err = h.db.Update(ctx, usr); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+	if err = h.db.UpdateUser(ctx, usr); err != nil {
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
 	go h.email.SendPasswordChanged(context.Background(), usrC.Email, true)
 
-	httpflow.Respond(w, r, nil, http.StatusNoContent, h.onError)
+	httpflow.Respond(h.log, w, r, nil, http.StatusNoContent)
 }
 
 // PingRecovery only checks whether the token in the URL is valid or not; no
@@ -791,16 +785,16 @@ func (h *Handler) Recover(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) PingRecovery(w http.ResponseWriter, r *http.Request) {
 	usr, tok, err := h.FetchByToken(r)
 	if err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
 	if err = usr.ExposeCore().Recovery.Check(tok); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
-	httpflow.Respond(w, r, nil, http.StatusNoContent, h.onError)
+	httpflow.Respond(h.log, w, r, nil, http.StatusNoContent)
 }
 
 // CancelRecovery checks whether the token in the URL is valid and stops
@@ -808,21 +802,21 @@ func (h *Handler) PingRecovery(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) CancelRecovery(w http.ResponseWriter, r *http.Request) {
 	usr, tok, err := h.FetchByToken(r)
 	if err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
 	if err = usr.ExposeCore().CancelRecovery(tok); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
-	if err = h.db.Update(r.Context(), usr); err != nil {
-		httpflow.RespondError(w, r, err, h.onError)
+	if err = h.db.UpdateUser(r.Context(), usr); err != nil {
+		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
 
-	httpflow.Respond(w, r, nil, http.StatusNoContent, h.onError)
+	httpflow.Respond(h.log, w, r, nil, http.StatusNoContent)
 }
 
 // FetchByToken extracts the token from request's URL, retrieves a user by ID
@@ -831,8 +825,7 @@ func (h *Handler) CancelRecovery(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) FetchByToken(r *http.Request) (User, string, error) {
 	tok := r.URL.Query().Get("token")
 	if tok == "" {
-		return nil, "", httpflow.NewError(nil, http.StatusBadRequest,
-			"token not found")
+		return nil, "", httpflow.NewError(nil, http.StatusBadRequest, "token not found")
 	}
 
 	tok, id, err := FromFullToken(tok)
@@ -840,7 +833,7 @@ func (h *Handler) FetchByToken(r *http.Request) (User, string, error) {
 		return nil, "", err
 	}
 
-	usr, err := h.db.FetchByID(r.Context(), id)
+	usr, err := h.db.FetchUserByID(r.Context(), id)
 	if err != nil {
 		return nil, "", err
 	}
@@ -851,32 +844,32 @@ func (h *Handler) FetchByToken(r *http.Request) (User, string, error) {
 // DB is an interface which should be implemented by the user data
 // store layer.
 type DB interface {
-	// Stats should return users' data statistics from the underlying
+	// UserStats should return users' data statistics from the underlying
 	// data store.
-	Stats(ctx context.Context) (Stats, error)
+	UserStats(ctx context.Context) (Stats, error)
 
 	// Create should insert the freshly created user into the underlying
 	// data store.
-	Create(ctx context.Context, usr User) error
+	CreateUser(ctx context.Context, usr User) error
 
-	// FetchMany should retrieve multiple users from the underlying data
+	// FetchManyUsers should retrieve multiple users from the underlying data
 	// store by the provided query.
-	FetchMany(ctx context.Context, qr httpflow.Query) ([]User, error)
+	FetchManyUsers(ctx context.Context, qr httpflow.Query) ([]User, error)
 
 	// FetchByID should retrieve a user from the underlying data store
 	// by their ID.
-	FetchByID(ctx context.Context, id xid.ID) (User, error)
+	FetchUserByID(ctx context.Context, id xid.ID) (User, error)
 
 	// FetchByEmail should retrieve a user from the underlying data store
 	// by their email address.
-	FetchByEmail(ctx context.Context, eml string) (User, error)
+	FetchUserByEmail(ctx context.Context, eml string) (User, error)
 
 	// Update should update user's data in the underlying data store.
-	Update(ctx context.Context, usr User) error
+	UpdateUser(ctx context.Context, usr User) error
 
 	// DeleteByID should delete a user from the underlying data store
 	// by their ID.
-	DeleteByID(ctx context.Context, id xid.ID) error
+	DeleteUserByID(ctx context.Context, id xid.ID) error
 }
 
 // EmailSender is an interface which should be implemented by email

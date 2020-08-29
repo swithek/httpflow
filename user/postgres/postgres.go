@@ -14,7 +14,10 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 	"github.com/rs/xid"
+	"github.com/rs/zerolog"
+	"github.com/swithek/dotsqlx"
 	"github.com/swithek/httpflow"
+	"github.com/swithek/httpflow/logutil"
 	"github.com/swithek/httpflow/user"
 )
 
@@ -22,15 +25,16 @@ import (
 // communication with the postgres data store.
 //go:generate esc -o queries.go -pkg postgres -private ./queries.sql
 type Store struct {
-	db *sqlx.DB
-	q  *dotsql.DotSql
+	log zerolog.Logger
+	db  *sqlx.DB
+	q   *dotsqlx.DotSqlx
 }
 
-// New creates a fresh instance of the store.
+// NewStore creates a fresh instance of the store.
 // Last parameter specifies how often should the inactive users' cleanup
 // operation execute. 0 disables cleanup.
-func New(db *sqlx.DB, d time.Duration, onError httpflow.ErrorExec) (*Store, error) {
-	s := &Store{db: db}
+func NewStore(log zerolog.Logger, db *sqlx.DB, d time.Duration) (*Store, error) {
+	s := &Store{log: log, db: db}
 	if err := s.initSQL(); err != nil {
 		// unlikely to happen
 		return nil, err
@@ -40,7 +44,7 @@ func New(db *sqlx.DB, d time.Duration, onError httpflow.ErrorExec) (*Store, erro
 		return nil, err
 	}
 
-	go s.startCleanup(d, onError)
+	go s.startCleanup(d)
 
 	return s, nil
 }
@@ -53,13 +57,13 @@ func (s *Store) initSQL() error {
 		return err
 	}
 
-	s.q = q
+	s.q = dotsqlx.Wrap(q)
 
 	return nil
 }
 
 // startCleanup initiates a non-stopping cleanup cycle.
-func (s *Store) startCleanup(d time.Duration, onError httpflow.ErrorExec) {
+func (s *Store) startCleanup(d time.Duration) {
 	if d == 0 {
 		return
 	}
@@ -68,7 +72,7 @@ func (s *Store) startCleanup(d time.Duration, onError httpflow.ErrorExec) {
 
 	for {
 		if err := s.deleteInactive(); err != nil {
-			onError(err)
+			logutil.Critical(s.log, err).Msg("cannot delete inactive")
 		}
 
 		<-t.C
@@ -79,31 +83,25 @@ func (s *Store) startCleanup(d time.Duration, onError httpflow.ErrorExec) {
 func (s *Store) deleteInactive() error {
 	_, err := s.q.Exec(s.db, "delete_inactive_users")
 	if err != nil {
-		return fmt.Errorf("inactive users deletion: %w", err)
+		return err
 	}
 
 	return nil
 }
 
-// Stats returns users' data statistics from the underlying data store.
-func (s *Store) Stats(ctx context.Context) (user.Stats, error) {
-	q, err := s.q.Raw("select_stats")
-	if err != nil {
-		// unlikely to happen
-		return nil, err
-	}
-
+// UserStats returns users' data statistics from the underlying data store.
+func (s *Store) UserStats(ctx context.Context) (user.Stats, error) {
 	var st user.CoreStats
-	if err = s.db.GetContext(ctx, &st, q); err != nil {
+	if err := s.q.GetContext(ctx, s.db, &st, "select_stats"); err != nil {
 		return nil, detectErr(err)
 	}
 
 	return st, nil
 }
 
-// Create inserts the freshly created user into the underlying
+// CreateUser inserts the freshly created user into the underlying
 // data store.
-func (s *Store) Create(ctx context.Context, usr user.User) error {
+func (s *Store) CreateUser(ctx context.Context, usr user.User) error {
 	usrC := usr.ExposeCore()
 	_, err := s.q.ExecContext(ctx, s.db, "insert_user",
 		usrC.ID,
@@ -124,9 +122,9 @@ func (s *Store) Create(ctx context.Context, usr user.User) error {
 	return detectErr(err)
 }
 
-// FetchMany retrieves multiple users from the underlying data store by
+// FetchManyUsers retrieves multiple users from the underlying data store by
 // the provided query.
-func (s *Store) FetchMany(ctx context.Context, qr httpflow.Query) ([]user.User, error) {
+func (s *Store) FetchManyUsers(ctx context.Context, qr httpflow.Query) ([]user.User, error) {
 	err := qr.Validate(user.CheckFilterKey, user.CheckSortKey)
 	if err != nil {
 		return nil, err
@@ -137,77 +135,47 @@ func (s *Store) FetchMany(ctx context.Context, qr httpflow.Query) ([]user.User, 
 		ord = "desc"
 	}
 
-	q, err := s.q.Raw(fmt.Sprintf("select_users_by_%s_%s_%s", qr.FilterBy,
-		ord, qr.SortBy))
-	if err != nil {
-		// unlikely to happen
-		return nil, err
-	}
+	name := fmt.Sprintf("select_users_by_%s_%s_%s", qr.FilterBy, ord, qr.SortBy)
 
-	rr, err := s.db.QueryxContext(ctx, q, qr.FilterVal, qr.Limit,
-		qr.Limit*(qr.Page-1))
+	crs := []*user.Core{}
+
+	err = s.q.SelectContext(ctx, s.db, &crs, name, qr.FilterVal, qr.Limit, qr.Limit*(qr.Page-1))
 	if err != nil {
 		return nil, detectErr(err)
 	}
 
-	var usrs []user.User //nolint:prealloc // row count is not accessible
-
-	for rr.Next() {
-		cr := &user.Core{}
-
-		if err = rr.StructScan(cr); err != nil {
-			// unlikely to happen
-			rr.Close() //nolint:gosec,errcheck,sqlclosecheck // no need to check for close errors during reading
-			return nil, detectErr(err)
-		}
-
-		usrs = append(usrs, cr)
-	}
-
-	if err = rr.Err(); err != nil {
-		// unlikely to happen
-		return nil, detectErr(err)
+	usrs := make([]user.User, len(crs))
+	for i, cr := range crs {
+		usrs[i] = cr
 	}
 
 	return usrs, nil
 }
 
-// FetchByID retrieves a user from the underlying data store
+// FetchUserByID retrieves a user from the underlying data store
 // by their ID.
-func (s *Store) FetchByID(ctx context.Context, id xid.ID) (user.User, error) {
-	q, err := s.q.Raw("select_user_by_id")
-	if err != nil {
-		// unlikely to happen
-		return nil, err
-	}
-
+func (s *Store) FetchUserByID(ctx context.Context, id xid.ID) (user.User, error) {
 	usr := &user.Core{}
-	if err = s.db.GetContext(ctx, usr, q, id); err != nil {
+	if err := s.q.GetContext(ctx, s.db, usr, "select_user_by_id", id); err != nil {
 		return nil, detectErr(err)
 	}
 
 	return usr, nil
 }
 
-// FetchByEmail retrieves a user from the underlying data store
+// FetchUserByEmail retrieves a user from the underlying data store
 // by their email address.
-func (s *Store) FetchByEmail(ctx context.Context, eml string) (user.User, error) {
-	q, err := s.q.Raw("select_user_by_email")
-	if err != nil {
-		// unlikely to happen
-		return nil, err
-	}
-
+func (s *Store) FetchUserByEmail(ctx context.Context, eml string) (user.User, error) {
 	usr := &user.Core{}
-	if err = s.db.GetContext(ctx, usr, q, eml); err != nil {
+	if err := s.q.GetContext(ctx, s.db, usr, "select_user_by_email", eml); err != nil {
 		return nil, detectErr(err)
 	}
 
 	return usr, nil
 }
 
-// Update updates user's data in the underlying data store.
-func (s *Store) Update(ctx context.Context, usr user.User) error {
+// UpdateUser updates user's data in the underlying data store.
+func (s *Store) UpdateUser(ctx context.Context, usr user.User) error {
 	usrC := usr.ExposeCore()
 	_, err := s.q.ExecContext(ctx, s.db, "update_user_by_id",
 		usrC.UpdatedAt,
@@ -227,9 +195,9 @@ func (s *Store) Update(ctx context.Context, usr user.User) error {
 	return detectErr(err)
 }
 
-// DeleteByID deletes the user from the underlying data store
+// DeleteUserByID deletes the user from the underlying data store
 // by their ID.
-func (s *Store) DeleteByID(ctx context.Context, id xid.ID) error {
+func (s *Store) DeleteUserByID(ctx context.Context, id xid.ID) error {
 	_, err := s.q.ExecContext(ctx, s.db, "delete_user_by_id", id)
 	return detectErr(err)
 }
@@ -243,8 +211,7 @@ func detectErr(err error) error {
 
 	var perr *pq.Error
 	if errors.As(err, &perr) && perr.Constraint == "email_unique" {
-		return httpflow.NewError(nil, http.StatusBadRequest,
-			"email address cannot be used")
+		return httpflow.NewError(nil, http.StatusBadRequest, "email address cannot be used")
 	}
 
 	return err

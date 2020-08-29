@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"strings"
@@ -14,32 +13,25 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/gorilla/schema"
 	"github.com/rs/xid"
+	"github.com/rs/zerolog"
+	"github.com/swithek/httpflow/logutil"
 	"github.com/swithek/sessionup"
 )
 
 var (
-	// ErrInvalidJSON is returned when request's body contains invalid JSON
-	// data.
+	// ErrInvalidJSON is returned when request's body contains invalid
+	// JSON data.
 	ErrInvalidJSON = NewError(nil, http.StatusBadRequest, "invalid JSON body")
 
-	// ErrInvalidForm is returned when request's form contains invalid JSON
-	// data.
+	// ErrInvalidForm is returned when request's form contains invalid
+	// JSON data.
 	ErrInvalidForm = NewError(nil, http.StatusBadRequest, "invalid form data")
 )
 
 var _formDec = schema.NewDecoder()
 
-// ErrorExec is a function that should be used for calling on
-// errors. Useful for error logging etc.
-type ErrorExec func(error)
-
-// DefaultErrorExec logs the provided error via global logger.
-func DefaultErrorExec(err error) {
-	log.Print(err)
-}
-
 // Respond sends JSON type response to the client.
-func Respond(w http.ResponseWriter, r *http.Request, data interface{}, code int, onError ErrorExec) {
+func Respond(log zerolog.Logger, w http.ResponseWriter, r *http.Request, data interface{}, code int) {
 	if data == nil {
 		w.WriteHeader(code)
 		return
@@ -49,22 +41,23 @@ func Respond(w http.ResponseWriter, r *http.Request, data interface{}, code int,
 	w.WriteHeader(code)
 
 	if err := json.NewEncoder(w).Encode(data); err != nil {
-		// unlikely to happen
-		w.Header().Del("Content-Type")
+		logutil.Critical(log, err).Msg("cannot send a response")
+
+		err = NewError(nil, http.StatusInternalServerError, "")
+		json.NewEncoder(w).Encode(err) //nolint:errcheck,gosec // error provides no meaningful info
 		w.WriteHeader(http.StatusInternalServerError)
-		onError(err)
 	}
 }
 
 // RespondError sends the provided error in a JSON format to the client.
-func RespondError(w http.ResponseWriter, r *http.Request, err error, onError ErrorExec) {
+func RespondError(log zerolog.Logger, w http.ResponseWriter, r *http.Request, err error) {
 	err = DetectError(err)
 	code := ErrorCode(err)
 
-	Respond(w, r, err, code, onError)
+	Respond(log, w, r, err, code)
 
 	if code >= 500 {
-		onError(err)
+		logutil.Critical(log, err).Msg("internal server error")
 	}
 }
 
@@ -91,33 +84,32 @@ func DecodeForm(r *http.Request, v interface{}) error {
 	return nil
 }
 
-// SessionReject should be used as sessionup's manager's invalid request
-// rejection function.
-func SessionReject(onError ErrorExec) func(error) http.Handler {
+// SessionReject should be used as sessionup's rejection function.
+func SessionReject(log zerolog.Logger) func(error) http.Handler {
 	return func(err error) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			RespondError(w, r, err, onError)
+			RespondError(log, w, r, err)
 		})
 	}
 }
 
 // NotFound handles cases when request is sent to a non-existing endpoint.
-func NotFound(onError ErrorExec) http.HandlerFunc {
+func NotFound(log zerolog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		RespondError(w, r, ErrNotFound, onError)
+		RespondError(log, w, r, ErrNotFound)
 	}
 }
 
 // MethodNotAllowed handles cases when request's method is not supported for
 // the requested endpoint.
-func MethodNotAllowed(onError ErrorExec) http.HandlerFunc {
+func MethodNotAllowed(log zerolog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		RespondError(w, r, ErrMethodNotAllowed, onError)
+		RespondError(log, w, r, ErrMethodNotAllowed)
 	}
 }
 
-// ExtractID extracts ID from the URL.
-func ExtractID(r *http.Request) (xid.ID, error) {
+// ExtractTargetID extracts ID from the URL.
+func ExtractTargetID(r *http.Request) (xid.ID, error) {
 	strID, err := ExtractParam(r, "id")
 	if err != nil {
 		return xid.ID{}, NewError(nil, http.StatusBadRequest, "invalid id")

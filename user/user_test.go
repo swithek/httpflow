@@ -302,7 +302,7 @@ func Test_Core_InitVerification(t *testing.T) {
 			t.Parallel()
 
 			cr := Core{ID: xid.New(), Verification: c.Token}
-			tok, err := cr.InitVerification(TokenTimes{time.Minute,
+			tok, err := cr.InitVerification(TokenLifetime{time.Minute,
 				time.Minute})
 			testutil.AssertEqualError(t, c.Err, err)
 			if err != nil {
@@ -317,7 +317,7 @@ func Test_Core_InitVerification(t *testing.T) {
 
 func Test_Core_Verify(t *testing.T) {
 	inp := Token{}
-	str, _ := inp.init(TokenTimes{time.Hour, time.Hour})
+	str, _ := inp.gen(TokenLifetime{time.Hour, time.Hour})
 	cc := map[string]struct {
 		Err             error
 		Core            Core
@@ -406,7 +406,7 @@ func Test_Core_Verify(t *testing.T) {
 
 func Test_Core_CancelVerification(t *testing.T) {
 	inp := Token{}
-	str, _ := inp.init(TokenTimes{time.Hour, time.Hour})
+	str, _ := inp.gen(TokenLifetime{time.Hour, time.Hour})
 	cc := map[string]struct {
 		Err   error
 		Core  Core
@@ -469,7 +469,7 @@ func Test_Core_InitRecovery(t *testing.T) {
 			t.Parallel()
 
 			cr := Core{ID: xid.New(), Recovery: c.Token}
-			tok, err := cr.InitRecovery(TokenTimes{time.Minute,
+			tok, err := cr.InitRecovery(TokenLifetime{time.Minute,
 				time.Minute})
 			testutil.AssertEqualError(t, c.Err, err)
 			if err != nil {
@@ -484,7 +484,7 @@ func Test_Core_InitRecovery(t *testing.T) {
 
 func Test_Core_Recover(t *testing.T) {
 	inp := Token{}
-	str, _ := inp.init(TokenTimes{time.Hour, time.Hour})
+	str, _ := inp.gen(TokenLifetime{time.Hour, time.Hour})
 	cc := map[string]struct {
 		Err      error
 		Core     Core
@@ -550,7 +550,7 @@ func Test_Core_Recover(t *testing.T) {
 
 func Test_Core_CancelRecovery(t *testing.T) {
 	inp := Token{}
-	str, _ := inp.init(TokenTimes{time.Hour, time.Hour})
+	str, _ := inp.gen(TokenLifetime{time.Hour, time.Hour})
 	cc := map[string]struct {
 		Err   error
 		Core  Core

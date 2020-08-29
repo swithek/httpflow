@@ -27,8 +27,8 @@ var (
 	_tokenChars = []byte("abcdefghijklmnopqrstuvwxyz0123456789")
 )
 
-// TokenTimes holds data related to token expiration and next generation times.
-type TokenTimes struct {
+// TokenLifetime holds data related to token expiration and next generation times.
+type TokenLifetime struct {
 	// Interval is used for token expiration time calculation.
 	Interval time.Duration
 
@@ -56,9 +56,9 @@ func (t *Token) IsEmpty() bool {
 	return t.ExpiresAt.Time.IsZero() && t.NextAt.Time.IsZero() && len(t.Hash) == 0
 }
 
-// init generates a new token. Provided values determine the expiration time
+// gen generates a new token. Provided values determine the expiration time
 // and the time when another token will be allowed to be generated.
-func (t *Token) init(tt TokenTimes) (string, error) {
+func (t *Token) gen(tl TokenLifetime) (string, error) {
 	if time.Now().Before(t.NextAt.Time) {
 		return "", ErrTooManyTokens
 	}
@@ -71,8 +71,8 @@ func (t *Token) init(tt TokenTimes) (string, error) {
 		return "", err
 	}
 
-	t.ExpiresAt = null.TimeFrom(time.Now().Add(tt.Interval))
-	t.NextAt = null.TimeFrom(time.Now().Add(tt.Cooldown))
+	t.ExpiresAt = null.TimeFrom(time.Now().Add(tl.Interval))
+	t.NextAt = null.TimeFrom(time.Now().Add(tl.Cooldown))
 	t.Hash = h
 
 	return v, nil

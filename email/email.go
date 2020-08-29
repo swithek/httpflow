@@ -9,23 +9,25 @@ import (
 
 	"github.com/jordan-wright/email"
 	"github.com/matcornic/hermes/v2"
+	"github.com/rs/zerolog"
 	"github.com/swithek/httpflow"
+	"github.com/swithek/httpflow/logutil"
 )
 
 // Manager holds data needed to send emails to the users.
 type Manager struct {
+	log      zerolog.Logger
 	host     string
 	username string
 	password string
 	from     string
 	herm     hermes.Hermes
 	links    httpflow.Links
-	onError  httpflow.ErrorExec
 }
 
 // NewManager creates a fresh instance of email manager.
-func NewManager(host, username, password, from string, herm hermes.Hermes,
-	l httpflow.Links, onError httpflow.ErrorExec) (*Manager, error) {
+func NewManager(log zerolog.Logger, host, username, password, from string,
+	herm hermes.Hermes, l httpflow.Links) (*Manager, error) {
 
 	if !l.Exist(httpflow.LinkVerification, httpflow.LinkVerificationCancel,
 		httpflow.LinkActivation, httpflow.LinkActivationCancel,
@@ -35,13 +37,13 @@ func NewManager(host, username, password, from string, herm hermes.Hermes,
 	}
 
 	return &Manager{
+		log:      log,
 		host:     host,
 		username: username,
 		password: password,
 		from:     from,
 		herm:     herm,
 		links:    l,
-		onError:  onError,
 	}, nil
 }
 
@@ -56,7 +58,7 @@ func (m *Manager) send(_ context.Context, eml, subj, data string) {
 
 	err := e.Send(m.host, smtp.PlainAuth("", m.username, m.password, m.host))
 	if err != nil {
-		m.onError(err)
+		logutil.Critical(m.log, err).Msg("cannot send an email")
 	}
 }
 
@@ -93,7 +95,8 @@ func (m *Manager) SendAccountActivation(ctx context.Context, eml, tok string) {
 
 	eBody, err := m.herm.GenerateHTML(e)
 	if err != nil {
-		m.onError(err)
+		logutil.Critical(m.log, err).Msg("cannot generate account activation email")
+		return
 	}
 
 	subj := fmt.Sprintf("Welcome to %s", m.herm.Product.Name)
@@ -130,7 +133,8 @@ func (m *Manager) SendEmailVerification(ctx context.Context, eml, tok string) {
 
 	eBody, err := m.herm.GenerateHTML(e)
 	if err != nil {
-		m.onError(err)
+		logutil.Critical(m.log, err).Msg("cannot generate email verification email")
+		return
 	}
 
 	m.send(ctx, eml, "Email address verification", eBody)
@@ -150,7 +154,8 @@ func (m *Manager) SendEmailChanged(ctx context.Context, oEml, nEml string) {
 
 	eBody, err := m.herm.GenerateHTML(e)
 	if err != nil {
-		m.onError(err)
+		logutil.Critical(m.log, err).Msg("cannot generate email changed email")
+		return
 	}
 
 	m.send(ctx, oEml, "Email address changed", eBody)
@@ -185,7 +190,8 @@ func (m *Manager) SendRecovery(ctx context.Context, eml, tok string) {
 
 	eBody, err := m.herm.GenerateHTML(e)
 	if err != nil {
-		m.onError(err)
+		logutil.Critical(m.log, err).Msg("cannot generate recovery email")
+		return
 	}
 
 	m.send(ctx, eml, "Password reset", eBody)
@@ -205,7 +211,8 @@ func (m *Manager) SendAccountDeleted(ctx context.Context, eml string) {
 
 	eBody, err := m.herm.GenerateHTML(e)
 	if err != nil {
-		m.onError(err)
+		logutil.Critical(m.log, err).Msg("cannot generate account deleted email")
+		return
 	}
 
 	m.send(ctx, eml, "Account deleted", eBody)
@@ -245,7 +252,8 @@ func (m *Manager) SendPasswordChanged(ctx context.Context, eml string, recov boo
 
 	eBody, err := m.herm.GenerateHTML(e)
 	if err != nil {
-		m.onError(err)
+		logutil.Critical(m.log, err).Msg("cannot generate password changed email")
+		return
 	}
 
 	m.send(ctx, eml, subj, eBody)

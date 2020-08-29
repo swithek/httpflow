@@ -20,7 +20,7 @@ func Test_Token_IsEmpty(t *testing.T) {
 	assert.False(t, tok.IsEmpty())
 }
 
-func Test_Token_init(t *testing.T) {
+func Test_Token_gen(t *testing.T) {
 	cc := map[string]struct {
 		Token Token
 		Err   error
@@ -42,7 +42,7 @@ func Test_Token_init(t *testing.T) {
 		t.Run(cn, func(t *testing.T) {
 			t.Parallel()
 
-			tok, err := c.Token.init(TokenTimes{time.Minute, time.Minute})
+			tok, err := c.Token.gen(TokenLifetime{time.Minute, time.Minute})
 			testutil.AssertEqualError(t, c.Err, err)
 			if err != nil {
 				return

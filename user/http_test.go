@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/rs/xid"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/swithek/httpflow"
@@ -28,86 +29,84 @@ const (
 func Test_SetSessionDuration(t *testing.T) {
 	h := &Handler{}
 	SetSessionDuration(time.Hour)(h)
-	assert.Equal(t, time.Hour, h.sesDur)
+	assert.Equal(t, time.Hour, h.session.duration)
 }
 
-func Test_SetErrorExec(t *testing.T) {
+func Test_SetVerificationLifetime(t *testing.T) {
 	h := &Handler{}
-	SetErrorExec(httpflow.DefaultErrorExec)(h)
-	assert.NotNil(t, h.onError)
+	SetVerificationLifetime(VerifLifetime)(h)
+	assert.Equal(t, VerifLifetime, h.token.verif)
+}
+
+func Test_SetRecoveryLifetime(t *testing.T) {
+	h := &Handler{}
+	SetRecoveryLifetime(RecovLifetime)(h)
+	assert.Equal(t, RecovLifetime, h.token.recov)
 }
 
 func Test_SetParser(t *testing.T) {
 	h := &Handler{}
 	SetParser(DefaultParser)(h)
-	assert.NotNil(t, h.parse)
+	assert.NotNil(t, h.ext.parse)
 }
 
 func Test_SetCreator(t *testing.T) {
 	h := &Handler{}
 	SetCreator(DefaultCreator)(h)
-	assert.NotNil(t, h.create)
+	assert.NotNil(t, h.ext.create)
 }
 
-func Test_SetGateKeeper(t *testing.T) {
+func Test_SetLoginCheck(t *testing.T) {
 	h := &Handler{}
-	SetGateKeeper(DefaultGateKeeper(true))(h)
-	assert.NotNil(t, h.gKeep)
+	SetLoginCheck(DefaultLoginCheck(true))(h)
+	assert.NotNil(t, h.ext.loginCheck)
 }
 
-func Test_SetPreDeleter(t *testing.T) {
+func Test_SetDeleteCheck(t *testing.T) {
 	h := &Handler{}
-	SetPreDeleter(DefaultPreDeleter)(h)
-	assert.NotNil(t, h.pDel)
-}
-
-func Test_SetVerificationTimes(t *testing.T) {
-	h := &Handler{}
-	SetVerificationTimes(VerifTimes)(h)
-	assert.Equal(t, VerifTimes, h.verif)
-}
-
-func Test_SetRecoveryTimes(t *testing.T) {
-	h := &Handler{}
-	SetRecoveryTimes(RecovTimes)(h)
-	assert.Equal(t, RecovTimes, h.recov)
+	SetDeleteCheck(DefaultDeleteCheck)(h)
+	assert.NotNil(t, h.ext.deleteCheck)
 }
 
 func Test_NewHandler(t *testing.T) {
-	h := NewHandler(sessionup.NewManager(&depMock.SessionStore{}), &DBMock{},
-		&EmailSenderMock{}, SetSessionDuration(time.Hour),
-		SetVerificationTimes(VerifTimes))
-	assert.NotNil(t, h.sessions)
+	h := NewHandler(
+		zerolog.Nop(),
+		&DBMock{},
+		&EmailSenderMock{},
+		sessionup.NewManager(&depMock.SessionStore{}),
+		SetSessionDuration(time.Hour),
+		SetVerificationLifetime(VerifLifetime),
+	)
+
+	assert.NotZero(t, h.log)
 	assert.NotNil(t, h.db)
 	assert.NotNil(t, h.email)
-	assert.Equal(t, time.Hour, h.sesDur)
-	assert.NotNil(t, h.onError)
-	assert.NotNil(t, h.parse)
-	assert.NotNil(t, h.create)
-	assert.NotNil(t, h.gKeep)
-	assert.NotNil(t, h.pDel)
-	assert.Equal(t, VerifTimes, h.verif)
-	assert.NotZero(t, h.recov)
-
+	assert.NotNil(t, h.session)
+	assert.Equal(t, time.Hour, h.session.duration)
+	assert.NotNil(t, h.ext.parse)
+	assert.NotNil(t, h.ext.create)
+	assert.NotNil(t, h.ext.loginCheck)
+	assert.NotNil(t, h.ext.deleteCheck)
+	assert.Equal(t, VerifLifetime, h.token.verif)
+	assert.NotZero(t, h.token.recov)
 	assert.NotNil(t, h.Router(true))
 }
 
 func Test_Handler_Defaults(t *testing.T) {
-	h := Handler{}
+	var h Handler
+
 	h.Defaults()
-	assert.Equal(t, SessionDuration, h.sesDur)
-	assert.NotNil(t, h.onError)
-	assert.NotNil(t, h.parse)
-	assert.NotNil(t, h.create)
-	assert.NotNil(t, h.gKeep)
-	assert.NotNil(t, h.pDel)
-	assert.Equal(t, VerifTimes, h.verif)
-	assert.Equal(t, RecovTimes, h.recov)
+	assert.Equal(t, SessionDuration, h.session.duration)
+	assert.Equal(t, VerifLifetime, h.token.verif)
+	assert.Equal(t, RecovLifetime, h.token.recov)
+	assert.NotNil(t, h.ext.parse)
+	assert.NotNil(t, h.ext.create)
+	assert.NotNil(t, h.ext.loginCheck)
+	assert.NotNil(t, h.ext.deleteCheck)
 }
 
 func Test_DefaultParser(t *testing.T) {
-	req := httptest.NewRequest("GET", "http://test.com/",
-		strings.NewReader("{"))
+	req := httptest.NewRequest("GET", "http://test.com/", strings.NewReader("{"))
 	inp, err := DefaultParser(req)
 	assert.Nil(t, inp)
 	assert.Error(t, err)
@@ -122,7 +121,11 @@ func Test_DefaultParser(t *testing.T) {
 }
 
 func Test_DefaultCreator(t *testing.T) {
-	usr, err := DefaultCreator(context.Background(),
+	usr, err := DefaultCreator(context.Background(), CoreInput{})
+	assert.Error(t, err)
+	assert.Nil(t, usr)
+
+	usr, err = DefaultCreator(context.Background(),
 		CoreInput{Email: _email, Password: "password1"})
 	assert.NoError(t, err)
 	require.NotNil(t, usr)
@@ -130,33 +133,33 @@ func Test_DefaultCreator(t *testing.T) {
 	assert.NotZero(t, usr.ExposeCore().PasswordHash)
 }
 
-func Test_DefaultGateKeeper(t *testing.T) {
+func Test_DefaultLoginCheck(t *testing.T) {
 	cr := &Core{}
-	assert.NoError(t, DefaultGateKeeper(true)(cr))
-	assert.Equal(t, ErrNotActivated, DefaultGateKeeper(false)(cr))
+	assert.NoError(t, DefaultLoginCheck(true)(cr))
+	assert.Equal(t, ErrNotActivated, DefaultLoginCheck(false)(cr))
 
 	cr.ActivatedAt = zero.TimeFrom(time.Now())
-	assert.NoError(t, DefaultGateKeeper(false)(cr))
+	assert.NoError(t, DefaultLoginCheck(false)(cr))
 }
 
-func Test_DefaultPreDeleter(t *testing.T) {
-	assert.NoError(t, DefaultPreDeleter(context.Background(), nil))
+func Test_DefaultDeleteCheck(t *testing.T) {
+	assert.NoError(t, DefaultDeleteCheck(context.Background(), nil))
 }
 
 func Test_SetupLinks(t *testing.T) {
 	ll := SetupLinks("http://yoursite.com/user")
 	require.NotNil(t, ll)
-	assert.Equal(t, "http://yoursite.com/user/activ?token=%s",
+	assert.Equal(t, "http://yoursite.com/user/activation?token=%s",
 		ll[httpflow.LinkActivation])
-	assert.Equal(t, "http://yoursite.com/user/activ/cancel?token=%s",
+	assert.Equal(t, "http://yoursite.com/user/activation/cancel?token=%s",
 		ll[httpflow.LinkActivationCancel])
-	assert.Equal(t, "http://yoursite.com/user/verif?token=%s",
+	assert.Equal(t, "http://yoursite.com/user/verification?token=%s",
 		ll[httpflow.LinkVerification])
-	assert.Equal(t, "http://yoursite.com/user/verif/cancel?token=%s",
+	assert.Equal(t, "http://yoursite.com/user/verification/cancel?token=%s",
 		ll[httpflow.LinkVerificationCancel])
-	assert.Equal(t, "http://yoursite.com/user/recov?token=%s",
+	assert.Equal(t, "http://yoursite.com/user/recovery?token=%s",
 		ll[httpflow.LinkRecovery])
-	assert.Equal(t, "http://yoursite.com/user/recov/cancel?token=%s",
+	assert.Equal(t, "http://yoursite.com/user/recovery/cancel?token=%s",
 		ll[httpflow.LinkRecoveryCancel])
 }
 
@@ -188,9 +191,9 @@ func Test_Handler_Register(t *testing.T) {
 		}
 	}
 
-	wasCreateCalled := func(count int, eml string) check {
+	wasCreateUserCalled := func(count int, eml string) check {
 		return func(t *testing.T, db *DBMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
-			ff := db.CreateCalls()
+			ff := db.CreateUserCalls()
 			require.Len(t, ff, count)
 
 			if count == 0 {
@@ -222,7 +225,7 @@ func Test_Handler_Register(t *testing.T) {
 
 	dbStub := func(err error) *DBMock {
 		return &DBMock{
-			CreateFunc: func(_ context.Context, _ User) error {
+			CreateUserFunc: func(_ context.Context, _ User) error {
 				return err
 			},
 		}
@@ -258,7 +261,7 @@ func Test_Handler_Register(t *testing.T) {
 			Creator:      DefaultCreator,
 			Checks: checks(
 				hasResp(true, false),
-				wasCreateCalled(0, ""),
+				wasCreateUserCalled(0, ""),
 				wasSendAccountActivationCalled(0, ""),
 			),
 		},
@@ -272,7 +275,7 @@ func Test_Handler_Register(t *testing.T) {
 			},
 			Checks: checks(
 				hasResp(true, false),
-				wasCreateCalled(0, ""),
+				wasCreateUserCalled(0, ""),
 				wasSendAccountActivationCalled(0, ""),
 			),
 		},
@@ -284,7 +287,7 @@ func Test_Handler_Register(t *testing.T) {
 			Creator: func(ctx context.Context, inp Inputer) (User, error) {
 				usr, _ := NewCore(inp)
 				_, err := usr.ExposeCore().InitVerification(
-					TokenTimes{time.Hour, time.Hour})
+					TokenLifetime{time.Hour, time.Hour})
 
 				require.NoError(t, err)
 
@@ -292,11 +295,11 @@ func Test_Handler_Register(t *testing.T) {
 			},
 			Checks: checks(
 				hasResp(true, false),
-				wasCreateCalled(0, ""),
+				wasCreateUserCalled(0, ""),
 				wasSendAccountActivationCalled(0, ""),
 			),
 		},
-		"Error returned by Database.Create": {
+		"Error returned by DB.CreateUser": {
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(assert.AnError),
 			Email:        emailStub(),
@@ -304,7 +307,7 @@ func Test_Handler_Register(t *testing.T) {
 			Creator:      DefaultCreator,
 			Checks: checks(
 				hasResp(true, false),
-				wasCreateCalled(1, _email),
+				wasCreateUserCalled(1, _email),
 				wasSendAccountActivationCalled(0, ""),
 			),
 		},
@@ -316,11 +319,11 @@ func Test_Handler_Register(t *testing.T) {
 			Creator:      DefaultCreator,
 			Checks: checks(
 				hasResp(true, false),
-				wasCreateCalled(1, _email),
+				wasCreateUserCalled(1, _email),
 				wasSendAccountActivationCalled(0, ""),
 			),
 		},
-		"Successful user creation with permanent session": {
+		"Successful user creation with persistent session": {
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil),
 			Email:        emailStub(),
@@ -328,7 +331,7 @@ func Test_Handler_Register(t *testing.T) {
 			Creator:      DefaultCreator,
 			Checks: checks(
 				hasResp(false, true),
-				wasCreateCalled(1, _email),
+				wasCreateUserCalled(1, _email),
 				wasSendAccountActivationCalled(1, _email),
 			),
 		},
@@ -340,7 +343,7 @@ func Test_Handler_Register(t *testing.T) {
 			Creator:      DefaultCreator,
 			Checks: checks(
 				hasResp(false, false),
-				wasCreateCalled(1, _email),
+				wasCreateUserCalled(1, _email),
 				wasSendAccountActivationCalled(1, _email),
 			),
 		},
@@ -356,13 +359,14 @@ func Test_Handler_Register(t *testing.T) {
 				strings.NewReader(c.Body))
 			rec := httptest.NewRecorder()
 			hdl := newHandler()
-			hdl.sessions = sessionup.NewManager(c.SessionStore)
-			hdl.sesDur = time.Hour
+			hdl.session.manager = sessionup.NewManager(c.SessionStore)
+			hdl.session.duration = time.Hour
 			hdl.db = c.DB
 			hdl.email = c.Email
-			hdl.create = c.Creator
+			hdl.ext.create = c.Creator
 			hdl.Register(rec, req)
 			time.Sleep(time.Millisecond * 30) // to record goroutine func call
+
 			for _, ch := range c.Checks {
 				ch(t, c.DB, c.Email, rec)
 			}
@@ -397,9 +401,9 @@ func Test_Handler_LogIn(t *testing.T) {
 		}
 	}
 
-	wasFetchByEmailCalled := func(count int, eml string) check {
+	wasFetchUserByEmailCalled := func(count int, eml string) check {
 		return func(t *testing.T, db *DBMock, _ *httptest.ResponseRecorder) {
-			ff := db.FetchByEmailCalls()
+			ff := db.FetchUserByEmailCalls()
 			require.Len(t, ff, count)
 
 			if count == 0 {
@@ -411,9 +415,9 @@ func Test_Handler_LogIn(t *testing.T) {
 		}
 	}
 
-	wasUpdateCalled := func(count int) check {
+	wasUpdateUserCalled := func(count int) check {
 		return func(t *testing.T, db *DBMock, _ *httptest.ResponseRecorder) {
-			ff := db.UpdateCalls()
+			ff := db.UpdateUserCalls()
 			require.Len(t, ff, count)
 
 			if count == 0 {
@@ -428,10 +432,10 @@ func Test_Handler_LogIn(t *testing.T) {
 
 	dbStub := func(err1, err2 error, usr User) *DBMock {
 		return &DBMock{
-			FetchByEmailFunc: func(_ context.Context, _ string) (User, error) {
+			FetchUserByEmailFunc: func(_ context.Context, _ string) (User, error) {
 				return usr, err1
 			},
-			UpdateFunc: func(_ context.Context, _ User) error {
+			UpdateUserFunc: func(_ context.Context, _ User) error {
 				return err2
 			},
 		}
@@ -454,7 +458,7 @@ func Test_Handler_LogIn(t *testing.T) {
 		Open         bool
 		SessionStore *depMock.SessionStore
 		DB           *DBMock
-		GateKeeper   GateKeeper
+		LoginCheck   LoginCheck
 		Body         string
 		Checks       []check
 	}{
@@ -462,123 +466,123 @@ func Test_Handler_LogIn(t *testing.T) {
 			Open:         true,
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
-			GateKeeper:   DefaultGateKeeper(true),
+			LoginCheck:   DefaultLoginCheck(true),
 			Body:         "{",
 			Checks: checks(
 				hasResp(false, 400),
-				wasFetchByEmailCalled(0, ""),
-				wasUpdateCalled(0),
+				wasFetchUserByEmailCalled(0, ""),
+				wasUpdateUserCalled(0),
 			),
 		},
 		"Invalid email": {
 			Open:         true,
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
-			GateKeeper:   DefaultGateKeeper(true),
+			LoginCheck:   DefaultLoginCheck(true),
 			Body:         toJSON("useremail.com", inpPass, false),
 			Checks: checks(
 				hasResp(false, 401),
-				wasFetchByEmailCalled(0, ""),
-				wasUpdateCalled(0),
+				wasFetchUserByEmailCalled(0, ""),
+				wasUpdateUserCalled(0),
 			),
 		},
-		"Error returned by Database.FetchByEmail": {
+		"Error returned by DB.FetchUserByEmail": {
 			Open:         true,
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(assert.AnError, nil, nil),
-			GateKeeper:   DefaultGateKeeper(true),
+			LoginCheck:   DefaultLoginCheck(true),
 			Body:         toJSON(inpUsr.Email, inpPass, false),
 			Checks: checks(
 				hasResp(false, 500),
-				wasFetchByEmailCalled(1, inpUsr.Email),
-				wasUpdateCalled(0),
+				wasFetchUserByEmailCalled(1, inpUsr.Email),
+				wasUpdateUserCalled(0),
 			),
 		},
-		"Not found error returned by Database.FetchByEmail": {
+		"Not found error returned by DB.FetchUserByEmail": {
 			Open:         true,
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(httpflow.ErrNotFound, nil, nil),
-			GateKeeper:   DefaultGateKeeper(true),
+			LoginCheck:   DefaultLoginCheck(true),
 			Body:         toJSON(inpUsr.Email, inpPass, false),
 			Checks: checks(
 				hasResp(false, 401),
-				wasFetchByEmailCalled(1, inpUsr.Email),
-				wasUpdateCalled(0),
+				wasFetchUserByEmailCalled(1, inpUsr.Email),
+				wasUpdateUserCalled(0),
 			),
 		},
 		"Account not activated when required": {
 			Open:         false,
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
-			GateKeeper:   DefaultGateKeeper(false),
+			LoginCheck:   DefaultLoginCheck(false),
 			Body:         toJSON(inpUsr.Email, inpPass, false),
 			Checks: checks(
 				hasResp(false, 403),
-				wasFetchByEmailCalled(1, inpUsr.Email),
-				wasUpdateCalled(0),
+				wasFetchUserByEmailCalled(1, inpUsr.Email),
+				wasUpdateUserCalled(0),
 			),
 		},
 		"Incorrect password": {
 			Open:         true,
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
-			GateKeeper:   DefaultGateKeeper(true),
+			LoginCheck:   DefaultLoginCheck(true),
 			Body:         toJSON(inpUsr.Email, "password2", false),
 			Checks: checks(
 				hasResp(false, 401),
-				wasFetchByEmailCalled(1, inpUsr.Email),
-				wasUpdateCalled(0),
+				wasFetchUserByEmailCalled(1, inpUsr.Email),
+				wasUpdateUserCalled(0),
 			),
 		},
-		"Error returned by Database.Update": {
+		"Error returned by DB.UpdateUser": {
 			Open:         true,
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil, assert.AnError, toPointer(inpUsr)),
-			GateKeeper:   DefaultGateKeeper(true),
+			LoginCheck:   DefaultLoginCheck(true),
 			Body:         toJSON(inpUsr.Email, inpPass, false),
 			Checks: checks(
 				hasResp(false, 500),
-				wasFetchByEmailCalled(1, inpUsr.Email),
-				wasUpdateCalled(1),
+				wasFetchUserByEmailCalled(1, inpUsr.Email),
+				wasUpdateUserCalled(1),
 			),
 		},
 		"Session init error": {
 			Open:         true,
 			SessionStore: sessionStoreStub(assert.AnError),
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
-			GateKeeper:   DefaultGateKeeper(true),
+			LoginCheck:   DefaultLoginCheck(true),
 			Body:         toJSON(inpUsr.Email, inpPass, true),
 			Checks: checks(
 				hasResp(false, 500),
-				wasFetchByEmailCalled(1, inpUsr.Email),
-				wasUpdateCalled(1),
+				wasFetchUserByEmailCalled(1, inpUsr.Email),
+				wasUpdateUserCalled(1),
 			),
 		},
-		"Successful user log in with permanent session": {
+		"Successful user log in with persistent session": {
 			Open:         true,
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
-			GateKeeper:   DefaultGateKeeper(true),
+			LoginCheck:   DefaultLoginCheck(true),
 			Body:         toJSON(inpUsr.Email, inpPass, true),
 			Checks: checks(
 				hasResp(true, 204),
-				wasFetchByEmailCalled(1, inpUsr.Email),
-				wasUpdateCalled(1),
+				wasFetchUserByEmailCalled(1, inpUsr.Email),
+				wasUpdateUserCalled(1),
 			),
 		},
 		"Successful user log in with temporary session": {
 			Open:         true,
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
-			GateKeeper:   DefaultGateKeeper(true),
+			LoginCheck:   DefaultLoginCheck(true),
 			Body:         toJSON(inpUsr.Email, inpPass, false),
 			Checks: checks(
 				hasResp(false, 204),
-				wasFetchByEmailCalled(1, inpUsr.Email),
-				wasUpdateCalled(1),
+				wasFetchUserByEmailCalled(1, inpUsr.Email),
+				wasUpdateUserCalled(1),
 			),
 		},
-		"Successful user log in with permanent session when activation is required": {
+		"Successful user log in with persistent session when activation is required": {
 			Open:         false,
 			SessionStore: sessionStoreStub(nil),
 			DB: dbStub(nil, nil, func() *Core {
@@ -586,12 +590,12 @@ func Test_Handler_LogIn(t *testing.T) {
 				tmp.ActivatedAt = zero.TimeFrom(time.Now())
 				return &tmp
 			}()),
-			GateKeeper: DefaultGateKeeper(true),
+			LoginCheck: DefaultLoginCheck(true),
 			Body:       toJSON(inpUsr.Email, inpPass, true),
 			Checks: checks(
 				hasResp(true, 204),
-				wasFetchByEmailCalled(1, inpUsr.Email),
-				wasUpdateCalled(1),
+				wasFetchUserByEmailCalled(1, inpUsr.Email),
+				wasUpdateUserCalled(1),
 			),
 		},
 		"Successful user log in with temporary session when activation is required": {
@@ -602,12 +606,12 @@ func Test_Handler_LogIn(t *testing.T) {
 				tmp.ActivatedAt = zero.TimeFrom(time.Now())
 				return &tmp
 			}()),
-			GateKeeper: DefaultGateKeeper(true),
+			LoginCheck: DefaultLoginCheck(true),
 			Body:       toJSON(inpUsr.Email, inpPass, false),
 			Checks: checks(
 				hasResp(false, 204),
-				wasFetchByEmailCalled(1, inpUsr.Email),
-				wasUpdateCalled(1),
+				wasFetchUserByEmailCalled(1, inpUsr.Email),
+				wasUpdateUserCalled(1),
 			),
 		},
 	}
@@ -622,11 +626,12 @@ func Test_Handler_LogIn(t *testing.T) {
 				strings.NewReader(c.Body))
 			rec := httptest.NewRecorder()
 			hdl := newHandler()
-			hdl.sessions = sessionup.NewManager(c.SessionStore)
-			hdl.sesDur = time.Hour
+			hdl.session.manager = sessionup.NewManager(c.SessionStore)
+			hdl.session.duration = time.Hour
 			hdl.db = c.DB
-			hdl.gKeep = c.GateKeeper
+			hdl.ext.loginCheck = c.LoginCheck
 			hdl.LogIn(rec, req)
+
 			for _, ch := range c.Checks {
 				ch(t, c.DB, rec)
 			}
@@ -688,11 +693,12 @@ func Test_Handler_Logout(t *testing.T) {
 			req := httptest.NewRequest("GET", "http://test.com/", nil)
 			rec := httptest.NewRecorder()
 			hdl := newHandler()
-			hdl.sessions = sessionup.NewManager(c.SessionStore,
+			hdl.session.manager = sessionup.NewManager(c.SessionStore,
 				sessionup.ExpiresIn(time.Hour))
 			hdl.LogOut(rec, req.WithContext(sessionup.NewContext(
 				context.Background(), sessionup.Session{
 					ID: "12345"})))
+
 			for _, ch := range c.Checks {
 				ch(t, rec)
 			}
@@ -719,9 +725,9 @@ func Test_Handler_Fetch(t *testing.T) {
 		}
 	}
 
-	wasFetchByIDCalled := func(count int, id xid.ID) check {
+	wasFetchUserByIDCalled := func(count int, id xid.ID) check {
 		return func(t *testing.T, db *DBMock, _ *httptest.ResponseRecorder) {
-			ff := db.FetchByIDCalls()
+			ff := db.FetchUserByIDCalls()
 			require.Len(t, ff, count)
 
 			if count == 0 {
@@ -735,7 +741,7 @@ func Test_Handler_Fetch(t *testing.T) {
 
 	dbStub := func(err error, usr User) *DBMock {
 		return &DBMock{
-			FetchByIDFunc: func(_ context.Context, _ xid.ID) (User, error) {
+			FetchUserByIDFunc: func(_ context.Context, _ xid.ID) (User, error) {
 				return usr, err
 			},
 		}
@@ -752,15 +758,15 @@ func Test_Handler_Fetch(t *testing.T) {
 			DB: dbStub(nil, toPointer(inpUsr)),
 			Checks: checks(
 				hasResp(true),
-				wasFetchByIDCalled(0, xid.ID{}),
+				wasFetchUserByIDCalled(0, xid.ID{}),
 			),
 		},
-		"Error returned by Database.FetchByID": {
+		"Error returned by DB.FetchUserByID": {
 			DB:      dbStub(assert.AnError, nil),
 			Session: true,
 			Checks: checks(
 				hasResp(true),
-				wasFetchByIDCalled(1, inpUsr.ID),
+				wasFetchUserByIDCalled(1, inpUsr.ID),
 			),
 		},
 		"Successful user fetch": {
@@ -768,7 +774,7 @@ func Test_Handler_Fetch(t *testing.T) {
 			Session: true,
 			Checks: checks(
 				hasResp(false),
-				wasFetchByIDCalled(1, inpUsr.ID),
+				wasFetchUserByIDCalled(1, inpUsr.ID),
 			),
 		},
 	}
@@ -790,6 +796,7 @@ func Test_Handler_Fetch(t *testing.T) {
 					sessionup.Session{UserKey: inpUsr.ID.String()}))
 			}
 			hdl.Fetch(rec, req)
+
 			for _, ch := range c.Checks {
 				ch(t, c.DB, rec)
 			}
@@ -817,9 +824,9 @@ func Test_Handler_Update(t *testing.T) {
 		}
 	}
 
-	wasFetchByIDCalled := func(count int, id xid.ID) check {
+	wasFetchUserByIDCalled := func(count int, id xid.ID) check {
 		return func(t *testing.T, db *DBMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
-			ff := db.FetchByIDCalls()
+			ff := db.FetchUserByIDCalls()
 			require.Len(t, ff, count)
 
 			if count == 0 {
@@ -831,9 +838,9 @@ func Test_Handler_Update(t *testing.T) {
 		}
 	}
 
-	wasUpdateCalled := func(count int, eml string, verif bool) check {
+	wasUpdateUserCalled := func(count int, eml string, verif bool) check {
 		return func(t *testing.T, db *DBMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
-			ff := db.UpdateCalls()
+			ff := db.UpdateUserCalls()
 			require.Len(t, ff, count)
 
 			if count == 0 {
@@ -883,10 +890,10 @@ func Test_Handler_Update(t *testing.T) {
 
 	dbStub := func(err1, err2 error, usr User) *DBMock {
 		return &DBMock{
-			FetchByIDFunc: func(_ context.Context, _ xid.ID) (User, error) {
+			FetchUserByIDFunc: func(_ context.Context, _ xid.ID) (User, error) {
 				return usr, err1
 			},
-			UpdateFunc: func(_ context.Context, _ User) error {
+			UpdateUserFunc: func(_ context.Context, _ User) error {
 				return err2
 			},
 		}
@@ -930,8 +937,8 @@ func Test_Handler_Update(t *testing.T) {
 			Body:         toJSON(inpNewEml, inpNewPass, false),
 			Checks: checks(
 				hasResp(true),
-				wasFetchByIDCalled(0, xid.ID{}),
-				wasUpdateCalled(0, "", false),
+				wasFetchUserByIDCalled(0, xid.ID{}),
+				wasUpdateUserCalled(0, "", false),
 				wasSendEmailVerificationCalled(0, ""),
 				wasSendPasswordChangedCalled(0, ""),
 			),
@@ -944,13 +951,13 @@ func Test_Handler_Update(t *testing.T) {
 			Session:      true,
 			Checks: checks(
 				hasResp(true),
-				wasFetchByIDCalled(0, xid.ID{}),
-				wasUpdateCalled(0, "", false),
+				wasFetchUserByIDCalled(0, xid.ID{}),
+				wasUpdateUserCalled(0, "", false),
 				wasSendEmailVerificationCalled(0, ""),
 				wasSendPasswordChangedCalled(0, ""),
 			),
 		},
-		"Error returned by Database.FetchByID": {
+		"Error returned by DB.FetchUserByID": {
 			DB:           dbStub(assert.AnError, nil, nil),
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
@@ -958,8 +965,8 @@ func Test_Handler_Update(t *testing.T) {
 			Session:      true,
 			Checks: checks(
 				hasResp(true),
-				wasFetchByIDCalled(1, inpUsr.ID),
-				wasUpdateCalled(0, "", false),
+				wasFetchUserByIDCalled(1, inpUsr.ID),
+				wasUpdateUserCalled(0, "", false),
 				wasSendEmailVerificationCalled(0, ""),
 				wasSendPasswordChangedCalled(0, ""),
 			),
@@ -972,8 +979,8 @@ func Test_Handler_Update(t *testing.T) {
 			Session:      true,
 			Checks: checks(
 				hasResp(true),
-				wasFetchByIDCalled(1, inpUsr.ID),
-				wasUpdateCalled(0, "", false),
+				wasFetchUserByIDCalled(1, inpUsr.ID),
+				wasUpdateUserCalled(0, "", false),
 				wasSendEmailVerificationCalled(0, ""),
 				wasSendPasswordChangedCalled(0, ""),
 			),
@@ -990,8 +997,8 @@ func Test_Handler_Update(t *testing.T) {
 			Session:      true,
 			Checks: checks(
 				hasResp(true),
-				wasFetchByIDCalled(1, inpUsr.ID),
-				wasUpdateCalled(0, "", false),
+				wasFetchUserByIDCalled(1, inpUsr.ID),
+				wasUpdateUserCalled(0, "", false),
 				wasSendEmailVerificationCalled(0, ""),
 				wasSendPasswordChangedCalled(0, ""),
 			),
@@ -1004,13 +1011,13 @@ func Test_Handler_Update(t *testing.T) {
 			Session:      true,
 			Checks: checks(
 				hasResp(true),
-				wasFetchByIDCalled(1, inpUsr.ID),
-				wasUpdateCalled(0, "", false),
+				wasFetchUserByIDCalled(1, inpUsr.ID),
+				wasUpdateUserCalled(0, "", false),
 				wasSendEmailVerificationCalled(0, ""),
 				wasSendPasswordChangedCalled(0, ""),
 			),
 		},
-		"Error returned by Database.Update": {
+		"Error returned by DB.UpdateUser": {
 			DB:           dbStub(nil, assert.AnError, toPointer(inpUsr)),
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
@@ -1018,8 +1025,8 @@ func Test_Handler_Update(t *testing.T) {
 			Session:      true,
 			Checks: checks(
 				hasResp(true),
-				wasFetchByIDCalled(1, inpUsr.ID),
-				wasUpdateCalled(1, inpNewEml, true),
+				wasFetchUserByIDCalled(1, inpUsr.ID),
+				wasUpdateUserCalled(1, inpNewEml, true),
 				wasSendEmailVerificationCalled(0, ""),
 				wasSendPasswordChangedCalled(0, ""),
 			),
@@ -1032,8 +1039,8 @@ func Test_Handler_Update(t *testing.T) {
 			Session:      true,
 			Checks: checks(
 				hasResp(false),
-				wasFetchByIDCalled(1, inpUsr.ID),
-				wasUpdateCalled(1, "", false),
+				wasFetchUserByIDCalled(1, inpUsr.ID),
+				wasUpdateUserCalled(1, "", false),
 				wasSendEmailVerificationCalled(0, ""),
 				wasSendPasswordChangedCalled(1, inpUsr.Email),
 			),
@@ -1046,8 +1053,8 @@ func Test_Handler_Update(t *testing.T) {
 			Session:      true,
 			Checks: checks(
 				hasResp(false),
-				wasFetchByIDCalled(1, inpUsr.ID),
-				wasUpdateCalled(1, inpNewEml, true),
+				wasFetchUserByIDCalled(1, inpUsr.ID),
+				wasUpdateUserCalled(1, inpNewEml, true),
 				wasSendEmailVerificationCalled(1, inpNewEml),
 				wasSendPasswordChangedCalled(0, ""),
 			),
@@ -1060,8 +1067,8 @@ func Test_Handler_Update(t *testing.T) {
 			Session:      true,
 			Checks: checks(
 				hasResp(false),
-				wasFetchByIDCalled(1, inpUsr.ID),
-				wasUpdateCalled(1, inpNewEml, true),
+				wasFetchUserByIDCalled(1, inpUsr.ID),
+				wasUpdateUserCalled(1, inpNewEml, true),
 				wasSendEmailVerificationCalled(1, inpNewEml),
 				wasSendPasswordChangedCalled(1, inpUsr.Email),
 			),
@@ -1078,17 +1085,20 @@ func Test_Handler_Update(t *testing.T) {
 				strings.NewReader(c.Body))
 			rec := httptest.NewRecorder()
 			hdl := newHandler()
-			hdl.sessions = sessionup.NewManager(c.SessionStore,
+			hdl.session.manager = sessionup.NewManager(c.SessionStore,
 				sessionup.ExpiresIn(time.Hour))
 			hdl.db = c.DB
 			hdl.email = c.Email
+
 			if c.Session {
 				req = req.WithContext(sessionup.NewContext(
 					context.Background(),
 					sessionup.Session{UserKey: inpUsr.ID.String()}))
 			}
+
 			hdl.Update(rec, req)
 			time.Sleep(time.Millisecond) // to record goroutine func call
+
 			for _, ch := range c.Checks {
 				ch(t, c.DB, c.Email, rec)
 			}
@@ -1115,9 +1125,9 @@ func Test_Handler_Delete(t *testing.T) {
 		}
 	}
 
-	wasFetchByIDCalled := func(count int, id xid.ID) check {
+	wasFetchUserByIDCalled := func(count int, id xid.ID) check {
 		return func(t *testing.T, db *DBMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
-			ff := db.FetchByIDCalls()
+			ff := db.FetchUserByIDCalls()
 			require.Len(t, ff, count)
 
 			if count == 0 {
@@ -1129,9 +1139,9 @@ func Test_Handler_Delete(t *testing.T) {
 		}
 	}
 
-	wasDeleteByIDCalled := func(count int, id xid.ID) check {
+	wasDeleteUserByIDCalled := func(count int, id xid.ID) check {
 		return func(t *testing.T, db *DBMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
-			ff := db.DeleteByIDCalls()
+			ff := db.DeleteUserByIDCalls()
 			require.Len(t, ff, count)
 
 			if count == 0 {
@@ -1159,10 +1169,10 @@ func Test_Handler_Delete(t *testing.T) {
 
 	dbStub := func(err1, err2 error, usr User) *DBMock {
 		return &DBMock{
-			FetchByIDFunc: func(_ context.Context, _ xid.ID) (User, error) {
+			FetchUserByIDFunc: func(_ context.Context, _ xid.ID) (User, error) {
 				return usr, err1
 			},
-			DeleteByIDFunc: func(_ context.Context, _ xid.ID) error {
+			DeleteUserByIDFunc: func(_ context.Context, _ xid.ID) error {
 				return err2
 			},
 		}
@@ -1195,7 +1205,7 @@ func Test_Handler_Delete(t *testing.T) {
 		DB           *DBMock
 		Email        *EmailSenderMock
 		SessionStore *depMock.SessionStore
-		PreDeleter   PreDeleter
+		DeleteCheck  DeleteCheck
 		Body         string
 		Session      bool
 		Checks       []check
@@ -1204,12 +1214,12 @@ func Test_Handler_Delete(t *testing.T) {
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
-			PreDeleter:   DefaultPreDeleter,
+			DeleteCheck:  DefaultDeleteCheck,
 			Body:         toJSON("", inpPass, false),
 			Checks: checks(
 				hasResp(true),
-				wasFetchByIDCalled(0, xid.ID{}),
-				wasDeleteByIDCalled(0, xid.ID{}),
+				wasFetchUserByIDCalled(0, xid.ID{}),
+				wasDeleteUserByIDCalled(0, xid.ID{}),
 				wasSendAccountDeletedCalled(0, ""),
 			),
 		},
@@ -1217,41 +1227,43 @@ func Test_Handler_Delete(t *testing.T) {
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
-			PreDeleter:   DefaultPreDeleter,
+			DeleteCheck:  DefaultDeleteCheck,
 			Body:         "{",
 			Session:      true,
 			Checks: checks(
 				hasResp(true),
-				wasFetchByIDCalled(0, xid.ID{}),
-				wasDeleteByIDCalled(0, xid.ID{}),
+				wasFetchUserByIDCalled(0, xid.ID{}),
+				wasDeleteUserByIDCalled(0, xid.ID{}),
 				wasSendAccountDeletedCalled(0, ""),
 			),
 		},
-		"Error returned by Database.FetchByID": {
+		"Error returned by DB.FetchUserByID": {
 			DB:           dbStub(assert.AnError, nil, nil),
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
-			PreDeleter:   DefaultPreDeleter,
+			DeleteCheck:  DefaultDeleteCheck,
 			Body:         toJSON("", inpPass, false),
 			Session:      true,
 			Checks: checks(
 				hasResp(true),
-				wasFetchByIDCalled(1, inpUsr.ID),
-				wasDeleteByIDCalled(0, xid.ID{}),
+				wasFetchUserByIDCalled(1, inpUsr.ID),
+				wasDeleteUserByIDCalled(0, xid.ID{}),
 				wasSendAccountDeletedCalled(0, ""),
 			),
 		},
-		"Error returned by pre-deleter": {
+		"Error returned by delete check": {
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
-			PreDeleter:   func(_ context.Context, _ User) error { return assert.AnError },
-			Body:         toJSON("", inpPass, false),
-			Session:      true,
+			DeleteCheck: func(_ context.Context, _ User) error {
+				return assert.AnError
+			},
+			Body:    toJSON("", inpPass, false),
+			Session: true,
 			Checks: checks(
 				hasResp(true),
-				wasFetchByIDCalled(1, inpUsr.ID),
-				wasDeleteByIDCalled(0, xid.ID{}),
+				wasFetchUserByIDCalled(1, inpUsr.ID),
+				wasDeleteUserByIDCalled(0, xid.ID{}),
 				wasSendAccountDeletedCalled(0, ""),
 			),
 		},
@@ -1259,13 +1271,13 @@ func Test_Handler_Delete(t *testing.T) {
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
-			PreDeleter:   DefaultPreDeleter,
+			DeleteCheck:  DefaultDeleteCheck,
 			Body:         toJSON("", "password2", false),
 			Session:      true,
 			Checks: checks(
 				hasResp(true),
-				wasFetchByIDCalled(1, inpUsr.ID),
-				wasDeleteByIDCalled(0, xid.ID{}),
+				wasFetchUserByIDCalled(1, inpUsr.ID),
+				wasDeleteUserByIDCalled(0, xid.ID{}),
 				wasSendAccountDeletedCalled(0, ""),
 			),
 		},
@@ -1273,27 +1285,27 @@ func Test_Handler_Delete(t *testing.T) {
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(assert.AnError),
-			PreDeleter:   DefaultPreDeleter,
+			DeleteCheck:  DefaultDeleteCheck,
 			Body:         toJSON("", inpPass, false),
 			Session:      true,
 			Checks: checks(
 				hasResp(true),
-				wasFetchByIDCalled(1, inpUsr.ID),
-				wasDeleteByIDCalled(0, xid.ID{}),
+				wasFetchUserByIDCalled(1, inpUsr.ID),
+				wasDeleteUserByIDCalled(0, xid.ID{}),
 				wasSendAccountDeletedCalled(0, ""),
 			),
 		},
-		"Error returned by Database.DeleteByID": {
+		"Error returned by DB.DeleteUserByID": {
 			DB:           dbStub(nil, assert.AnError, toPointer(inpUsr)),
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
-			PreDeleter:   DefaultPreDeleter,
+			DeleteCheck:  DefaultDeleteCheck,
 			Body:         toJSON("", inpPass, false),
 			Session:      true,
 			Checks: checks(
 				hasResp(true),
-				wasFetchByIDCalled(1, inpUsr.ID),
-				wasDeleteByIDCalled(1, inpUsr.ID),
+				wasFetchUserByIDCalled(1, inpUsr.ID),
+				wasDeleteUserByIDCalled(1, inpUsr.ID),
 				wasSendAccountDeletedCalled(0, ""),
 			),
 		},
@@ -1301,13 +1313,13 @@ func Test_Handler_Delete(t *testing.T) {
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
-			PreDeleter:   DefaultPreDeleter,
+			DeleteCheck:  DefaultDeleteCheck,
 			Body:         toJSON("", inpPass, false),
 			Session:      true,
 			Checks: checks(
 				hasResp(false),
-				wasFetchByIDCalled(1, inpUsr.ID),
-				wasDeleteByIDCalled(1, inpUsr.ID),
+				wasFetchUserByIDCalled(1, inpUsr.ID),
+				wasDeleteUserByIDCalled(1, inpUsr.ID),
 				wasSendAccountDeletedCalled(1, inpUsr.Email),
 			),
 		},
@@ -1323,18 +1335,21 @@ func Test_Handler_Delete(t *testing.T) {
 				strings.NewReader(c.Body))
 			rec := httptest.NewRecorder()
 			hdl := newHandler()
-			hdl.sessions = sessionup.NewManager(c.SessionStore,
+			hdl.session.manager = sessionup.NewManager(c.SessionStore,
 				sessionup.ExpiresIn(time.Hour))
 			hdl.db = c.DB
 			hdl.email = c.Email
-			hdl.pDel = c.PreDeleter
+			hdl.ext.deleteCheck = c.DeleteCheck
+
 			if c.Session {
 				req = req.WithContext(sessionup.NewContext(
 					context.Background(),
 					sessionup.Session{UserKey: inpUsr.ID.String()}))
 			}
+
 			hdl.Delete(rec, req)
 			time.Sleep(time.Millisecond * 30) // to record goroutine func call
+
 			for _, ch := range c.Checks {
 				ch(t, c.DB, c.Email, rec)
 			}
@@ -1407,11 +1422,11 @@ func Test_Handler_FetchSessions(t *testing.T) {
 			req := httptest.NewRequest("GET", "http://test.com/", nil)
 			rec := httptest.NewRecorder()
 			hdl := newHandler()
-			hdl.sessions = sessionup.NewManager(c.SessionStore,
+			hdl.session.manager = sessionup.NewManager(c.SessionStore,
 				sessionup.ExpiresIn(time.Hour))
 			hdl.FetchSessions(rec, req.WithContext(sessionup.NewContext(
-				context.Background(), sessionup.Session{
-					ID: "12345"})))
+				context.Background(), sessionup.Session{ID: "12345"})))
+
 			for _, ch := range c.Checks {
 				ch(t, rec)
 			}
@@ -1507,7 +1522,7 @@ func Test_Handler_RevokeSession(t *testing.T) {
 			req := httptest.NewRequest("GET", "http://test.com/", nil)
 			rec := httptest.NewRecorder()
 			hdl := newHandler()
-			hdl.sessions = sessionup.NewManager(c.SessionStore,
+			hdl.session.manager = sessionup.NewManager(c.SessionStore,
 				sessionup.ExpiresIn(time.Hour))
 
 			if c.Session {
@@ -1519,8 +1534,8 @@ func Test_Handler_RevokeSession(t *testing.T) {
 			}
 
 			req = req.WithContext(addChiCtx(req.Context(), "id", c.ID))
-
 			hdl.RevokeSession(rec, req)
+
 			for _, ch := range c.Checks {
 				ch(t, rec)
 			}
@@ -1582,11 +1597,11 @@ func Test_Handler_RevokeOtherSessions(t *testing.T) {
 			req := httptest.NewRequest("GET", "http://test.com/", nil)
 			rec := httptest.NewRecorder()
 			hdl := newHandler()
-			hdl.sessions = sessionup.NewManager(c.SessionStore,
+			hdl.session.manager = sessionup.NewManager(c.SessionStore,
 				sessionup.ExpiresIn(time.Hour))
 			hdl.RevokeOtherSessions(rec, req.WithContext(sessionup.NewContext(
-				context.Background(), sessionup.Session{
-					ID: "12345"})))
+				context.Background(), sessionup.Session{ID: "12345"})))
+
 			for _, ch := range c.Checks {
 				ch(t, rec)
 			}
@@ -1614,9 +1629,9 @@ func Test_Handler_ResendVerification(t *testing.T) {
 		}
 	}
 
-	wasFetchByIDCalled := func(count int, id xid.ID) check {
+	wasFetchUserByIDCalled := func(count int, id xid.ID) check {
 		return func(t *testing.T, db *DBMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
-			ff := db.FetchByIDCalls()
+			ff := db.FetchUserByIDCalls()
 			require.Len(t, ff, count)
 
 			if count == 0 {
@@ -1628,9 +1643,9 @@ func Test_Handler_ResendVerification(t *testing.T) {
 		}
 	}
 
-	wasUpdateCalled := func(count int) check {
+	wasUpdateUserCalled := func(count int) check {
 		return func(t *testing.T, db *DBMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
-			ff := db.UpdateCalls()
+			ff := db.UpdateUserCalls()
 			require.Len(t, ff, count)
 
 			if count == 0 {
@@ -1675,10 +1690,10 @@ func Test_Handler_ResendVerification(t *testing.T) {
 
 	dbStub := func(err1, err2 error, usr User) *DBMock {
 		return &DBMock{
-			FetchByIDFunc: func(_ context.Context, _ xid.ID) (User, error) {
+			FetchUserByIDFunc: func(_ context.Context, _ xid.ID) (User, error) {
 				return usr, err1
 			},
-			UpdateFunc: func(_ context.Context, _ User) error {
+			UpdateUserFunc: func(_ context.Context, _ User) error {
 				return err2
 			},
 		}
@@ -1711,20 +1726,20 @@ func Test_Handler_ResendVerification(t *testing.T) {
 			Email: emailStub(),
 			Checks: checks(
 				hasResp(true),
-				wasFetchByIDCalled(0, xid.ID{}),
-				wasUpdateCalled(0),
+				wasFetchUserByIDCalled(0, xid.ID{}),
+				wasUpdateUserCalled(0),
 				wasSendEmailVerificationCalled(0, ""),
 				wasSendAccountActivationCalled(0, ""),
 			),
 		},
-		"Error returned by Database.FetchByID": {
+		"Error returned by DB.FetchUserByID": {
 			DB:      dbStub(assert.AnError, nil, nil),
 			Email:   emailStub(),
 			Session: true,
 			Checks: checks(
 				hasResp(true),
-				wasFetchByIDCalled(1, inpUsr.ID),
-				wasUpdateCalled(0),
+				wasFetchUserByIDCalled(1, inpUsr.ID),
+				wasUpdateUserCalled(0),
 				wasSendEmailVerificationCalled(0, ""),
 				wasSendAccountActivationCalled(0, ""),
 			),
@@ -1739,8 +1754,8 @@ func Test_Handler_ResendVerification(t *testing.T) {
 			Session: true,
 			Checks: checks(
 				hasResp(true),
-				wasFetchByIDCalled(1, inpUsr.ID),
-				wasUpdateCalled(0),
+				wasFetchUserByIDCalled(1, inpUsr.ID),
+				wasUpdateUserCalled(0),
 				wasSendEmailVerificationCalled(0, ""),
 				wasSendAccountActivationCalled(0, ""),
 			),
@@ -1755,20 +1770,20 @@ func Test_Handler_ResendVerification(t *testing.T) {
 			Session: true,
 			Checks: checks(
 				hasResp(true),
-				wasFetchByIDCalled(1, inpUsr.ID),
-				wasUpdateCalled(0),
+				wasFetchUserByIDCalled(1, inpUsr.ID),
+				wasUpdateUserCalled(0),
 				wasSendEmailVerificationCalled(0, ""),
 				wasSendAccountActivationCalled(0, ""),
 			),
 		},
-		"Error returned by Database.Update": {
+		"Error returned by DB.UpdateUser": {
 			DB:      dbStub(nil, assert.AnError, toPointer(inpUsr)),
 			Email:   emailStub(),
 			Session: true,
 			Checks: checks(
 				hasResp(true),
-				wasFetchByIDCalled(1, inpUsr.ID),
-				wasUpdateCalled(1),
+				wasFetchUserByIDCalled(1, inpUsr.ID),
+				wasUpdateUserCalled(1),
 				wasSendEmailVerificationCalled(0, ""),
 				wasSendAccountActivationCalled(0, ""),
 			),
@@ -1784,8 +1799,8 @@ func Test_Handler_ResendVerification(t *testing.T) {
 			Session: true,
 			Checks: checks(
 				hasResp(false),
-				wasFetchByIDCalled(1, inpUsr.ID),
-				wasUpdateCalled(1),
+				wasFetchUserByIDCalled(1, inpUsr.ID),
+				wasUpdateUserCalled(1),
 				wasSendEmailVerificationCalled(1, inpUsr.Email),
 				wasSendAccountActivationCalled(0, ""),
 			),
@@ -1796,8 +1811,8 @@ func Test_Handler_ResendVerification(t *testing.T) {
 			Session: true,
 			Checks: checks(
 				hasResp(false),
-				wasFetchByIDCalled(1, inpUsr.ID),
-				wasUpdateCalled(1),
+				wasFetchUserByIDCalled(1, inpUsr.ID),
+				wasUpdateUserCalled(1),
 				wasSendEmailVerificationCalled(0, ""),
 				wasSendAccountActivationCalled(1, inpUsr.Email),
 			),
@@ -1822,6 +1837,7 @@ func Test_Handler_ResendVerification(t *testing.T) {
 			}
 			hdl.ResendVerification(rec, req)
 			time.Sleep(time.Millisecond * 30) // to record goroutine func call
+
 			for _, ch := range c.Checks {
 				ch(t, c.DB, c.Email, rec)
 			}
@@ -1848,9 +1864,9 @@ func Test_Handler_Verify(t *testing.T) {
 		}
 	}
 
-	wasUpdateCalled := func(count int) check {
+	wasUpdateUserCalled := func(count int) check {
 		return func(t *testing.T, db *DBMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
-			ff := db.UpdateCalls()
+			ff := db.UpdateUserCalls()
 			require.Len(t, ff, count)
 
 			if count == 0 {
@@ -1881,10 +1897,10 @@ func Test_Handler_Verify(t *testing.T) {
 
 	dbStub := func(err1, err2 error, usr User) *DBMock {
 		return &DBMock{
-			FetchByIDFunc: func(_ context.Context, _ xid.ID) (User, error) {
+			FetchUserByIDFunc: func(_ context.Context, _ xid.ID) (User, error) {
 				return usr, err1
 			},
-			UpdateFunc: func(_ context.Context, _ User) error {
+			UpdateUserFunc: func(_ context.Context, _ User) error {
 				return err2
 			},
 		}
@@ -1903,7 +1919,7 @@ func Test_Handler_Verify(t *testing.T) {
 		UnverifiedEmail: zero.StringFrom("user123@email.com"),
 	}
 
-	inpTok, _ := inpUsr.InitVerification(TokenTimes{time.Hour, time.Hour})
+	inpTok, _ := inpUsr.InitVerification(TokenLifetime{time.Hour, time.Hour})
 
 	cc := map[string]struct {
 		DB     *DBMock
@@ -1917,7 +1933,7 @@ func Test_Handler_Verify(t *testing.T) {
 			Token: inpTok,
 			Checks: checks(
 				hasResp(true),
-				wasUpdateCalled(0),
+				wasUpdateUserCalled(0),
 				wasSendEmailChangedCalled(0, "", ""),
 			),
 		},
@@ -1931,17 +1947,17 @@ func Test_Handler_Verify(t *testing.T) {
 			Token: inpTok,
 			Checks: checks(
 				hasResp(true),
-				wasUpdateCalled(0),
+				wasUpdateUserCalled(0),
 				wasSendEmailChangedCalled(0, "", ""),
 			),
 		},
-		"Error returned by Database.Update": {
+		"Error returned by DB.UpdateUser": {
 			DB:    dbStub(nil, assert.AnError, toPointer(inpUsr)),
 			Email: emailStub(),
 			Token: inpTok,
 			Checks: checks(
 				hasResp(true),
-				wasUpdateCalled(1),
+				wasUpdateUserCalled(1),
 				wasSendEmailChangedCalled(0, "", ""),
 			),
 		},
@@ -1956,7 +1972,7 @@ func Test_Handler_Verify(t *testing.T) {
 			Token: inpTok,
 			Checks: checks(
 				hasResp(false),
-				wasUpdateCalled(1),
+				wasUpdateUserCalled(1),
 				wasSendEmailChangedCalled(0, "", ""),
 			),
 		},
@@ -1970,7 +1986,7 @@ func Test_Handler_Verify(t *testing.T) {
 			Token: inpTok,
 			Checks: checks(
 				hasResp(false),
-				wasUpdateCalled(1),
+				wasUpdateUserCalled(1),
 				wasSendEmailChangedCalled(1, inpUsr.Email, inpUsr.UnverifiedEmail.String),
 			),
 		},
@@ -1980,7 +1996,7 @@ func Test_Handler_Verify(t *testing.T) {
 			Token: inpTok,
 			Checks: checks(
 				hasResp(false),
-				wasUpdateCalled(1),
+				wasUpdateUserCalled(1),
 				wasSendEmailChangedCalled(1, inpUsr.Email, inpUsr.UnverifiedEmail.String),
 			),
 		},
@@ -1999,6 +2015,7 @@ func Test_Handler_Verify(t *testing.T) {
 			hdl.email = c.Email
 			hdl.Verify(rec, addQueryParam(req, "token", c.Token))
 			time.Sleep(time.Millisecond * 30) // to record goroutine func call
+
 			for _, ch := range c.Checks {
 				ch(t, c.DB, c.Email, rec)
 			}
@@ -2025,9 +2042,9 @@ func Test_Handler_CancelVerification(t *testing.T) {
 		}
 	}
 
-	wasUpdateCalled := func(count int) check {
+	wasUpdateUserCalled := func(count int) check {
 		return func(t *testing.T, db *DBMock, _ *httptest.ResponseRecorder) {
-			ff := db.UpdateCalls()
+			ff := db.UpdateUserCalls()
 			require.Len(t, ff, count)
 
 			if count == 0 {
@@ -2042,10 +2059,10 @@ func Test_Handler_CancelVerification(t *testing.T) {
 
 	dbStub := func(err1, err2 error, usr User) *DBMock {
 		return &DBMock{
-			FetchByIDFunc: func(_ context.Context, _ xid.ID) (User, error) {
+			FetchUserByIDFunc: func(_ context.Context, _ xid.ID) (User, error) {
 				return usr, err1
 			},
-			UpdateFunc: func(_ context.Context, _ User) error {
+			UpdateUserFunc: func(_ context.Context, _ User) error {
 				return err2
 			},
 		}
@@ -2058,7 +2075,7 @@ func Test_Handler_CancelVerification(t *testing.T) {
 		UnverifiedEmail: zero.StringFrom("user123@email.com"),
 	}
 
-	inpTok, _ := inpUsr.InitVerification(TokenTimes{time.Hour, time.Hour})
+	inpTok, _ := inpUsr.InitVerification(TokenLifetime{time.Hour, time.Hour})
 
 	cc := map[string]struct {
 		DB     *DBMock
@@ -2070,7 +2087,7 @@ func Test_Handler_CancelVerification(t *testing.T) {
 			Token: inpTok,
 			Checks: checks(
 				hasResp(true),
-				wasUpdateCalled(0),
+				wasUpdateUserCalled(0),
 			),
 		},
 		"Error returned by Core.CancelVerification": {
@@ -2082,15 +2099,15 @@ func Test_Handler_CancelVerification(t *testing.T) {
 			Token: inpTok,
 			Checks: checks(
 				hasResp(true),
-				wasUpdateCalled(0),
+				wasUpdateUserCalled(0),
 			),
 		},
-		"Error returned by Database.Update": {
+		"Error returned by DB.Update": {
 			DB:    dbStub(nil, assert.AnError, toPointer(inpUsr)),
 			Token: inpTok,
 			Checks: checks(
 				hasResp(true),
-				wasUpdateCalled(1),
+				wasUpdateUserCalled(1),
 			),
 		},
 		"Successful verification cancel": {
@@ -2098,7 +2115,7 @@ func Test_Handler_CancelVerification(t *testing.T) {
 			Token: inpTok,
 			Checks: checks(
 				hasResp(false),
-				wasUpdateCalled(1),
+				wasUpdateUserCalled(1),
 			),
 		},
 	}
@@ -2115,6 +2132,7 @@ func Test_Handler_CancelVerification(t *testing.T) {
 			hdl.db = c.DB
 			hdl.CancelVerification(rec, addQueryParam(req, "token", c.Token))
 			time.Sleep(time.Millisecond * 30) // to record goroutine func call
+
 			for _, ch := range c.Checks {
 				ch(t, c.DB, rec)
 			}
@@ -2141,9 +2159,9 @@ func Test_Handler_InitRecovery(t *testing.T) {
 		}
 	}
 
-	wasFetchByEmailCalled := func(count int, eml string) check {
+	wasFetchUserByEmailCalled := func(count int, eml string) check {
 		return func(t *testing.T, db *DBMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
-			ff := db.FetchByEmailCalls()
+			ff := db.FetchUserByEmailCalls()
 			require.Len(t, ff, count)
 
 			if count == 0 {
@@ -2155,9 +2173,9 @@ func Test_Handler_InitRecovery(t *testing.T) {
 		}
 	}
 
-	wasUpdateCalled := func(count int) check {
+	wasUpdateUserCalled := func(count int) check {
 		return func(t *testing.T, db *DBMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
-			ff := db.UpdateCalls()
+			ff := db.UpdateUserCalls()
 			require.Len(t, ff, count)
 
 			if count == 0 {
@@ -2187,10 +2205,10 @@ func Test_Handler_InitRecovery(t *testing.T) {
 
 	dbStub := func(err1, err2 error, usr User) *DBMock {
 		return &DBMock{
-			FetchByEmailFunc: func(_ context.Context, _ string) (User, error) {
+			FetchUserByEmailFunc: func(_ context.Context, _ string) (User, error) {
 				return usr, err1
 			},
-			UpdateFunc: func(_ context.Context, _ User) error {
+			UpdateUserFunc: func(_ context.Context, _ User) error {
 				return err2
 			},
 		}
@@ -2219,8 +2237,8 @@ func Test_Handler_InitRecovery(t *testing.T) {
 			Body:  "{",
 			Checks: checks(
 				hasResp(true),
-				wasFetchByEmailCalled(0, ""),
-				wasUpdateCalled(0),
+				wasFetchUserByEmailCalled(0, ""),
+				wasUpdateUserCalled(0),
 				wasSendRecoveryCalled(0, ""),
 			),
 		},
@@ -2230,30 +2248,30 @@ func Test_Handler_InitRecovery(t *testing.T) {
 			Body:  toJSON("useremail.com", "", false),
 			Checks: checks(
 				hasResp(true),
-				wasFetchByEmailCalled(0, ""),
-				wasUpdateCalled(0),
+				wasFetchUserByEmailCalled(0, ""),
+				wasUpdateUserCalled(0),
 				wasSendRecoveryCalled(0, ""),
 			),
 		},
-		"User error returned by Database.FetchByEmail": {
+		"User error returned by DB.FetchUserByEmail": {
 			DB:    dbStub(httpflow.NewError(nil, 400, "123"), nil, nil),
 			Email: emailStub(),
 			Body:  toJSON(_email, "", false),
 			Checks: checks(
 				hasResp(false),
-				wasFetchByEmailCalled(1, inpUsr.Email),
-				wasUpdateCalled(0),
+				wasFetchUserByEmailCalled(1, inpUsr.Email),
+				wasUpdateUserCalled(0),
 				wasSendRecoveryCalled(0, ""),
 			),
 		},
-		"Error returned by Database.FetchByEmail": {
+		"Error returned by DB.FetchUserByEmail": {
 			DB:    dbStub(assert.AnError, nil, nil),
 			Email: emailStub(),
 			Body:  toJSON(_email, "", false),
 			Checks: checks(
 				hasResp(true),
-				wasFetchByEmailCalled(1, inpUsr.Email),
-				wasUpdateCalled(0),
+				wasFetchUserByEmailCalled(1, inpUsr.Email),
+				wasUpdateUserCalled(0),
 				wasSendRecoveryCalled(0, ""),
 			),
 		},
@@ -2267,31 +2285,31 @@ func Test_Handler_InitRecovery(t *testing.T) {
 			Body:  toJSON(_email, "", false),
 			Checks: checks(
 				hasResp(true),
-				wasFetchByEmailCalled(1, inpUsr.Email),
-				wasUpdateCalled(0),
+				wasFetchUserByEmailCalled(1, inpUsr.Email),
+				wasUpdateUserCalled(0),
 				wasSendRecoveryCalled(0, ""),
 			),
 		},
-		"User error returned by Database.Update": {
+		"User error returned by DB.UpdateUser": {
 			DB: dbStub(nil, httpflow.NewError(nil, 400, "123"),
 				toPointer(inpUsr)),
 			Email: emailStub(),
 			Body:  toJSON(_email, "", false),
 			Checks: checks(
 				hasResp(false),
-				wasFetchByEmailCalled(1, inpUsr.Email),
-				wasUpdateCalled(1),
+				wasFetchUserByEmailCalled(1, inpUsr.Email),
+				wasUpdateUserCalled(1),
 				wasSendRecoveryCalled(0, ""),
 			),
 		},
-		"Error returned by Database.Update": {
+		"Error returned by DB.UpdateUser": {
 			DB:    dbStub(nil, assert.AnError, toPointer(inpUsr)),
 			Email: emailStub(),
 			Body:  toJSON(_email, "", false),
 			Checks: checks(
 				hasResp(true),
-				wasFetchByEmailCalled(1, inpUsr.Email),
-				wasUpdateCalled(1),
+				wasFetchUserByEmailCalled(1, inpUsr.Email),
+				wasUpdateUserCalled(1),
 				wasSendRecoveryCalled(0, ""),
 			),
 		},
@@ -2301,8 +2319,8 @@ func Test_Handler_InitRecovery(t *testing.T) {
 			Body:  toJSON(_email, "", false),
 			Checks: checks(
 				hasResp(false),
-				wasFetchByEmailCalled(1, inpUsr.Email),
-				wasUpdateCalled(1),
+				wasFetchUserByEmailCalled(1, inpUsr.Email),
+				wasUpdateUserCalled(1),
 				wasSendRecoveryCalled(1, inpUsr.Email),
 			),
 		},
@@ -2322,6 +2340,7 @@ func Test_Handler_InitRecovery(t *testing.T) {
 			hdl.email = c.Email
 			hdl.InitRecovery(rec, req)
 			time.Sleep(time.Millisecond * 30) // to record goroutine func call
+
 			for _, ch := range c.Checks {
 				ch(t, c.DB, c.Email, rec)
 			}
@@ -2348,9 +2367,9 @@ func Test_Handler_Recover(t *testing.T) {
 		}
 	}
 
-	wasUpdateCalled := func(count int) check {
+	wasUpdateUserCalled := func(count int) check {
 		return func(t *testing.T, db *DBMock, _ *EmailSenderMock, _ *httptest.ResponseRecorder) {
-			ff := db.UpdateCalls()
+			ff := db.UpdateUserCalls()
 			require.Len(t, ff, count)
 
 			if count == 0 {
@@ -2381,10 +2400,10 @@ func Test_Handler_Recover(t *testing.T) {
 
 	dbStub := func(err1, err2 error, usr User) *DBMock {
 		return &DBMock{
-			FetchByIDFunc: func(_ context.Context, _ xid.ID) (User, error) {
+			FetchUserByIDFunc: func(_ context.Context, _ xid.ID) (User, error) {
 				return usr, err1
 			},
-			UpdateFunc: func(_ context.Context, _ User) error {
+			UpdateUserFunc: func(_ context.Context, _ User) error {
 				return err2
 			},
 		}
@@ -2410,7 +2429,7 @@ func Test_Handler_Recover(t *testing.T) {
 		Email:       _email,
 	}
 
-	inpTok, _ := inpUsr.InitRecovery(TokenTimes{time.Hour, time.Hour})
+	inpTok, _ := inpUsr.InitRecovery(TokenLifetime{time.Hour, time.Hour})
 
 	cc := map[string]struct {
 		DB           *DBMock
@@ -2428,7 +2447,7 @@ func Test_Handler_Recover(t *testing.T) {
 			Body:         toJSON("", "password1", false),
 			Checks: checks(
 				hasResp(true),
-				wasUpdateCalled(0),
+				wasUpdateUserCalled(0),
 				wasSendPasswordChangedCalled(0, ""),
 			),
 		},
@@ -2440,7 +2459,7 @@ func Test_Handler_Recover(t *testing.T) {
 			Body:         "{",
 			Checks: checks(
 				hasResp(true),
-				wasUpdateCalled(0),
+				wasUpdateUserCalled(0),
 				wasSendPasswordChangedCalled(0, ""),
 			),
 		},
@@ -2456,7 +2475,7 @@ func Test_Handler_Recover(t *testing.T) {
 			Body:         toJSON("", "password1", false),
 			Checks: checks(
 				hasResp(true),
-				wasUpdateCalled(0),
+				wasUpdateUserCalled(0),
 				wasSendPasswordChangedCalled(0, ""),
 			),
 		},
@@ -2468,11 +2487,11 @@ func Test_Handler_Recover(t *testing.T) {
 			Body:         toJSON("", "password1", false),
 			Checks: checks(
 				hasResp(true),
-				wasUpdateCalled(0),
+				wasUpdateUserCalled(0),
 				wasSendPasswordChangedCalled(0, ""),
 			),
 		},
-		"Error returned by Database.Update": {
+		"Error returned by DB.UpdateUser": {
 			DB:           dbStub(nil, assert.AnError, toPointer(inpUsr)),
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
@@ -2480,7 +2499,7 @@ func Test_Handler_Recover(t *testing.T) {
 			Body:         toJSON("", "password1", false),
 			Checks: checks(
 				hasResp(true),
-				wasUpdateCalled(1),
+				wasUpdateUserCalled(1),
 				wasSendPasswordChangedCalled(0, ""),
 			),
 		},
@@ -2492,7 +2511,7 @@ func Test_Handler_Recover(t *testing.T) {
 			Body:         toJSON("", "password1", false),
 			Checks: checks(
 				hasResp(false),
-				wasUpdateCalled(1),
+				wasUpdateUserCalled(1),
 				wasSendPasswordChangedCalled(1, inpUsr.Email),
 			),
 		},
@@ -2508,12 +2527,13 @@ func Test_Handler_Recover(t *testing.T) {
 				strings.NewReader(c.Body))
 			rec := httptest.NewRecorder()
 			hdl := newHandler()
-			hdl.sessions = sessionup.NewManager(c.SessionStore,
+			hdl.session.manager = sessionup.NewManager(c.SessionStore,
 				sessionup.ExpiresIn(time.Hour))
 			hdl.db = c.DB
 			hdl.email = c.Email
 			hdl.Recover(rec, addQueryParam(req, "token", c.Token))
 			time.Sleep(time.Millisecond * 30) // to record goroutine func call
+
 			for _, ch := range c.Checks {
 				ch(t, c.DB, c.Email, rec)
 			}
@@ -2542,7 +2562,7 @@ func Test_Handler_PingRecovery(t *testing.T) {
 
 	dbStub := func(err error, usr User) *DBMock {
 		return &DBMock{
-			FetchByIDFunc: func(_ context.Context, _ xid.ID) (User, error) {
+			FetchUserByIDFunc: func(_ context.Context, _ xid.ID) (User, error) {
 				return usr, err
 			},
 		}
@@ -2554,7 +2574,7 @@ func Test_Handler_PingRecovery(t *testing.T) {
 		Email:       _email,
 	}
 
-	inpTok, _ := inpUsr.InitRecovery(TokenTimes{time.Hour, time.Hour})
+	inpTok, _ := inpUsr.InitRecovery(TokenLifetime{time.Hour, time.Hour})
 
 	cc := map[string]struct {
 		DB     *DBMock
@@ -2600,6 +2620,7 @@ func Test_Handler_PingRecovery(t *testing.T) {
 			hdl := newHandler()
 			hdl.db = c.DB
 			hdl.PingRecovery(rec, addQueryParam(req, "token", c.Token))
+
 			for _, ch := range c.Checks {
 				ch(t, c.DB, rec)
 			}
@@ -2626,9 +2647,9 @@ func Test_Handler_CancelRecovery(t *testing.T) {
 		}
 	}
 
-	wasUpdateCalled := func(count int) check {
+	wasUpdateUserCalled := func(count int) check {
 		return func(t *testing.T, db *DBMock, _ *httptest.ResponseRecorder) {
-			ff := db.UpdateCalls()
+			ff := db.UpdateUserCalls()
 			require.Len(t, ff, count)
 
 			if count == 0 {
@@ -2643,10 +2664,10 @@ func Test_Handler_CancelRecovery(t *testing.T) {
 
 	dbStub := func(err1, err2 error, usr User) *DBMock {
 		return &DBMock{
-			FetchByIDFunc: func(_ context.Context, _ xid.ID) (User, error) {
+			FetchUserByIDFunc: func(_ context.Context, _ xid.ID) (User, error) {
 				return usr, err1
 			},
-			UpdateFunc: func(_ context.Context, _ User) error {
+			UpdateUserFunc: func(_ context.Context, _ User) error {
 				return err2
 			},
 		}
@@ -2658,7 +2679,7 @@ func Test_Handler_CancelRecovery(t *testing.T) {
 		Email:       _email,
 	}
 
-	inpTok, _ := inpUsr.InitRecovery(TokenTimes{time.Hour, time.Hour})
+	inpTok, _ := inpUsr.InitRecovery(TokenLifetime{time.Hour, time.Hour})
 
 	cc := map[string]struct {
 		DB     *DBMock
@@ -2670,7 +2691,7 @@ func Test_Handler_CancelRecovery(t *testing.T) {
 			Token: inpTok,
 			Checks: checks(
 				hasResp(true),
-				wasUpdateCalled(0),
+				wasUpdateUserCalled(0),
 			),
 		},
 		"Error returned by Core.CancelRecovery": {
@@ -2682,15 +2703,15 @@ func Test_Handler_CancelRecovery(t *testing.T) {
 			Token: inpTok,
 			Checks: checks(
 				hasResp(true),
-				wasUpdateCalled(0),
+				wasUpdateUserCalled(0),
 			),
 		},
-		"Error returned by Database.Update": {
+		"Error returned by DB.UpdateUser": {
 			DB:    dbStub(nil, assert.AnError, toPointer(inpUsr)),
 			Token: inpTok,
 			Checks: checks(
 				hasResp(true),
-				wasUpdateCalled(1),
+				wasUpdateUserCalled(1),
 			),
 		},
 		"Successful recovery cancel": {
@@ -2698,7 +2719,7 @@ func Test_Handler_CancelRecovery(t *testing.T) {
 			Token: inpTok,
 			Checks: checks(
 				hasResp(false),
-				wasUpdateCalled(1),
+				wasUpdateUserCalled(1),
 			),
 		},
 	}
@@ -2714,6 +2735,7 @@ func Test_Handler_CancelRecovery(t *testing.T) {
 			hdl := newHandler()
 			hdl.db = c.DB
 			hdl.CancelRecovery(rec, addQueryParam(req, "token", c.Token))
+
 			for _, ch := range c.Checks {
 				ch(t, c.DB, rec)
 			}
@@ -2749,9 +2771,9 @@ func Test_Handler_FetchByToken(t *testing.T) {
 		}
 	}
 
-	wasFetchByIDCalled := func(count int, id xid.ID) check {
+	wasFetchUserByIDCalled := func(count int, id xid.ID) check {
 		return func(t *testing.T, db *DBMock, _ User, _ string, _ error) {
-			ff := db.FetchByIDCalls()
+			ff := db.FetchUserByIDCalls()
 			require.Len(t, ff, count)
 
 			if count == 0 {
@@ -2765,14 +2787,14 @@ func Test_Handler_FetchByToken(t *testing.T) {
 
 	dbStub := func(err error, usr User) *DBMock {
 		return &DBMock{
-			FetchByIDFunc: func(_ context.Context, _ xid.ID) (User, error) {
+			FetchUserByIDFunc: func(_ context.Context, _ xid.ID) (User, error) {
 				return usr, err
 			},
 		}
 	}
 
 	inpUsr := Core{ID: xid.New()}
-	inpTok, _ := inpUsr.InitVerification(TokenTimes{time.Hour, time.Hour})
+	inpTok, _ := inpUsr.InitVerification(TokenLifetime{time.Hour, time.Hour})
 	inpRawTok, _, _ := FromFullToken(inpTok)
 
 	cc := map[string]struct {
@@ -2787,7 +2809,7 @@ func Test_Handler_FetchByToken(t *testing.T) {
 				hasUser(nil),
 				hasToken(""),
 				hasError(true),
-				wasFetchByIDCalled(0, xid.ID{}),
+				wasFetchUserByIDCalled(0, xid.ID{}),
 			),
 		},
 		"Invalid token": {
@@ -2797,17 +2819,17 @@ func Test_Handler_FetchByToken(t *testing.T) {
 				hasUser(nil),
 				hasToken(""),
 				hasError(true),
-				wasFetchByIDCalled(0, xid.ID{}),
+				wasFetchUserByIDCalled(0, xid.ID{}),
 			),
 		},
-		"Error returned by Database.FetchByID": {
+		"Error returned by DB.FetchUserByID": {
 			DB:    dbStub(assert.AnError, nil),
 			Token: inpTok,
 			Checks: checks(
 				hasUser(nil),
 				hasToken(""),
 				hasError(true),
-				wasFetchByIDCalled(1, inpUsr.ID),
+				wasFetchUserByIDCalled(1, inpUsr.ID),
 			),
 		},
 		"Successful fetch by token": {
@@ -2817,7 +2839,7 @@ func Test_Handler_FetchByToken(t *testing.T) {
 				hasUser(toPointer(inpUsr)),
 				hasToken(inpRawTok),
 				hasError(false),
-				wasFetchByIDCalled(1, inpUsr.ID),
+				wasFetchUserByIDCalled(1, inpUsr.ID),
 			),
 		},
 	}
@@ -2874,9 +2896,11 @@ func addChiCtx(ctx context.Context, k, v string) context.Context {
 }
 
 func newHandler() *Handler {
-	return &Handler{
-		onError: func(error) {},
-		parse:   DefaultParser,
-		create:  DefaultCreator,
+	h := &Handler{
+		log: zerolog.Nop(),
 	}
+	h.ext.parse = DefaultParser
+	h.ext.create = DefaultCreator
+
+	return h
 }

@@ -74,7 +74,7 @@ jobs:
             exit 1
         fi
 
-        readonly MIN_COV=90
+        readonly MIN_COV=91
 
         if (( "$(echo "${cov} < ${MIN_COV}" | bc)" )); then
             echo "Coverage: ${cov}%, minimum allowed: ${MIN_COV}%"
