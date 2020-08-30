@@ -135,11 +135,11 @@ func Test_DefaultCreator(t *testing.T) {
 
 func Test_DefaultLoginCheck(t *testing.T) {
 	cr := &Core{}
-	assert.NoError(t, DefaultLoginCheck(true)(cr))
-	assert.Equal(t, ErrNotActivated, DefaultLoginCheck(false)(cr))
+	assert.NoError(t, DefaultLoginCheck(true)(context.Background(), cr))
+	assert.Equal(t, ErrNotActivated, DefaultLoginCheck(false)(context.Background(), cr))
 
 	cr.ActivatedAt = zero.TimeFrom(time.Now())
-	assert.NoError(t, DefaultLoginCheck(false)(cr))
+	assert.NoError(t, DefaultLoginCheck(false)(context.Background(), cr))
 }
 
 func Test_DefaultDeleteCheck(t *testing.T) {

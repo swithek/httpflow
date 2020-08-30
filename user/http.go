@@ -157,12 +157,12 @@ func DefaultCreator(_ context.Context, inp Inputer) (User, error) {
 // LoginCheck is a function that should be used for custom user data
 // checks before authentication.
 // Used before non-registration type authentication (e.g. login).
-type LoginCheck func(usr User) error
+type LoginCheck func(ctx context.Context, usr User) error
 
 // DefaultLoginCheck checks whether the user has to be activated before
 // authentication or not.
 func DefaultLoginCheck(open bool) LoginCheck {
-	return func(usr User) error {
+	return func(_ context.Context, usr User) error {
 		if !open && !usr.ExposeCore().IsActivated() {
 			return ErrNotActivated
 		}
@@ -345,7 +345,7 @@ func (h *Handler) LogIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = h.ext.loginCheck(usr); err != nil {
+	if err = h.ext.loginCheck(ctx, usr); err != nil {
 		httpflow.RespondError(h.log, w, r, err)
 		return
 	}
