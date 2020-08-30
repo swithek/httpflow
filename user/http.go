@@ -848,7 +848,7 @@ type DB interface {
 	// data store.
 	UserStats(ctx context.Context) (Stats, error)
 
-	// Create should insert the freshly created user into the underlying
+	// CreateUser should insert the freshly created user into the underlying
 	// data store.
 	CreateUser(ctx context.Context, usr User) error
 
@@ -856,18 +856,18 @@ type DB interface {
 	// store by the provided query.
 	FetchManyUsers(ctx context.Context, qr httpflow.Query) ([]User, error)
 
-	// FetchByID should retrieve a user from the underlying data store
+	// FetchUserByID should retrieve a user from the underlying data store
 	// by their ID.
 	FetchUserByID(ctx context.Context, id xid.ID) (User, error)
 
-	// FetchByEmail should retrieve a user from the underlying data store
+	// FetchUserByEmail should retrieve a user from the underlying data store
 	// by their email address.
 	FetchUserByEmail(ctx context.Context, eml string) (User, error)
 
-	// Update should update user's data in the underlying data store.
+	// UpdateUser should update user's data in the underlying data store.
 	UpdateUser(ctx context.Context, usr User) error
 
-	// DeleteByID should delete a user from the underlying data store
+	// DeleteUserByID should delete a user from the underlying data store
 	// by their ID.
 	DeleteUserByID(ctx context.Context, id xid.ID) error
 }
