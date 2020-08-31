@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/swithek/httpflow"
 	"github.com/swithek/httpflow/testutil"
+	"github.com/swithek/httpflow/timeutil"
 	"github.com/swithek/httpflow/user"
 	"gopkg.in/guregu/null.v3"
 	"gopkg.in/guregu/null.v3/zero"
@@ -866,20 +867,20 @@ func newDB(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {
 func newFullUser() user.Core {
 	return user.Core{
 		ID:              xid.New(),
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
-		ActivatedAt:     zero.TimeFrom(time.Now()),
+		CreatedAt:       timeutil.Now(),
+		UpdatedAt:       timeutil.Now(),
+		ActivatedAt:     zero.TimeFrom(timeutil.Now()),
 		Email:           "user@email.com",
 		UnverifiedEmail: zero.StringFrom("user123@email.com"),
 		PasswordHash:    []byte("password123"),
 		Verification: user.Token{
-			ExpiresAt: null.TimeFrom(time.Now().Add(time.Hour)),
-			NextAt:    null.TimeFrom(time.Now().Add(time.Hour)),
+			ExpiresAt: null.TimeFrom(timeutil.Now().Add(time.Hour)),
+			NextAt:    null.TimeFrom(timeutil.Now().Add(time.Hour)),
 			Hash:      []byte("token"),
 		},
 		Recovery: user.Token{
-			ExpiresAt: null.TimeFrom(time.Now().Add(time.Hour)),
-			NextAt:    null.TimeFrom(time.Now().Add(time.Hour)),
+			ExpiresAt: null.TimeFrom(timeutil.Now().Add(time.Hour)),
+			NextAt:    null.TimeFrom(timeutil.Now().Add(time.Hour)),
 			Hash:      []byte("token"),
 		},
 	}

@@ -7,6 +7,7 @@ import (
 	"github.com/dchest/uniuri"
 	"github.com/rs/xid"
 	"github.com/swithek/httpflow"
+	"github.com/swithek/httpflow/timeutil"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/guregu/null.v3"
 )
@@ -59,7 +60,7 @@ func (t *Token) IsEmpty() bool {
 // gen generates a new token. Provided values determine the expiration time
 // and the time when another token will be allowed to be generated.
 func (t *Token) gen(tl TokenLifetime) (string, error) {
-	if time.Now().Before(t.NextAt.Time) {
+	if timeutil.Now().Before(t.NextAt.Time) {
 		return "", ErrTooManyTokens
 	}
 
@@ -71,8 +72,8 @@ func (t *Token) gen(tl TokenLifetime) (string, error) {
 		return "", err
 	}
 
-	t.ExpiresAt = null.TimeFrom(time.Now().Add(tl.Interval))
-	t.NextAt = null.TimeFrom(time.Now().Add(tl.Cooldown))
+	t.ExpiresAt = null.TimeFrom(timeutil.Now().Add(tl.Interval))
+	t.NextAt = null.TimeFrom(timeutil.Now().Add(tl.Cooldown))
 	t.Hash = h
 
 	return v, nil
@@ -81,7 +82,7 @@ func (t *Token) gen(tl TokenLifetime) (string, error) {
 // Check determines whether the provided token is correct and non-expired
 // or not.
 func (t *Token) Check(v string) error {
-	if time.Now().After(t.ExpiresAt.Time) {
+	if timeutil.Now().After(t.ExpiresAt.Time) {
 		return ErrInvalidToken
 	}
 

@@ -8,6 +8,7 @@ import (
 
 	"github.com/rs/xid"
 	"github.com/swithek/httpflow"
+	"github.com/swithek/httpflow/timeutil"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/guregu/null.v3/zero"
 )
@@ -96,7 +97,7 @@ type Core struct {
 func NewCore(inp Inputer) (*Core, error) {
 	c := &Core{
 		ID:        xid.New(),
-		CreatedAt: time.Now(),
+		CreatedAt: timeutil.Now(),
 	}
 
 	if _, err := c.ApplyInput(inp); err != nil {
@@ -121,7 +122,7 @@ func (c *Core) ApplyInput(inp Inputer) (Summary, error) {
 		return nil, err
 	}
 
-	c.UpdatedAt = time.Now()
+	c.UpdatedAt = timeutil.Now()
 
 	return CoreSummary{
 		Email:    eml,
@@ -250,7 +251,7 @@ func (c *Core) Verify(t string) error {
 	// verification.
 
 	if !c.IsActivated() {
-		c.ActivatedAt = zero.TimeFrom(time.Now())
+		c.ActivatedAt = zero.TimeFrom(timeutil.Now())
 	}
 
 	if c.UnverifiedEmail.String != "" {

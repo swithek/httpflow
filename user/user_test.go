@@ -7,6 +7,7 @@ import (
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
 	"github.com/swithek/httpflow/testutil"
+	"github.com/swithek/httpflow/timeutil"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/guregu/null.v3"
 	"gopkg.in/guregu/null.v3/zero"
@@ -92,7 +93,7 @@ func Test_Core_IsActivated(t *testing.T) {
 	cr := Core{}
 	assert.False(t, cr.IsActivated())
 
-	cr.ActivatedAt = zero.TimeFrom(time.Now())
+	cr.ActivatedAt = zero.TimeFrom(timeutil.Now())
 	assert.True(t, cr.IsActivated())
 }
 
@@ -288,7 +289,7 @@ func Test_Core_InitVerification(t *testing.T) {
 	}{
 		"Too many requests": {
 			Err:   assert.AnError,
-			Token: Token{NextAt: null.TimeFrom(time.Now().Add(time.Minute))},
+			Token: Token{NextAt: null.TimeFrom(timeutil.Now().Add(time.Minute))},
 		},
 		"Successful init": {
 			Token: Token{},
@@ -338,7 +339,7 @@ func Test_Core_Verify(t *testing.T) {
 		"Unverified email matches active email": {
 			Core: func() Core {
 				cr := Core{
-					ActivatedAt:  zero.TimeFrom(time.Now()),
+					ActivatedAt:  zero.TimeFrom(timeutil.Now()),
 					Verification: inp,
 				}
 				cr.Email = _email
@@ -369,7 +370,7 @@ func Test_Core_Verify(t *testing.T) {
 		"Successful email verification": {
 			Core: func() Core {
 				cr := Core{
-					ActivatedAt:  zero.TimeFrom(time.Now()),
+					ActivatedAt:  zero.TimeFrom(timeutil.Now()),
 					Verification: inp,
 				}
 				cr.UnverifiedEmail = zero.StringFrom(_email)
@@ -455,7 +456,7 @@ func Test_Core_InitRecovery(t *testing.T) {
 	}{
 		"Too many requests": {
 			Err:   assert.AnError,
-			Token: Token{NextAt: null.TimeFrom(time.Now().Add(time.Minute))},
+			Token: Token{NextAt: null.TimeFrom(timeutil.Now().Add(time.Minute))},
 		},
 		"Successful init": {
 			Token: Token{},

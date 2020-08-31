@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/swithek/httpflow"
 	depMock "github.com/swithek/httpflow/_mock"
+	"github.com/swithek/httpflow/timeutil"
 	"github.com/swithek/sessionup"
 	"gopkg.in/guregu/null.v3"
 	"gopkg.in/guregu/null.v3/zero"
@@ -138,7 +139,7 @@ func Test_DefaultLoginCheck(t *testing.T) {
 	assert.NoError(t, DefaultLoginCheck(true)(context.Background(), cr))
 	assert.Equal(t, ErrNotActivated, DefaultLoginCheck(false)(context.Background(), cr))
 
-	cr.ActivatedAt = zero.TimeFrom(time.Now())
+	cr.ActivatedAt = zero.TimeFrom(timeutil.Now())
 	assert.NoError(t, DefaultLoginCheck(false)(context.Background(), cr))
 }
 
@@ -587,7 +588,7 @@ func Test_Handler_LogIn(t *testing.T) {
 			SessionStore: sessionStoreStub(nil),
 			DB: dbStub(nil, nil, func() *Core {
 				tmp := inpUsr
-				tmp.ActivatedAt = zero.TimeFrom(time.Now())
+				tmp.ActivatedAt = zero.TimeFrom(timeutil.Now())
 				return &tmp
 			}()),
 			LoginCheck: DefaultLoginCheck(true),
@@ -603,7 +604,7 @@ func Test_Handler_LogIn(t *testing.T) {
 			SessionStore: sessionStoreStub(nil),
 			DB: dbStub(nil, nil, func() *Core {
 				tmp := inpUsr
-				tmp.ActivatedAt = zero.TimeFrom(time.Now())
+				tmp.ActivatedAt = zero.TimeFrom(timeutil.Now())
 				return &tmp
 			}()),
 			LoginCheck: DefaultLoginCheck(true),
@@ -988,7 +989,7 @@ func Test_Handler_Update(t *testing.T) {
 		"Error returned by Core.InitVerification": {
 			DB: dbStub(nil, nil, toPointer(func() Core {
 				tmp := inpUsr
-				tmp.Verification.NextAt = null.TimeFrom(time.Now().Add(time.Hour))
+				tmp.Verification.NextAt = null.TimeFrom(timeutil.Now().Add(time.Hour))
 				return tmp
 			}())),
 			Email:        emailStub(),
@@ -1763,7 +1764,7 @@ func Test_Handler_ResendVerification(t *testing.T) {
 		"Error returned by Core.InitVerification": {
 			DB: dbStub(nil, assert.AnError, toPointer(func() Core {
 				tmp := inpUsr
-				tmp.Verification.NextAt = null.TimeFrom(time.Now().Add(time.Hour))
+				tmp.Verification.NextAt = null.TimeFrom(timeutil.Now().Add(time.Hour))
 				return tmp
 			}())),
 			Email:   emailStub(),
@@ -1792,7 +1793,7 @@ func Test_Handler_ResendVerification(t *testing.T) {
 			DB: dbStub(nil, nil, toPointer(func() Core {
 				tmp := inpUsr
 				tmp.UnverifiedEmail = zero.StringFrom(tmp.Email)
-				tmp.ActivatedAt = zero.TimeFrom(time.Now())
+				tmp.ActivatedAt = zero.TimeFrom(timeutil.Now())
 				return tmp
 			}())),
 			Email:   emailStub(),
@@ -1913,7 +1914,7 @@ func Test_Handler_Verify(t *testing.T) {
 	}
 
 	inpUsr := Core{
-		ActivatedAt:     zero.TimeFrom(time.Now()),
+		ActivatedAt:     zero.TimeFrom(timeutil.Now()),
 		ID:              xid.New(),
 		Email:           _email,
 		UnverifiedEmail: zero.StringFrom("user123@email.com"),
@@ -2069,7 +2070,7 @@ func Test_Handler_CancelVerification(t *testing.T) {
 	}
 
 	inpUsr := Core{
-		ActivatedAt:     zero.TimeFrom(time.Now()),
+		ActivatedAt:     zero.TimeFrom(timeutil.Now()),
 		ID:              xid.New(),
 		Email:           _email,
 		UnverifiedEmail: zero.StringFrom("user123@email.com"),
@@ -2278,7 +2279,7 @@ func Test_Handler_InitRecovery(t *testing.T) {
 		"Error returned by Core.InitRecovery": {
 			DB: dbStub(nil, nil, toPointer(func() Core {
 				tmp := inpUsr
-				tmp.Recovery.NextAt = null.TimeFrom(time.Now().Add(time.Hour))
+				tmp.Recovery.NextAt = null.TimeFrom(timeutil.Now().Add(time.Hour))
 				return tmp
 			}())),
 			Email: emailStub(),
@@ -2424,7 +2425,7 @@ func Test_Handler_Recover(t *testing.T) {
 	}
 
 	inpUsr := Core{
-		ActivatedAt: zero.TimeFrom(time.Now()),
+		ActivatedAt: zero.TimeFrom(timeutil.Now()),
 		ID:          xid.New(),
 		Email:       _email,
 	}
@@ -2569,7 +2570,7 @@ func Test_Handler_PingRecovery(t *testing.T) {
 	}
 
 	inpUsr := Core{
-		ActivatedAt: zero.TimeFrom(time.Now()),
+		ActivatedAt: zero.TimeFrom(timeutil.Now()),
 		ID:          xid.New(),
 		Email:       _email,
 	}
@@ -2674,7 +2675,7 @@ func Test_Handler_CancelRecovery(t *testing.T) {
 	}
 
 	inpUsr := Core{
-		ActivatedAt: zero.TimeFrom(time.Now()),
+		ActivatedAt: zero.TimeFrom(timeutil.Now()),
 		ID:          xid.New(),
 		Email:       _email,
 	}

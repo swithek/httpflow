@@ -8,6 +8,7 @@ import (
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
 	"github.com/swithek/httpflow/testutil"
+	"github.com/swithek/httpflow/timeutil"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/guregu/null.v3"
 )
@@ -27,7 +28,7 @@ func Test_Token_gen(t *testing.T) {
 	}{
 		"Too many requests": {
 			Token: Token{
-				NextAt: null.TimeFrom(time.Now().Add(time.Hour)),
+				NextAt: null.TimeFrom(timeutil.Now().Add(time.Hour)),
 			},
 			Err: ErrTooManyTokens,
 		},
@@ -58,7 +59,7 @@ func Test_Token_gen(t *testing.T) {
 
 func Test_Token_Check(t *testing.T) {
 	inp := Token{
-		ExpiresAt: null.TimeFrom(time.Now().Add(time.Hour)),
+		ExpiresAt: null.TimeFrom(timeutil.Now().Add(time.Hour)),
 		Hash: func() []byte {
 			hash, _ := bcrypt.GenerateFromPassword([]byte("Token"), bcrypt.DefaultCost)
 			return hash
@@ -113,8 +114,8 @@ func Test_Token_Check(t *testing.T) {
 
 func Test_Token_Clear(t *testing.T) {
 	tok := Token{
-		ExpiresAt: null.TimeFrom(time.Now()),
-		NextAt:    null.TimeFrom(time.Now()),
+		ExpiresAt: null.TimeFrom(timeutil.Now()),
+		NextAt:    null.TimeFrom(timeutil.Now()),
 		Hash:      []byte("10"),
 	}
 
