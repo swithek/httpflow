@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -171,10 +173,10 @@ func Test_Handler_Register(t *testing.T) {
 
 	hasResp := func(err, rem bool) check {
 		return func(t *testing.T, _ *DBMock, _ *EmailSenderMock, rec *httptest.ResponseRecorder) {
-			if err {
-				assert.LessOrEqual(t, 400, rec.Code)
-				assert.NotZero(t, rec.Body.Len())
+			assert.NotZero(t, rec.Body.Len())
 
+			if err {
+				assert.GreaterOrEqual(t, rec.Code, 400)
 				return
 			}
 
@@ -187,8 +189,8 @@ func Test_Handler_Register(t *testing.T) {
 				assert.NotContains(t, co, "Expires")
 			}
 
-			assert.Greater(t, 400, rec.Code)
-			assert.Zero(t, rec.Body.Len())
+			assert.Regexp(t, regexp.MustCompile(`^/.{20}$`), rec.Header().Get("Location"))
+			assert.Equal(t, http.StatusCreated, rec.Code)
 		}
 	}
 
@@ -383,9 +385,9 @@ func Test_Handler_LogIn(t *testing.T) {
 	hasResp := func(rem bool, code int) check {
 		return func(t *testing.T, _ *DBMock, rec *httptest.ResponseRecorder) {
 			assert.Equal(t, code, rec.Code)
+			assert.NotZero(t, rec.Body.Len())
 
 			if code >= 400 {
-				assert.NotZero(t, rec.Body.Len())
 				return
 			}
 
@@ -397,8 +399,6 @@ func Test_Handler_LogIn(t *testing.T) {
 			} else {
 				assert.NotContains(t, co, "Expires")
 			}
-
-			assert.Zero(t, rec.Body.Len())
 		}
 	}
 
@@ -470,7 +470,7 @@ func Test_Handler_LogIn(t *testing.T) {
 			LoginCheck:   DefaultLoginCheck(true),
 			Body:         "{",
 			Checks: checks(
-				hasResp(false, 400),
+				hasResp(false, http.StatusBadRequest),
 				wasFetchUserByEmailCalled(0, ""),
 				wasUpdateUserCalled(0),
 			),
@@ -482,7 +482,7 @@ func Test_Handler_LogIn(t *testing.T) {
 			LoginCheck:   DefaultLoginCheck(true),
 			Body:         toJSON("useremail.com", inpPass, false),
 			Checks: checks(
-				hasResp(false, 401),
+				hasResp(false, http.StatusUnauthorized),
 				wasFetchUserByEmailCalled(0, ""),
 				wasUpdateUserCalled(0),
 			),
@@ -494,7 +494,7 @@ func Test_Handler_LogIn(t *testing.T) {
 			LoginCheck:   DefaultLoginCheck(true),
 			Body:         toJSON(inpUsr.Email, inpPass, false),
 			Checks: checks(
-				hasResp(false, 500),
+				hasResp(false, http.StatusInternalServerError),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
 				wasUpdateUserCalled(0),
 			),
@@ -506,7 +506,7 @@ func Test_Handler_LogIn(t *testing.T) {
 			LoginCheck:   DefaultLoginCheck(true),
 			Body:         toJSON(inpUsr.Email, inpPass, false),
 			Checks: checks(
-				hasResp(false, 401),
+				hasResp(false, http.StatusUnauthorized),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
 				wasUpdateUserCalled(0),
 			),
@@ -518,7 +518,7 @@ func Test_Handler_LogIn(t *testing.T) {
 			LoginCheck:   DefaultLoginCheck(false),
 			Body:         toJSON(inpUsr.Email, inpPass, false),
 			Checks: checks(
-				hasResp(false, 403),
+				hasResp(false, http.StatusForbidden),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
 				wasUpdateUserCalled(0),
 			),
@@ -530,7 +530,7 @@ func Test_Handler_LogIn(t *testing.T) {
 			LoginCheck:   DefaultLoginCheck(true),
 			Body:         toJSON(inpUsr.Email, "password2", false),
 			Checks: checks(
-				hasResp(false, 401),
+				hasResp(false, http.StatusUnauthorized),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
 				wasUpdateUserCalled(0),
 			),
@@ -542,7 +542,7 @@ func Test_Handler_LogIn(t *testing.T) {
 			LoginCheck:   DefaultLoginCheck(true),
 			Body:         toJSON(inpUsr.Email, inpPass, false),
 			Checks: checks(
-				hasResp(false, 500),
+				hasResp(false, http.StatusInternalServerError),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
 				wasUpdateUserCalled(1),
 			),
@@ -554,7 +554,7 @@ func Test_Handler_LogIn(t *testing.T) {
 			LoginCheck:   DefaultLoginCheck(true),
 			Body:         toJSON(inpUsr.Email, inpPass, true),
 			Checks: checks(
-				hasResp(false, 500),
+				hasResp(false, http.StatusInternalServerError),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
 				wasUpdateUserCalled(1),
 			),
@@ -566,7 +566,7 @@ func Test_Handler_LogIn(t *testing.T) {
 			LoginCheck:   DefaultLoginCheck(true),
 			Body:         toJSON(inpUsr.Email, inpPass, true),
 			Checks: checks(
-				hasResp(true, 204),
+				hasResp(true, http.StatusOK),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
 				wasUpdateUserCalled(1),
 			),
@@ -578,7 +578,7 @@ func Test_Handler_LogIn(t *testing.T) {
 			LoginCheck:   DefaultLoginCheck(true),
 			Body:         toJSON(inpUsr.Email, inpPass, false),
 			Checks: checks(
-				hasResp(false, 204),
+				hasResp(false, http.StatusOK),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
 				wasUpdateUserCalled(1),
 			),
@@ -594,7 +594,7 @@ func Test_Handler_LogIn(t *testing.T) {
 			LoginCheck: DefaultLoginCheck(true),
 			Body:       toJSON(inpUsr.Email, inpPass, true),
 			Checks: checks(
-				hasResp(true, 204),
+				hasResp(true, http.StatusOK),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
 				wasUpdateUserCalled(1),
 			),
@@ -610,7 +610,7 @@ func Test_Handler_LogIn(t *testing.T) {
 			LoginCheck: DefaultLoginCheck(true),
 			Body:       toJSON(inpUsr.Email, inpPass, false),
 			Checks: checks(
-				hasResp(false, 204),
+				hasResp(false, http.StatusOK),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
 				wasUpdateUserCalled(1),
 			),
@@ -648,13 +648,13 @@ func Test_Handler_Logout(t *testing.T) {
 	hasResp := func(err bool) check {
 		return func(t *testing.T, rec *httptest.ResponseRecorder) {
 			if err {
-				assert.LessOrEqual(t, 400, rec.Code)
+				assert.GreaterOrEqual(t, rec.Code, 400)
 				assert.NotZero(t, rec.Body.Len())
 
 				return
 			}
 
-			assert.Greater(t, 400, rec.Code)
+			assert.Equal(t, http.StatusNoContent, rec.Code)
 			assert.Zero(t, rec.Body.Len())
 		}
 	}
@@ -714,15 +714,14 @@ func Test_Handler_Fetch(t *testing.T) {
 
 	hasResp := func(err bool) check {
 		return func(t *testing.T, _ *DBMock, rec *httptest.ResponseRecorder) {
-			if err {
-				assert.LessOrEqual(t, 400, rec.Code)
-				assert.NotZero(t, rec.Body.Len())
+			assert.NotZero(t, rec.Body.Len())
 
+			if err {
+				assert.GreaterOrEqual(t, rec.Code, 400)
 				return
 			}
 
-			assert.Greater(t, 400, rec.Code)
-			assert.NotZero(t, rec.Body.Len())
+			assert.Equal(t, http.StatusOK, rec.Code)
 		}
 	}
 
@@ -814,13 +813,13 @@ func Test_Handler_Update(t *testing.T) {
 	hasResp := func(err bool) check {
 		return func(t *testing.T, _ *DBMock, _ *EmailSenderMock, rec *httptest.ResponseRecorder) {
 			if err {
-				assert.LessOrEqual(t, 400, rec.Code)
+				assert.GreaterOrEqual(t, rec.Code, 400)
 				assert.NotZero(t, rec.Body.Len())
 
 				return
 			}
 
-			assert.Greater(t, 400, rec.Code)
+			assert.Equal(t, http.StatusNoContent, rec.Code)
 			assert.Zero(t, rec.Body.Len())
 		}
 	}
@@ -1115,13 +1114,13 @@ func Test_Handler_Delete(t *testing.T) {
 	hasResp := func(err bool) check {
 		return func(t *testing.T, _ *DBMock, _ *EmailSenderMock, rec *httptest.ResponseRecorder) {
 			if err {
-				assert.LessOrEqual(t, 400, rec.Code)
+				assert.GreaterOrEqual(t, rec.Code, 400)
 				assert.NotZero(t, rec.Body.Len())
 
 				return
 			}
 
-			assert.Greater(t, 400, rec.Code)
+			assert.Equal(t, http.StatusNoContent, rec.Code)
 			assert.Zero(t, rec.Body.Len())
 		}
 	}
@@ -1366,13 +1365,13 @@ func Test_Handler_FetchSessions(t *testing.T) {
 	hasResp := func(err bool) check {
 		return func(t *testing.T, rec *httptest.ResponseRecorder) {
 			if err {
-				assert.LessOrEqual(t, 400, rec.Code)
+				assert.GreaterOrEqual(t, rec.Code, 400)
 				assert.NotZero(t, rec.Body.Len())
 
 				return
 			}
 
-			assert.Greater(t, 400, rec.Code)
+			assert.Equal(t, http.StatusOK, rec.Code)
 			assert.NotZero(t, rec.Body.Len())
 		}
 	}
@@ -1443,13 +1442,13 @@ func Test_Handler_RevokeSession(t *testing.T) {
 	hasResp := func(err bool) check {
 		return func(t *testing.T, rec *httptest.ResponseRecorder) {
 			if err {
-				assert.LessOrEqual(t, 400, rec.Code)
+				assert.GreaterOrEqual(t, rec.Code, 400)
 				assert.NotZero(t, rec.Body.Len())
 
 				return
 			}
 
-			assert.Greater(t, 400, rec.Code)
+			assert.Equal(t, http.StatusNoContent, rec.Code)
 			assert.Zero(t, rec.Body.Len())
 		}
 	}
@@ -1552,13 +1551,13 @@ func Test_Handler_RevokeOtherSessions(t *testing.T) {
 	hasResp := func(err bool) check {
 		return func(t *testing.T, rec *httptest.ResponseRecorder) {
 			if err {
-				assert.LessOrEqual(t, 400, rec.Code)
+				assert.GreaterOrEqual(t, rec.Code, 400)
 				assert.NotZero(t, rec.Body.Len())
 
 				return
 			}
 
-			assert.Greater(t, 400, rec.Code)
+			assert.Equal(t, http.StatusNoContent, rec.Code)
 			assert.Zero(t, rec.Body.Len())
 		}
 	}
@@ -1616,16 +1615,25 @@ func Test_Handler_ResendVerification(t *testing.T) {
 
 	checks := func(cc ...check) []check { return cc }
 
-	hasResp := func(err bool) check {
+	hasResp := func(err bool, next int) check {
 		return func(t *testing.T, _ *DBMock, _ *EmailSenderMock, rec *httptest.ResponseRecorder) {
 			if err {
-				assert.LessOrEqual(t, 400, rec.Code)
+				assert.GreaterOrEqual(t, rec.Code, 400)
 				assert.NotZero(t, rec.Body.Len())
+
+				if rec.Code != http.StatusTooManyRequests {
+					return
+				}
+
+				secsStr := rec.Header().Get("Retry-After")
+				secs, err := strconv.Atoi(secsStr)
+				require.NoError(t, err)
+				assert.InDelta(t, next, secs, 300)
 
 				return
 			}
 
-			assert.Greater(t, 400, rec.Code)
+			assert.Equal(t, http.StatusAccepted, rec.Code)
 			assert.Zero(t, rec.Body.Len())
 		}
 	}
@@ -1726,7 +1734,7 @@ func Test_Handler_ResendVerification(t *testing.T) {
 			DB:    dbStub(nil, nil, toPointer(inpUsr)),
 			Email: emailStub(),
 			Checks: checks(
-				hasResp(true),
+				hasResp(true, 0),
 				wasFetchUserByIDCalled(0, xid.ID{}),
 				wasUpdateUserCalled(0),
 				wasSendEmailVerificationCalled(0, ""),
@@ -1738,7 +1746,7 @@ func Test_Handler_ResendVerification(t *testing.T) {
 			Email:   emailStub(),
 			Session: true,
 			Checks: checks(
-				hasResp(true),
+				hasResp(true, 0),
 				wasFetchUserByIDCalled(1, inpUsr.ID),
 				wasUpdateUserCalled(0),
 				wasSendEmailVerificationCalled(0, ""),
@@ -1754,7 +1762,7 @@ func Test_Handler_ResendVerification(t *testing.T) {
 			Email:   emailStub(),
 			Session: true,
 			Checks: checks(
-				hasResp(true),
+				hasResp(true, 0),
 				wasFetchUserByIDCalled(1, inpUsr.ID),
 				wasUpdateUserCalled(0),
 				wasSendEmailVerificationCalled(0, ""),
@@ -1770,7 +1778,7 @@ func Test_Handler_ResendVerification(t *testing.T) {
 			Email:   emailStub(),
 			Session: true,
 			Checks: checks(
-				hasResp(true),
+				hasResp(true, 3600),
 				wasFetchUserByIDCalled(1, inpUsr.ID),
 				wasUpdateUserCalled(0),
 				wasSendEmailVerificationCalled(0, ""),
@@ -1782,7 +1790,7 @@ func Test_Handler_ResendVerification(t *testing.T) {
 			Email:   emailStub(),
 			Session: true,
 			Checks: checks(
-				hasResp(true),
+				hasResp(true, 0),
 				wasFetchUserByIDCalled(1, inpUsr.ID),
 				wasUpdateUserCalled(1),
 				wasSendEmailVerificationCalled(0, ""),
@@ -1799,7 +1807,7 @@ func Test_Handler_ResendVerification(t *testing.T) {
 			Email:   emailStub(),
 			Session: true,
 			Checks: checks(
-				hasResp(false),
+				hasResp(false, 0),
 				wasFetchUserByIDCalled(1, inpUsr.ID),
 				wasUpdateUserCalled(1),
 				wasSendEmailVerificationCalled(1, inpUsr.Email),
@@ -1811,7 +1819,7 @@ func Test_Handler_ResendVerification(t *testing.T) {
 			Email:   emailStub(),
 			Session: true,
 			Checks: checks(
-				hasResp(false),
+				hasResp(false, 0),
 				wasFetchUserByIDCalled(1, inpUsr.ID),
 				wasUpdateUserCalled(1),
 				wasSendEmailVerificationCalled(0, ""),
@@ -1854,13 +1862,13 @@ func Test_Handler_Verify(t *testing.T) {
 	hasResp := func(err bool) check {
 		return func(t *testing.T, _ *DBMock, _ *EmailSenderMock, rec *httptest.ResponseRecorder) {
 			if err {
-				assert.LessOrEqual(t, 400, rec.Code)
+				assert.GreaterOrEqual(t, rec.Code, 400)
 				assert.NotZero(t, rec.Body.Len())
 
 				return
 			}
 
-			assert.Greater(t, 400, rec.Code)
+			assert.Equal(t, http.StatusNoContent, rec.Code)
 			assert.Zero(t, rec.Body.Len())
 		}
 	}
@@ -2032,13 +2040,13 @@ func Test_Handler_CancelVerification(t *testing.T) {
 	hasResp := func(err bool) check {
 		return func(t *testing.T, _ *DBMock, rec *httptest.ResponseRecorder) {
 			if err {
-				assert.LessOrEqual(t, 400, rec.Code)
+				assert.GreaterOrEqual(t, rec.Code, 400)
 				assert.NotZero(t, rec.Body.Len())
 
 				return
 			}
 
-			assert.Greater(t, 400, rec.Code)
+			assert.Equal(t, http.StatusNoContent, rec.Code)
 			assert.Zero(t, rec.Body.Len())
 		}
 	}
@@ -2146,16 +2154,25 @@ func Test_Handler_InitRecovery(t *testing.T) {
 
 	checks := func(cc ...check) []check { return cc }
 
-	hasResp := func(err bool) check {
+	hasResp := func(err bool, next int) check {
 		return func(t *testing.T, _ *DBMock, _ *EmailSenderMock, rec *httptest.ResponseRecorder) {
 			if err {
-				assert.LessOrEqual(t, 400, rec.Code)
+				assert.GreaterOrEqual(t, rec.Code, 400)
 				assert.NotZero(t, rec.Body.Len())
+
+				if rec.Code != http.StatusTooManyRequests {
+					return
+				}
+
+				secsStr := rec.Header().Get("Retry-After")
+				secs, err := strconv.Atoi(secsStr)
+				require.NoError(t, err)
+				assert.InDelta(t, next, secs, 300)
 
 				return
 			}
 
-			assert.Greater(t, 400, rec.Code)
+			assert.Equal(t, http.StatusAccepted, rec.Code)
 			assert.Zero(t, rec.Body.Len())
 		}
 	}
@@ -2237,7 +2254,7 @@ func Test_Handler_InitRecovery(t *testing.T) {
 			Email: emailStub(),
 			Body:  "{",
 			Checks: checks(
-				hasResp(true),
+				hasResp(true, 0),
 				wasFetchUserByEmailCalled(0, ""),
 				wasUpdateUserCalled(0),
 				wasSendRecoveryCalled(0, ""),
@@ -2248,7 +2265,7 @@ func Test_Handler_InitRecovery(t *testing.T) {
 			Email: emailStub(),
 			Body:  toJSON("useremail.com", "", false),
 			Checks: checks(
-				hasResp(true),
+				hasResp(true, 0),
 				wasFetchUserByEmailCalled(0, ""),
 				wasUpdateUserCalled(0),
 				wasSendRecoveryCalled(0, ""),
@@ -2259,7 +2276,7 @@ func Test_Handler_InitRecovery(t *testing.T) {
 			Email: emailStub(),
 			Body:  toJSON(_email, "", false),
 			Checks: checks(
-				hasResp(false),
+				hasResp(false, 0),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
 				wasUpdateUserCalled(0),
 				wasSendRecoveryCalled(0, ""),
@@ -2270,7 +2287,7 @@ func Test_Handler_InitRecovery(t *testing.T) {
 			Email: emailStub(),
 			Body:  toJSON(_email, "", false),
 			Checks: checks(
-				hasResp(true),
+				hasResp(true, 0),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
 				wasUpdateUserCalled(0),
 				wasSendRecoveryCalled(0, ""),
@@ -2285,7 +2302,7 @@ func Test_Handler_InitRecovery(t *testing.T) {
 			Email: emailStub(),
 			Body:  toJSON(_email, "", false),
 			Checks: checks(
-				hasResp(true),
+				hasResp(true, 3600),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
 				wasUpdateUserCalled(0),
 				wasSendRecoveryCalled(0, ""),
@@ -2297,7 +2314,7 @@ func Test_Handler_InitRecovery(t *testing.T) {
 			Email: emailStub(),
 			Body:  toJSON(_email, "", false),
 			Checks: checks(
-				hasResp(false),
+				hasResp(false, 0),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
 				wasUpdateUserCalled(1),
 				wasSendRecoveryCalled(0, ""),
@@ -2308,7 +2325,7 @@ func Test_Handler_InitRecovery(t *testing.T) {
 			Email: emailStub(),
 			Body:  toJSON(_email, "", false),
 			Checks: checks(
-				hasResp(true),
+				hasResp(true, 0),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
 				wasUpdateUserCalled(1),
 				wasSendRecoveryCalled(0, ""),
@@ -2319,7 +2336,7 @@ func Test_Handler_InitRecovery(t *testing.T) {
 			Email: emailStub(),
 			Body:  toJSON(_email, "", false),
 			Checks: checks(
-				hasResp(false),
+				hasResp(false, 0),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
 				wasUpdateUserCalled(1),
 				wasSendRecoveryCalled(1, inpUsr.Email),
@@ -2357,13 +2374,13 @@ func Test_Handler_Recover(t *testing.T) {
 	hasResp := func(err bool) check {
 		return func(t *testing.T, _ *DBMock, _ *EmailSenderMock, rec *httptest.ResponseRecorder) {
 			if err {
-				assert.LessOrEqual(t, 400, rec.Code)
+				assert.GreaterOrEqual(t, rec.Code, 400)
 				assert.NotZero(t, rec.Body.Len())
 
 				return
 			}
 
-			assert.Greater(t, 400, rec.Code)
+			assert.Equal(t, http.StatusNoContent, rec.Code)
 			assert.Zero(t, rec.Body.Len())
 		}
 	}
@@ -2550,13 +2567,13 @@ func Test_Handler_PingRecovery(t *testing.T) {
 	hasResp := func(err bool) check {
 		return func(t *testing.T, _ *DBMock, rec *httptest.ResponseRecorder) {
 			if err {
-				assert.LessOrEqual(t, 400, rec.Code)
+				assert.GreaterOrEqual(t, rec.Code, 400)
 				assert.NotZero(t, rec.Body.Len())
 
 				return
 			}
 
-			assert.Greater(t, 400, rec.Code)
+			assert.Equal(t, http.StatusNoContent, rec.Code)
 			assert.Zero(t, rec.Body.Len())
 		}
 	}
@@ -2637,13 +2654,13 @@ func Test_Handler_CancelRecovery(t *testing.T) {
 	hasResp := func(err bool) check {
 		return func(t *testing.T, _ *DBMock, rec *httptest.ResponseRecorder) {
 			if err {
-				assert.LessOrEqual(t, 400, rec.Code)
+				assert.GreaterOrEqual(t, rec.Code, 400)
 				assert.NotZero(t, rec.Body.Len())
 
 				return
 			}
 
-			assert.Greater(t, 400, rec.Code)
+			assert.Equal(t, http.StatusNoContent, rec.Code)
 			assert.Zero(t, rec.Body.Len())
 		}
 	}

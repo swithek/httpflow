@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi"
@@ -315,7 +316,8 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 
 	go h.email.SendAccountActivation(context.Background(), usrC.Email, tok)
 
-	httpflow.Respond(h.log, w, r, nil, http.StatusCreated)
+	w.Header().Add("Location", "/"+usrC.ID.String())
+	httpflow.Respond(h.log, w, r, usr, http.StatusCreated)
 }
 
 // LogIn handles user's credentials checking and new session creation.
@@ -374,7 +376,7 @@ func (h *Handler) LogIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httpflow.Respond(h.log, w, r, nil, http.StatusNoContent)
+	httpflow.Respond(h.log, w, r, usr, http.StatusOK)
 }
 
 // LogOut handles user's active session revokation.
@@ -613,7 +615,13 @@ func (h *Handler) ResendVerification(w http.ResponseWriter, r *http.Request) {
 
 	tok, err := usrC.InitVerification(h.token.verif)
 	if err != nil {
+		if errors.Is(err, ErrTooManyTokens) {
+			secs := int(time.Until(usrC.Verification.NextAt.Time).Seconds())
+			w.Header().Add("Retry-After", strconv.Itoa(secs))
+		}
+
 		httpflow.RespondError(h.log, w, r, err)
+
 		return
 	}
 
@@ -725,7 +733,13 @@ func (h *Handler) InitRecovery(w http.ResponseWriter, r *http.Request) {
 
 	tok, err := usrC.InitRecovery(h.token.recov)
 	if err != nil {
+		if errors.Is(err, ErrTooManyTokens) {
+			secs := int(time.Until(usrC.Recovery.NextAt.Time).Seconds())
+			w.Header().Add("Retry-After", strconv.Itoa(secs))
+		}
+
 		httpflow.RespondError(h.log, w, r, err)
+
 		return
 	}
 
