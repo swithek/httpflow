@@ -161,9 +161,9 @@ func (m *Manager) SendEmailChanged(ctx context.Context, oEml, nEml string) {
 	m.send(ctx, oEml, "Email address changed", eBody)
 }
 
-// SendRecovery sends an email regarding account recovery with
+// SendAccountRecovery sends an email regarding account recovery with
 // the token, embedded into a full URL, to the specified email address.
-func (m *Manager) SendRecovery(ctx context.Context, eml, tok string) {
+func (m *Manager) SendAccountRecovery(ctx context.Context, eml, tok string) {
 	e := hermes.Email{
 		Body: hermes.Body{
 			Title: "Trying to recover access your account?",

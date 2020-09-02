@@ -46,9 +46,9 @@ func (p Placeholder) SendEmailChanged(_ context.Context, oEml, nEml string) {
 	p.log.Info().Msgf("Email was changed from \"%s\" to \"%s\"\n", oEml, nEml)
 }
 
-// SendRecovery should send an email regarding account recovery with
+// SendAccountRecovery should send an email regarding account recovery with
 // the token, embedded into a full URL, to the specified email address.
-func (p Placeholder) SendRecovery(_ context.Context, eml, tok string) {
+func (p Placeholder) SendAccountRecovery(_ context.Context, eml, tok string) {
 	if p.links.Exist(httpflow.LinkRecovery) {
 		p.log.Info().Msgf("Recover access to your account: %s\n", p.links.Prep(httpflow.LinkRecovery, tok))
 	}
