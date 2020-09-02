@@ -31,6 +31,10 @@ var (
 
 var _formDec = schema.NewDecoder()
 
+func init() { //nolint:gochecknoinits // form decoder needs to be set up here
+	_formDec.IgnoreUnknownKeys(true)
+}
+
 // Respond sends JSON type response to the client.
 func Respond(log zerolog.Logger, w http.ResponseWriter, r *http.Request, data interface{}, code int) {
 	if data == nil {

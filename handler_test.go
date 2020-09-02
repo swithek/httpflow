@@ -136,6 +136,7 @@ func Test_DecodeForm(t *testing.T) {
 	req = httptest.NewRequest("GET", "http://test.com/", nil)
 	q := req.URL.Query()
 	q.Add("msg", "test")
+	q.Add("hello", "test")
 	req.URL.RawQuery = q.Encode()
 	assert.NoError(t, DecodeForm(req, &v))
 	assert.Equal(t, "test", v.Msg)
