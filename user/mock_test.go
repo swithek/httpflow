@@ -385,6 +385,9 @@ var _ EmailSender = &EmailSenderMock{}
 //             SendAccountDeletedFunc: func(ctx context.Context, eml string)  {
 // 	               panic("mock out the SendAccountDeleted method")
 //             },
+//             SendAccountRecoveryFunc: func(ctx context.Context, eml string, tok string)  {
+// 	               panic("mock out the SendAccountRecovery method")
+//             },
 //             SendEmailChangedFunc: func(ctx context.Context, oEml string, nEml string)  {
 // 	               panic("mock out the SendEmailChanged method")
 //             },
@@ -393,9 +396,6 @@ var _ EmailSender = &EmailSenderMock{}
 //             },
 //             SendPasswordChangedFunc: func(ctx context.Context, eml string, recov bool)  {
 // 	               panic("mock out the SendPasswordChanged method")
-//             },
-//             SendRecoveryFunc: func(ctx context.Context, eml string, tok string)  {
-// 	               panic("mock out the SendRecovery method")
 //             },
 //         }
 //
@@ -410,6 +410,9 @@ type EmailSenderMock struct {
 	// SendAccountDeletedFunc mocks the SendAccountDeleted method.
 	SendAccountDeletedFunc func(ctx context.Context, eml string)
 
+	// SendAccountRecoveryFunc mocks the SendAccountRecovery method.
+	SendAccountRecoveryFunc func(ctx context.Context, eml string, tok string)
+
 	// SendEmailChangedFunc mocks the SendEmailChanged method.
 	SendEmailChangedFunc func(ctx context.Context, oEml string, nEml string)
 
@@ -418,9 +421,6 @@ type EmailSenderMock struct {
 
 	// SendPasswordChangedFunc mocks the SendPasswordChanged method.
 	SendPasswordChangedFunc func(ctx context.Context, eml string, recov bool)
-
-	// SendRecoveryFunc mocks the SendRecovery method.
-	SendRecoveryFunc func(ctx context.Context, eml string, tok string)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -439,6 +439,15 @@ type EmailSenderMock struct {
 			Ctx context.Context
 			// Eml is the eml argument value.
 			Eml string
+		}
+		// SendAccountRecovery holds details about calls to the SendAccountRecovery method.
+		SendAccountRecovery []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Eml is the eml argument value.
+			Eml string
+			// Tok is the tok argument value.
+			Tok string
 		}
 		// SendEmailChanged holds details about calls to the SendEmailChanged method.
 		SendEmailChanged []struct {
@@ -467,22 +476,13 @@ type EmailSenderMock struct {
 			// Recov is the recov argument value.
 			Recov bool
 		}
-		// SendRecovery holds details about calls to the SendRecovery method.
-		SendRecovery []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Eml is the eml argument value.
-			Eml string
-			// Tok is the tok argument value.
-			Tok string
-		}
 	}
 	lockSendAccountActivation sync.RWMutex
 	lockSendAccountDeleted    sync.RWMutex
+	lockSendAccountRecovery   sync.RWMutex
 	lockSendEmailChanged      sync.RWMutex
 	lockSendEmailVerification sync.RWMutex
 	lockSendPasswordChanged   sync.RWMutex
-	lockSendRecovery          sync.RWMutex
 }
 
 // SendAccountActivation calls SendAccountActivationFunc.
@@ -556,6 +556,45 @@ func (mock *EmailSenderMock) SendAccountDeletedCalls() []struct {
 	mock.lockSendAccountDeleted.RLock()
 	calls = mock.calls.SendAccountDeleted
 	mock.lockSendAccountDeleted.RUnlock()
+	return calls
+}
+
+// SendAccountRecovery calls SendAccountRecoveryFunc.
+func (mock *EmailSenderMock) SendAccountRecovery(ctx context.Context, eml string, tok string) {
+	if mock.SendAccountRecoveryFunc == nil {
+		panic("EmailSenderMock.SendAccountRecoveryFunc: method is nil but EmailSender.SendAccountRecovery was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+		Eml string
+		Tok string
+	}{
+		Ctx: ctx,
+		Eml: eml,
+		Tok: tok,
+	}
+	mock.lockSendAccountRecovery.Lock()
+	mock.calls.SendAccountRecovery = append(mock.calls.SendAccountRecovery, callInfo)
+	mock.lockSendAccountRecovery.Unlock()
+	mock.SendAccountRecoveryFunc(ctx, eml, tok)
+}
+
+// SendAccountRecoveryCalls gets all the calls that were made to SendAccountRecovery.
+// Check the length with:
+//     len(mockedEmailSender.SendAccountRecoveryCalls())
+func (mock *EmailSenderMock) SendAccountRecoveryCalls() []struct {
+	Ctx context.Context
+	Eml string
+	Tok string
+} {
+	var calls []struct {
+		Ctx context.Context
+		Eml string
+		Tok string
+	}
+	mock.lockSendAccountRecovery.RLock()
+	calls = mock.calls.SendAccountRecovery
+	mock.lockSendAccountRecovery.RUnlock()
 	return calls
 }
 
@@ -673,44 +712,5 @@ func (mock *EmailSenderMock) SendPasswordChangedCalls() []struct {
 	mock.lockSendPasswordChanged.RLock()
 	calls = mock.calls.SendPasswordChanged
 	mock.lockSendPasswordChanged.RUnlock()
-	return calls
-}
-
-// SendRecovery calls SendRecoveryFunc.
-func (mock *EmailSenderMock) SendRecovery(ctx context.Context, eml string, tok string) {
-	if mock.SendRecoveryFunc == nil {
-		panic("EmailSenderMock.SendRecoveryFunc: method is nil but EmailSender.SendRecovery was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-		Eml string
-		Tok string
-	}{
-		Ctx: ctx,
-		Eml: eml,
-		Tok: tok,
-	}
-	mock.lockSendRecovery.Lock()
-	mock.calls.SendRecovery = append(mock.calls.SendRecovery, callInfo)
-	mock.lockSendRecovery.Unlock()
-	mock.SendRecoveryFunc(ctx, eml, tok)
-}
-
-// SendRecoveryCalls gets all the calls that were made to SendRecovery.
-// Check the length with:
-//     len(mockedEmailSender.SendRecoveryCalls())
-func (mock *EmailSenderMock) SendRecoveryCalls() []struct {
-	Ctx context.Context
-	Eml string
-	Tok string
-} {
-	var calls []struct {
-		Ctx context.Context
-		Eml string
-		Tok string
-	}
-	mock.lockSendRecovery.RLock()
-	calls = mock.calls.SendRecovery
-	mock.lockSendRecovery.RUnlock()
 	return calls
 }

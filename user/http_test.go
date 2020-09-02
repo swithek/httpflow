@@ -2205,9 +2205,9 @@ func Test_Handler_InitRecovery(t *testing.T) {
 		}
 	}
 
-	wasSendRecoveryCalled := func(count int, eml string) check {
+	wasSendAccountRecoveryCalled := func(count int, eml string) check {
 		return func(t *testing.T, _ *DBMock, es *EmailSenderMock, _ *httptest.ResponseRecorder) {
-			ff := es.SendRecoveryCalls()
+			ff := es.SendAccountRecoveryCalls()
 			require.Len(t, ff, count)
 
 			if count == 0 {
@@ -2233,7 +2233,7 @@ func Test_Handler_InitRecovery(t *testing.T) {
 
 	emailStub := func() *EmailSenderMock {
 		return &EmailSenderMock{
-			SendRecoveryFunc: func(_ context.Context, _, _ string) {},
+			SendAccountRecoveryFunc: func(_ context.Context, _, _ string) {},
 		}
 	}
 
@@ -2256,7 +2256,7 @@ func Test_Handler_InitRecovery(t *testing.T) {
 				hasResp(true, 0),
 				wasFetchUserByEmailCalled(0, ""),
 				wasUpdateUserCalled(0),
-				wasSendRecoveryCalled(0, ""),
+				wasSendAccountRecoveryCalled(0, ""),
 			),
 		},
 		"Invalid email": {
@@ -2267,7 +2267,7 @@ func Test_Handler_InitRecovery(t *testing.T) {
 				hasResp(true, 0),
 				wasFetchUserByEmailCalled(0, ""),
 				wasUpdateUserCalled(0),
-				wasSendRecoveryCalled(0, ""),
+				wasSendAccountRecoveryCalled(0, ""),
 			),
 		},
 		"User error returned by DB.FetchUserByEmail": {
@@ -2278,7 +2278,7 @@ func Test_Handler_InitRecovery(t *testing.T) {
 				hasResp(false, 0),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
 				wasUpdateUserCalled(0),
-				wasSendRecoveryCalled(0, ""),
+				wasSendAccountRecoveryCalled(0, ""),
 			),
 		},
 		"Error returned by DB.FetchUserByEmail": {
@@ -2289,7 +2289,7 @@ func Test_Handler_InitRecovery(t *testing.T) {
 				hasResp(true, 0),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
 				wasUpdateUserCalled(0),
-				wasSendRecoveryCalled(0, ""),
+				wasSendAccountRecoveryCalled(0, ""),
 			),
 		},
 		"Error returned by Core.InitRecovery": {
@@ -2304,7 +2304,7 @@ func Test_Handler_InitRecovery(t *testing.T) {
 				hasResp(true, 3600),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
 				wasUpdateUserCalled(0),
-				wasSendRecoveryCalled(0, ""),
+				wasSendAccountRecoveryCalled(0, ""),
 			),
 		},
 		"User error returned by DB.UpdateUser": {
@@ -2316,7 +2316,7 @@ func Test_Handler_InitRecovery(t *testing.T) {
 				hasResp(false, 0),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
 				wasUpdateUserCalled(1),
-				wasSendRecoveryCalled(0, ""),
+				wasSendAccountRecoveryCalled(0, ""),
 			),
 		},
 		"Error returned by DB.UpdateUser": {
@@ -2327,7 +2327,7 @@ func Test_Handler_InitRecovery(t *testing.T) {
 				hasResp(true, 0),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
 				wasUpdateUserCalled(1),
-				wasSendRecoveryCalled(0, ""),
+				wasSendAccountRecoveryCalled(0, ""),
 			),
 		},
 		"Successful recovery init": {
@@ -2338,7 +2338,7 @@ func Test_Handler_InitRecovery(t *testing.T) {
 				hasResp(false, 0),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
 				wasUpdateUserCalled(1),
-				wasSendRecoveryCalled(1, inpUsr.Email),
+				wasSendAccountRecoveryCalled(1, inpUsr.Email),
 			),
 		},
 	}

@@ -748,7 +748,7 @@ func (h *Handler) InitRecovery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go h.email.SendRecovery(context.Background(), usrC.Email, tok)
+	go h.email.SendAccountRecovery(context.Background(), usrC.Email, tok)
 
 	httpflow.Respond(h.log, w, r, nil, http.StatusAccepted)
 }
@@ -904,9 +904,9 @@ type EmailSender interface {
 	// being set (second parameter).
 	SendEmailChanged(ctx context.Context, oEml, nEml string)
 
-	// SendRecovery should send an email regarding account recovery with
+	// SendAccountRecovery should send an email regarding account recovery with
 	// the token, embedded into a full URL, to the specified email address.
-	SendRecovery(ctx context.Context, eml, tok string)
+	SendAccountRecovery(ctx context.Context, eml, tok string)
 
 	// SendAccountDeleted should send an email regarding successful account
 	// deletion to the specified email address.
