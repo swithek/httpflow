@@ -264,12 +264,12 @@ func (h *Handler) BasicRouter(open bool) chi.Router {
 // "http://yoursite.com/user"
 func SetupLinks(r string) map[httpflow.LinkKey]string {
 	return map[httpflow.LinkKey]string{
-		httpflow.LinkActivation:         r + "/activation?token=%s",
-		httpflow.LinkActivationCancel:   r + "/activation/cancel?token=%s",
-		httpflow.LinkVerification:       r + "/verification?token=%s",
-		httpflow.LinkVerificationCancel: r + "/verification/cancel?token=%s",
-		httpflow.LinkRecovery:           r + "/recovery?token=%s",
-		httpflow.LinkRecoveryCancel:     r + "/recovery/cancel?token=%s",
+		httpflow.LinkActivation:         r + "/activate?token=%s",
+		httpflow.LinkActivationCancel:   r + "/activate/cancel?token=%s",
+		httpflow.LinkVerification:       r + "/verify?token=%s",
+		httpflow.LinkVerificationCancel: r + "/verify/cancel?token=%s",
+		httpflow.LinkRecovery:           r + "/recover?token=%s",
+		httpflow.LinkRecoveryCancel:     r + "/recover/cancel?token=%s",
 	}
 }
 
@@ -316,7 +316,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 
 	go h.email.SendAccountActivation(context.Background(), usrC.Email, tok)
 
-	w.Header().Add("Location", "/"+usrC.ID.String())
+	w.Header().Add("Location", "/") // id will be retrieved from the session
 	httpflow.Respond(h.log, w, r, usr, http.StatusCreated)
 }
 

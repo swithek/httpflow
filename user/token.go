@@ -23,7 +23,7 @@ var (
 )
 
 var (
-	// _tokenChars is an array of characters used by token string
+	// _tokenChars is a slice of characters used by token string
 	// generator.
 	_tokenChars = []byte("abcdefghijklmnopqrstuvwxyz0123456789")
 )

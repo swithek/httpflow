@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/go-chi/chi"
@@ -168,4 +169,41 @@ func ExtractSession(ctx context.Context) (sessionup.Session, xid.ID, error) {
 	}
 
 	return ses, id, nil
+}
+
+var _locRe = regexp.MustCompile(`{loc}`)
+
+// Location is a middleware that adds or expands location header.
+// It will only execute after the next http handler completes.
+// If the location header is already present, it is not possible
+// to overwrite it, but you may use {loc} in the provided location
+// string to embed the previous value into the new one:
+//    // Existing Location header: userID123
+//    Location("/users/{loc}") // header will be set to "/users/userID123"
+func Location(loc string) func(http.Handler) http.Handler {
+	plain := !_locRe.MatchString(loc)
+
+	return func(next http.Handler) http.Handler {
+		fn := func(w http.ResponseWriter, r *http.Request) {
+			next.ServeHTTP(w, r)
+
+			if loc == "" {
+				return
+			}
+
+			loc1 := w.Header().Get("Location")
+
+			if loc1 != "" && !plain {
+				loc1 = _locRe.ReplaceAllString(loc, loc1)
+			} else if loc1 == "" && plain {
+				loc1 = loc
+			}
+
+			if loc1 != "" {
+				w.Header().Set("Location", loc1)
+			}
+		}
+
+		return http.HandlerFunc(fn)
+	}
 }

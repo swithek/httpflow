@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -152,17 +151,17 @@ func Test_DefaultDeleteCheck(t *testing.T) {
 func Test_SetupLinks(t *testing.T) {
 	ll := SetupLinks("http://yoursite.com/user")
 	require.NotNil(t, ll)
-	assert.Equal(t, "http://yoursite.com/user/activation?token=%s",
+	assert.Equal(t, "http://yoursite.com/user/activate?token=%s",
 		ll[httpflow.LinkActivation])
-	assert.Equal(t, "http://yoursite.com/user/activation/cancel?token=%s",
+	assert.Equal(t, "http://yoursite.com/user/activate/cancel?token=%s",
 		ll[httpflow.LinkActivationCancel])
-	assert.Equal(t, "http://yoursite.com/user/verification?token=%s",
+	assert.Equal(t, "http://yoursite.com/user/verify?token=%s",
 		ll[httpflow.LinkVerification])
-	assert.Equal(t, "http://yoursite.com/user/verification/cancel?token=%s",
+	assert.Equal(t, "http://yoursite.com/user/verify/cancel?token=%s",
 		ll[httpflow.LinkVerificationCancel])
-	assert.Equal(t, "http://yoursite.com/user/recovery?token=%s",
+	assert.Equal(t, "http://yoursite.com/user/recover?token=%s",
 		ll[httpflow.LinkRecovery])
-	assert.Equal(t, "http://yoursite.com/user/recovery/cancel?token=%s",
+	assert.Equal(t, "http://yoursite.com/user/recover/cancel?token=%s",
 		ll[httpflow.LinkRecoveryCancel])
 }
 
@@ -189,7 +188,7 @@ func Test_Handler_Register(t *testing.T) {
 				assert.NotContains(t, co, "Expires")
 			}
 
-			assert.Regexp(t, regexp.MustCompile(`^/.{20}$`), rec.Header().Get("Location"))
+			assert.Equal(t, "/", rec.Header().Get("Location"))
 			assert.Equal(t, http.StatusCreated, rec.Code)
 		}
 	}

@@ -257,3 +257,52 @@ func Test_ExtractSession(t *testing.T) {
 	assert.Equal(t, inpID, id)
 	assert.NoError(t, err)
 }
+
+func Test_Location(t *testing.T) {
+	cc := map[string]struct {
+		Previous string
+		Loc      string
+		Result   string
+	}{
+		"Execution without any value": {
+			Result: "",
+		},
+		"Execution with full loc and no previous value": {
+			Loc:    "/users/{loc}",
+			Result: "",
+		},
+		"Execution with plain loc and previous value": {
+			Previous: "userID123",
+			Loc:      "/users/123",
+			Result:   "userID123",
+		},
+		"Execution with plain loc": {
+			Loc:    "/users/123",
+			Result: "/users/123",
+		},
+		"Execution with full loc": {
+			Previous: "userID123",
+			Loc:      "/users/{loc}",
+			Result:   "/users/userID123",
+		},
+	}
+
+	for cn, c := range cc {
+		c := c
+
+		t.Run(cn, func(t *testing.T) {
+			t.Parallel()
+
+			req := httptest.NewRequest("GET", "http://test.com/", nil)
+			rec := httptest.NewRecorder()
+
+			Location(c.Loc)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if c.Previous != "" {
+					w.Header().Set("Location", c.Previous)
+				}
+			})).ServeHTTP(rec, req)
+
+			assert.Equal(t, c.Result, rec.Header().Get("Location"))
+		})
+	}
+}
