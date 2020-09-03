@@ -11,4 +11,4 @@ test:
 lint:
 	@golangci-lint run
 
-qa: lint test
+qa: test lint

@@ -3,10 +3,12 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"testing"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/gchaincl/dotsql"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 	"github.com/rs/xid"
@@ -21,6 +23,28 @@ import (
 	"gopkg.in/guregu/null.v3/zero"
 )
 
+var (
+	_queries *dotsql.DotSql
+)
+
+func init() {
+	var err error
+
+	_queries, err = dotsql.LoadFromString(_escFSMustString(false, "/queries.sql"))
+	if err != nil {
+		panic(err)
+	}
+}
+
+func rawQuery(name string) string {
+	q, err := _queries.Raw(name)
+	if err != nil {
+		panic(err)
+	}
+
+	return q
+}
+
 func Test_NewStore(t *testing.T) {
 	db, mock := newDB(t)
 	dbx := sqlx.NewDb(db, "postgres")
@@ -31,44 +55,14 @@ func Test_NewStore(t *testing.T) {
 	}{
 		"Error returned during users table creation": {
 			Expect: func() {
-				mock.ExpectExec(`CREATE TABLE IF NOT EXISTS users (
-						id TEXT PRIMARY KEY,
-						created_at TIMESTAMPTZ NOT NULL,
-						updated_at TIMESTAMPTZ NOT NULL,
-						activated_at TIMESTAMPTZ,
-						email TEXT NOT NULL,
-						unverified_email TEXT,
-						password_hash BYTEA NOT NULL,
-						verification_token_hash BYTEA,
-						verification_next_at TIMESTAMPTZ,
-						verification_expires_at TIMESTAMPTZ,
-						recovery_token_hash BYTEA,
-						recovery_next_at TIMESTAMPTZ,
-						recovery_expires_at TIMESTAMPTZ,
-						CONSTRAINT email_unique UNIQUE(email)
-					);`).
+				mock.ExpectExec(rawQuery("create_users_table")).
 					WillReturnError(assert.AnError)
 			},
 			Err: assert.AnError,
 		},
 		"Successful store init and users table creation": {
 			Expect: func() {
-				mock.ExpectExec(`CREATE TABLE IF NOT EXISTS users (
-						id TEXT PRIMARY KEY,
-						created_at TIMESTAMPTZ NOT NULL,
-						updated_at TIMESTAMPTZ NOT NULL,
-						activated_at TIMESTAMPTZ,
-						email TEXT NOT NULL,
-						unverified_email TEXT,
-						password_hash BYTEA NOT NULL,
-						verification_token_hash BYTEA,
-						verification_next_at TIMESTAMPTZ,
-						verification_expires_at TIMESTAMPTZ,
-						recovery_token_hash BYTEA,
-						recovery_next_at TIMESTAMPTZ,
-						recovery_expires_at TIMESTAMPTZ,
-						CONSTRAINT email_unique UNIQUE(email)
-					);`).
+				mock.ExpectExec(rawQuery("create_users_table")).
 					WillReturnResult(sqlmock.NewResult(0, 0))
 			},
 		},
@@ -108,14 +102,14 @@ func Test_Store_deleteInactive(t *testing.T) {
 	}{
 		"Error returned during inactive users deletion": {
 			Expect: func() {
-				mock.ExpectExec("DELETE FROM users WHERE activated_at = NULL AND verification_expires_at < NOW();").
+				mock.ExpectExec(rawQuery("delete_inactive_users")).
 					WillReturnError(assert.AnError)
 			},
 			Err: assert.AnError,
 		},
 		"Successful inactive users deletion": {
 			Expect: func() {
-				mock.ExpectExec("DELETE FROM users WHERE activated_at = NULL AND verification_expires_at < NOW();").
+				mock.ExpectExec(rawQuery("delete_inactive_users")).
 					WillReturnResult(sqlmock.NewResult(0, 1))
 			},
 		},
@@ -152,14 +146,14 @@ func Test_Store_UserStats(t *testing.T) {
 	}{
 		"Error returned during stats selection": {
 			Expect: func() {
-				mock.ExpectQuery(`SELECT COUNT(*) AS total_count FROM users;`).
+				mock.ExpectQuery(rawQuery("select_stats")).
 					WillReturnError(assert.AnError)
 			},
 			Err: assert.AnError,
 		},
 		"Successful stats selection": {
 			Expect: func() {
-				mock.ExpectQuery(`SELECT COUNT(*) AS total_count FROM users;`).
+				mock.ExpectQuery(rawQuery("select_stats")).
 					WillReturnRows(sqlmock.NewRows(
 						[]string{"total_count"}).AddRow(11))
 			},
@@ -201,7 +195,7 @@ func Test_Store_CreateUser(t *testing.T) {
 	}{
 		"Error returned during user insertion": {
 			Expect: func() {
-				mock.ExpectExec("INSERT INTO users VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);").
+				mock.ExpectExec(rawQuery("insert_user")).
 					WithArgs(inpUsr.ID, inpUsr.CreatedAt,
 						inpUsr.UpdatedAt, inpUsr.ActivatedAt,
 						inpUsr.Email, inpUsr.UnverifiedEmail,
@@ -216,7 +210,7 @@ func Test_Store_CreateUser(t *testing.T) {
 		},
 		"Successful user insertion": {
 			Expect: func() {
-				mock.ExpectExec("INSERT INTO users VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);").
+				mock.ExpectExec(rawQuery("insert_user")).
 					WithArgs(inpUsr.ID, inpUsr.CreatedAt,
 						inpUsr.UpdatedAt, inpUsr.ActivatedAt,
 						inpUsr.Email, inpUsr.UnverifiedEmail,
@@ -282,21 +276,7 @@ func Test_Story_FetchManyUsers(t *testing.T) {
 		},
 		"Error returned during users select": {
 			Expect: func() {
-				mock.ExpectQuery(`SELECT id, 
-					created_at,
-					updated_at,
-					activated_at,
-					email,
-					unverified_email,
-					password_hash,
-					verification_token_hash AS "verification.hash",
-					verification_next_at AS "verification.next_at",
-					verification_expires_at AS "verification.expires_at",
-					recovery_token_hash AS "recovery.hash",
-					recovery_next_at AS "recovery.next_at",
-					recovery_expires_at AS "recovery.expires_at"
-					FROM users WHERE email LIKE '%' || $1 || 
-						'%' ORDER BY created_at DESC LIMIT $2 OFFSET $3;`).
+				mock.ExpectQuery(rawQuery("select_users_by_email_desc_created_at")).
 					WithArgs(inpEml, 5, 45).
 					WillReturnError(assert.AnError)
 			},
@@ -312,21 +292,7 @@ func Test_Story_FetchManyUsers(t *testing.T) {
 		},
 		"Successful users select by email in desc order of creation date": {
 			Expect: func() {
-				mock.ExpectQuery(`SELECT id, 
-					created_at,
-					updated_at,
-					activated_at,
-					email,
-					unverified_email,
-					password_hash,
-					verification_token_hash AS "verification.hash",
-					verification_next_at AS "verification.next_at",
-					verification_expires_at AS "verification.expires_at",
-					recovery_token_hash AS "recovery.hash",
-					recovery_next_at AS "recovery.next_at",
-					recovery_expires_at AS "recovery.expires_at"
-					FROM users WHERE email LIKE '%' || $1 || 
-						'%' ORDER BY created_at DESC LIMIT $2 OFFSET $3;`).
+				mock.ExpectQuery(rawQuery("select_users_by_email_desc_created_at")).
 					WithArgs(inpEml, 5, 45).
 					WillReturnRows(usrsToRows(inpUsrs...))
 			},
@@ -342,21 +308,7 @@ func Test_Story_FetchManyUsers(t *testing.T) {
 		},
 		"Successful users select by email in asc order of creation date": {
 			Expect: func() {
-				mock.ExpectQuery(`SELECT id, 
-					created_at,
-					updated_at,
-					activated_at,
-					email,
-					unverified_email,
-					password_hash,
-					verification_token_hash AS "verification.hash",
-					verification_next_at AS "verification.next_at",
-					verification_expires_at AS "verification.expires_at",
-					recovery_token_hash AS "recovery.hash",
-					recovery_next_at AS "recovery.next_at",
-					recovery_expires_at AS "recovery.expires_at"
-					FROM users WHERE email LIKE '%' || $1 || 
-						'%' ORDER BY created_at ASC LIMIT $2 OFFSET $3;`).
+				mock.ExpectQuery(rawQuery("select_users_by_email_asc_created_at")).
 					WithArgs(inpEml, 5, 45).
 					WillReturnRows(usrsToRows(inpUsrs...))
 			},
@@ -372,21 +324,7 @@ func Test_Story_FetchManyUsers(t *testing.T) {
 		},
 		"Successful users select by email in desc order of last update date": {
 			Expect: func() {
-				mock.ExpectQuery(`SELECT id, 
-					created_at,
-					updated_at,
-					activated_at,
-					email,
-					unverified_email,
-					password_hash,
-					verification_token_hash AS "verification.hash",
-					verification_next_at AS "verification.next_at",
-					verification_expires_at AS "verification.expires_at",
-					recovery_token_hash AS "recovery.hash",
-					recovery_next_at AS "recovery.next_at",
-					recovery_expires_at AS "recovery.expires_at"
-					FROM users WHERE email LIKE '%' || $1 || 
-						'%' ORDER BY updated_at DESC LIMIT $2 OFFSET $3;`).
+				mock.ExpectQuery(rawQuery("select_users_by_email_desc_updated_at")).
 					WithArgs(inpEml, 5, 45).
 					WillReturnRows(usrsToRows(inpUsrs...))
 			},
@@ -402,21 +340,7 @@ func Test_Story_FetchManyUsers(t *testing.T) {
 		},
 		"Successful users select by email in asc order of last update date": {
 			Expect: func() {
-				mock.ExpectQuery(`SELECT id, 
-					created_at,
-					updated_at,
-					activated_at,
-					email,
-					unverified_email,
-					password_hash,
-					verification_token_hash AS "verification.hash",
-					verification_next_at AS "verification.next_at",
-					verification_expires_at AS "verification.expires_at",
-					recovery_token_hash AS "recovery.hash",
-					recovery_next_at AS "recovery.next_at",
-					recovery_expires_at AS "recovery.expires_at"
-					FROM users WHERE email LIKE '%' || $1 || 
-						'%' ORDER BY updated_at ASC LIMIT $2 OFFSET $3;`).
+				mock.ExpectQuery(rawQuery("select_users_by_email_asc_updated_at")).
 					WithArgs(inpEml, 5, 45).
 					WillReturnRows(usrsToRows(inpUsrs...))
 			},
@@ -432,21 +356,7 @@ func Test_Story_FetchManyUsers(t *testing.T) {
 		},
 		"Successful users select by email in desc order of activation date": {
 			Expect: func() {
-				mock.ExpectQuery(`SELECT id, 
-					created_at,
-					updated_at,
-					activated_at,
-					email,
-					unverified_email,
-					password_hash,
-					verification_token_hash AS "verification.hash",
-					verification_next_at AS "verification.next_at",
-					verification_expires_at AS "verification.expires_at",
-					recovery_token_hash AS "recovery.hash",
-					recovery_next_at AS "recovery.next_at",
-					recovery_expires_at AS "recovery.expires_at"
-					FROM users WHERE email LIKE '%' || $1 || 
-						'%' ORDER BY activated_at DESC LIMIT $2 OFFSET $3;`).
+				mock.ExpectQuery(rawQuery("select_users_by_email_desc_activated_at")).
 					WithArgs(inpEml, 5, 45).
 					WillReturnRows(usrsToRows(inpUsrs...))
 			},
@@ -462,21 +372,7 @@ func Test_Story_FetchManyUsers(t *testing.T) {
 		},
 		"Successful users select by email in asc order of activation date": {
 			Expect: func() {
-				mock.ExpectQuery(`SELECT id, 
-					created_at,
-					updated_at,
-					activated_at,
-					email,
-					unverified_email,
-					password_hash,
-					verification_token_hash AS "verification.hash",
-					verification_next_at AS "verification.next_at",
-					verification_expires_at AS "verification.expires_at",
-					recovery_token_hash AS "recovery.hash",
-					recovery_next_at AS "recovery.next_at",
-					recovery_expires_at AS "recovery.expires_at"
-					FROM users WHERE email LIKE '%' || $1 || 
-						'%' ORDER BY activated_at ASC LIMIT $2 OFFSET $3;`).
+				mock.ExpectQuery(rawQuery("select_users_by_email_asc_activated_at")).
 					WithArgs(inpEml, 5, 45).
 					WillReturnRows(usrsToRows(inpUsrs...))
 			},
@@ -492,21 +388,7 @@ func Test_Story_FetchManyUsers(t *testing.T) {
 		},
 		"Successful users select by email in desc order of email": {
 			Expect: func() {
-				mock.ExpectQuery(`SELECT id, 
-					created_at,
-					updated_at,
-					activated_at,
-					email,
-					unverified_email,
-					password_hash,
-					verification_token_hash AS "verification.hash",
-					verification_next_at AS "verification.next_at",
-					verification_expires_at AS "verification.expires_at",
-					recovery_token_hash AS "recovery.hash",
-					recovery_next_at AS "recovery.next_at",
-					recovery_expires_at AS "recovery.expires_at"
-					FROM users WHERE email LIKE '%' || $1 || 
-						'%' ORDER BY email DESC LIMIT $2 OFFSET $3;`).
+				mock.ExpectQuery(rawQuery("select_users_by_email_desc_email")).
 					WithArgs(inpEml, 5, 45).
 					WillReturnRows(usrsToRows(inpUsrs...))
 			},
@@ -522,21 +404,7 @@ func Test_Story_FetchManyUsers(t *testing.T) {
 		},
 		"Successful users select by email in asc order of email": {
 			Expect: func() {
-				mock.ExpectQuery(`SELECT id, 
-					created_at,
-					updated_at,
-					activated_at,
-					email,
-					unverified_email,
-					password_hash,
-					verification_token_hash AS "verification.hash",
-					verification_next_at AS "verification.next_at",
-					verification_expires_at AS "verification.expires_at",
-					recovery_token_hash AS "recovery.hash",
-					recovery_next_at AS "recovery.next_at",
-					recovery_expires_at AS "recovery.expires_at"
-					FROM users WHERE email LIKE '%' || $1 || 
-						'%' ORDER BY email ASC LIMIT $2 OFFSET $3;`).
+				mock.ExpectQuery(rawQuery("select_users_by_email_asc_email")).
 					WithArgs(inpEml, 5, 45).
 					WillReturnRows(usrsToRows(inpUsrs...))
 			},
@@ -558,13 +426,14 @@ func Test_Story_FetchManyUsers(t *testing.T) {
 		t.Run(cn, func(t *testing.T) {
 			c.Expect()
 
-			usrs, err := s.FetchManyUsers(context.Background(), c.Query)
+			usrs, lastPage, err := s.FetchManyUsers(context.Background(), c.Query)
 			testutil.AssertEqualError(t, c.Err, err)
 			if err != nil {
 				return
 			}
 
 			assert.Equal(t, c.Users, usrs)
+			assert.Equal(t, len(c.Users), lastPage)
 			assert.NoError(t, mock.ExpectationsWereMet())
 		})
 	}
@@ -586,20 +455,7 @@ func Test_Store_FetchUserByID(t *testing.T) {
 	}{
 		"Error returned during user selection": {
 			Expect: func() {
-				mock.ExpectQuery(`SELECT id, 
-					created_at,
-					updated_at,
-					activated_at,
-					email,
-					unverified_email,
-					password_hash,
-					verification_token_hash AS "verification.hash",
-					verification_next_at AS "verification.next_at",
-					verification_expires_at AS "verification.expires_at",
-					recovery_token_hash AS "recovery.hash",
-					recovery_next_at AS "recovery.next_at",
-					recovery_expires_at AS "recovery.expires_at"
-					FROM users WHERE id = $1 LIMIT 1;`).
+				mock.ExpectQuery(rawQuery("select_user_by_id")).
 					WithArgs(inpUsr.ID).
 					WillReturnError(assert.AnError)
 			},
@@ -608,20 +464,7 @@ func Test_Store_FetchUserByID(t *testing.T) {
 		},
 		"Successful user selection": {
 			Expect: func() {
-				mock.ExpectQuery(`SELECT id, 
-					created_at,
-					updated_at,
-					activated_at,
-					email,
-					unverified_email,
-					password_hash,
-					verification_token_hash AS "verification.hash",
-					verification_next_at AS "verification.next_at",
-					verification_expires_at AS "verification.expires_at",
-					recovery_token_hash AS "recovery.hash",
-					recovery_next_at AS "recovery.next_at",
-					recovery_expires_at AS "recovery.expires_at"
-					FROM users WHERE id = $1 LIMIT 1;`).
+				mock.ExpectQuery(rawQuery("select_user_by_id")).
 					WithArgs(inpUsr.ID).
 					WillReturnRows(usrsToRows(inpUsr))
 			},
@@ -663,20 +506,7 @@ func Test_Store_FetchUserByEmail(t *testing.T) {
 	}{
 		"Error returned during user selection": {
 			Expect: func() {
-				mock.ExpectQuery(`SELECT id, 
-					created_at,
-					updated_at,
-					activated_at,
-					email,
-					unverified_email,
-					password_hash,
-					verification_token_hash AS "verification.hash",
-					verification_next_at AS "verification.next_at",
-					verification_expires_at AS "verification.expires_at",
-					recovery_token_hash AS "recovery.hash",
-					recovery_next_at AS "recovery.next_at",
-					recovery_expires_at AS "recovery.expires_at"
-					FROM users WHERE email = $1 LIMIT 1;`).
+				mock.ExpectQuery(rawQuery("select_user_by_email")).
 					WithArgs(inpUsr.Email).
 					WillReturnError(assert.AnError)
 			},
@@ -685,20 +515,7 @@ func Test_Store_FetchUserByEmail(t *testing.T) {
 		},
 		"Successful user selection": {
 			Expect: func() {
-				mock.ExpectQuery(`SELECT id, 
-					created_at,
-					updated_at,
-					activated_at,
-					email,
-					unverified_email,
-					password_hash,
-					verification_token_hash AS "verification.hash",
-					verification_next_at AS "verification.next_at",
-					verification_expires_at AS "verification.expires_at",
-					recovery_token_hash AS "recovery.hash",
-					recovery_next_at AS "recovery.next_at",
-					recovery_expires_at AS "recovery.expires_at"
-					FROM users WHERE email = $1 LIMIT 1;`).
+				mock.ExpectQuery(rawQuery("select_user_by_email")).
 					WithArgs(inpUsr.Email).
 					WillReturnRows(usrsToRows(inpUsr))
 			},
@@ -740,17 +557,7 @@ func Test_Store_UpdateUser(t *testing.T) {
 	}{
 		"Error returned during user update": {
 			Expect: func() {
-				mock.ExpectExec(`UPDATE users SET updated_at = $1,
-					activated_at = $2, 
-					email = $3,
-					unverified_email = $4,
-					password_hash = $5,
-					verification_token_hash = $6,
-					verification_next_at = $7,
-					verification_expires_at = $8,
-					recovery_token_hash = $9,
-					recovery_next_at = $10,
-					recovery_expires_at = $11 WHERE id = $12;`).
+				mock.ExpectExec(rawQuery("update_user_by_id")).
 					WithArgs(inpUsr.UpdatedAt, inpUsr.ActivatedAt,
 						inpUsr.Email, inpUsr.UnverifiedEmail, inpUsr.PasswordHash,
 						inpUsr.Verification.Hash, inpUsr.Verification.NextAt,
@@ -764,17 +571,7 @@ func Test_Store_UpdateUser(t *testing.T) {
 		},
 		"Successful user update": {
 			Expect: func() {
-				mock.ExpectExec(`UPDATE users SET updated_at = $1,
-					activated_at = $2, 
-					email = $3,
-					unverified_email = $4,
-					password_hash = $5,
-					verification_token_hash = $6,
-					verification_next_at = $7,
-					verification_expires_at = $8,
-					recovery_token_hash = $9,
-					recovery_next_at = $10,
-					recovery_expires_at = $11 WHERE id = $12;`).
+				mock.ExpectExec(rawQuery("update_user_by_id")).
 					WithArgs(inpUsr.UpdatedAt, inpUsr.ActivatedAt,
 						inpUsr.Email, inpUsr.UnverifiedEmail, inpUsr.PasswordHash,
 						inpUsr.Verification.Hash, inpUsr.Verification.NextAt,
@@ -819,7 +616,7 @@ func Test_Store_DeleteUserByID(t *testing.T) {
 	}{
 		"Error returned during user deletion": {
 			Expect: func() {
-				mock.ExpectExec("DELETE FROM users WHERE id = $1;").
+				mock.ExpectExec(rawQuery("delete_user_by_id")).
 					WithArgs(inpUsr.ID).
 					WillReturnError(assert.AnError)
 			},
@@ -827,7 +624,7 @@ func Test_Store_DeleteUserByID(t *testing.T) {
 		},
 		"Successful user deletion": {
 			Expect: func() {
-				mock.ExpectExec("DELETE FROM users WHERE id = $1;").
+				mock.ExpectExec(rawQuery("delete_user_by_id")).
 					WithArgs(inpUsr.ID).
 					WillReturnResult(sqlmock.NewResult(0, 1))
 			},
@@ -895,29 +692,57 @@ func usrsToRows(usrs ...user.User) *sqlmock.Rows {
 		return nil
 	}
 
-	rows := sqlmock.NewRows([]string{
-		"id",
-		"created_at",
-		"updated_at",
-		"activated_at",
-		"email",
-		"unverified_email",
-		"password_hash",
-		"verification.hash",
-		"verification.next_at",
-		"verification.expires_at",
-		"recovery.hash",
-		"recovery.next_at",
-		"recovery.expires_at",
-	})
+	var prefixVal string
+
+	if len(usrs) > 1 {
+		prefixVal = "user."
+	}
+
+	rr := []string{
+		prefixVal + "id",
+		prefixVal + "created_at",
+		prefixVal + "updated_at",
+		prefixVal + "activated_at",
+		prefixVal + "email",
+		prefixVal + "unverified_email",
+		prefixVal + "password_hash",
+		prefixVal + "verification.hash",
+		prefixVal + "verification.next_at",
+		prefixVal + "verification.expires_at",
+		prefixVal + "recovery.hash",
+		prefixVal + "recovery.next_at",
+		prefixVal + "recovery.expires_at",
+	}
+
+	if len(usrs) > 1 {
+		rr = append(rr, "last_page")
+	}
+
+	rows := sqlmock.NewRows(rr)
 
 	for _, usr := range usrs {
 		cr := usr.ExposeCore()
-		rows.AddRow(cr.ID, cr.CreatedAt, cr.UpdatedAt, cr.ActivatedAt,
-			cr.Email, cr.UnverifiedEmail, cr.PasswordHash,
-			cr.Verification.Hash, cr.Verification.NextAt,
-			cr.Verification.ExpiresAt, cr.Recovery.Hash,
-			cr.Recovery.NextAt, cr.Recovery.ExpiresAt)
+		vals := []driver.Value{
+			cr.ID,
+			cr.CreatedAt,
+			cr.UpdatedAt,
+			cr.ActivatedAt,
+			cr.Email,
+			cr.UnverifiedEmail,
+			cr.PasswordHash,
+			cr.Verification.Hash,
+			cr.Verification.NextAt,
+			cr.Verification.ExpiresAt,
+			cr.Recovery.Hash,
+			cr.Recovery.NextAt,
+			cr.Recovery.ExpiresAt,
+		}
+
+		if len(usrs) > 1 {
+			vals = append(vals, len(usrs))
+		}
+
+		rows.AddRow(vals...)
 	}
 
 	return rows

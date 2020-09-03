@@ -858,31 +858,34 @@ func (h *Handler) FetchByToken(r *http.Request) (User, string, error) {
 // DB is an interface which should be implemented by the user data
 // store layer.
 type DB interface {
-	// UserStats should return users' data statistics from the underlying
-	// data store.
+	// UserStats should return users' data statistics from the
+	// underlying data store.
 	UserStats(ctx context.Context) (Stats, error)
 
-	// CreateUser should insert the freshly created user into the underlying
-	// data store.
+	// CreateUser should insert the freshly created user into the
+	// underlying data store.
 	CreateUser(ctx context.Context, usr User) error
 
-	// FetchManyUsers should retrieve multiple users from the underlying data
-	// store by the provided query.
-	FetchManyUsers(ctx context.Context, qr httpflow.Query) ([]User, error)
+	// FetchManyUsers should retrieve multiple users from the
+	// underlying data store by the provided query.
+	// Int return value specifies the last possible page that may be
+	// used with the provided query parameters.
+	FetchManyUsers(ctx context.Context, qr httpflow.Query) ([]User, int, error)
 
-	// FetchUserByID should retrieve a user from the underlying data store
-	// by their ID.
+	// FetchUserByID should retrieve a user from the underlying
+	// data store by their ID.
 	FetchUserByID(ctx context.Context, id xid.ID) (User, error)
 
-	// FetchUserByEmail should retrieve a user from the underlying data store
-	// by their email address.
+	// FetchUserByEmail should retrieve a user from the
+	// underlying data store by their email address.
 	FetchUserByEmail(ctx context.Context, eml string) (User, error)
 
-	// UpdateUser should update user's data in the underlying data store.
+	// UpdateUser should update user's data in the underlying
+	// data store.
 	UpdateUser(ctx context.Context, usr User) error
 
-	// DeleteUserByID should delete a user from the underlying data store
-	// by their ID.
+	// DeleteUserByID should delete a user from the underlying
+	// data store by their ID.
 	DeleteUserByID(ctx context.Context, id xid.ID) error
 }
 
@@ -904,16 +907,17 @@ type EmailSender interface {
 	// being set (second parameter).
 	SendEmailChanged(ctx context.Context, oEml, nEml string)
 
-	// SendAccountRecovery should send an email regarding account recovery with
-	// the token, embedded into a full URL, to the specified email address.
+	// SendAccountRecovery should send an email regarding account
+	// recovery with the token, embedded into a full URL, to the
+	// specified email address.
 	SendAccountRecovery(ctx context.Context, eml, tok string)
 
-	// SendAccountDeleted should send an email regarding successful account
-	// deletion to the specified email address.
+	// SendAccountDeleted should send an email regarding
+	// successful account deletion to the specified email address.
 	SendAccountDeleted(ctx context.Context, eml string)
 
-	// SendPasswordChanged should send an email notifying about a successful
-	// password change to the specified email address.
+	// SendPasswordChanged should send an email notifying about
+	// a successful password change to the specified email address.
 	// Last parameter specifies whether the password was changed during
 	// the recovery process or not.
 	SendPasswordChanged(ctx context.Context, eml string, recov bool)

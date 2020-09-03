@@ -26,7 +26,7 @@ var _ DB = &DBMock{}
 //             DeleteUserByIDFunc: func(ctx context.Context, id xid.ID) error {
 // 	               panic("mock out the DeleteUserByID method")
 //             },
-//             FetchManyUsersFunc: func(ctx context.Context, qr httpflow.Query) ([]User, error) {
+//             FetchManyUsersFunc: func(ctx context.Context, qr httpflow.Query) ([]User, int, error) {
 // 	               panic("mock out the FetchManyUsers method")
 //             },
 //             FetchUserByEmailFunc: func(ctx context.Context, eml string) (User, error) {
@@ -55,7 +55,7 @@ type DBMock struct {
 	DeleteUserByIDFunc func(ctx context.Context, id xid.ID) error
 
 	// FetchManyUsersFunc mocks the FetchManyUsers method.
-	FetchManyUsersFunc func(ctx context.Context, qr httpflow.Query) ([]User, error)
+	FetchManyUsersFunc func(ctx context.Context, qr httpflow.Query) ([]User, int, error)
 
 	// FetchUserByEmailFunc mocks the FetchUserByEmail method.
 	FetchUserByEmailFunc func(ctx context.Context, eml string) (User, error)
@@ -199,7 +199,7 @@ func (mock *DBMock) DeleteUserByIDCalls() []struct {
 }
 
 // FetchManyUsers calls FetchManyUsersFunc.
-func (mock *DBMock) FetchManyUsers(ctx context.Context, qr httpflow.Query) ([]User, error) {
+func (mock *DBMock) FetchManyUsers(ctx context.Context, qr httpflow.Query) ([]User, int, error) {
 	if mock.FetchManyUsersFunc == nil {
 		panic("DBMock.FetchManyUsersFunc: method is nil but DB.FetchManyUsers was just called")
 	}

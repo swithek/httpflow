@@ -124,10 +124,12 @@ func (s *Store) CreateUser(ctx context.Context, usr user.User) error {
 
 // FetchManyUsers retrieves multiple users from the underlying data store by
 // the provided query.
-func (s *Store) FetchManyUsers(ctx context.Context, qr httpflow.Query) ([]user.User, error) {
+// Int return value specifies the last possible page that may be
+// used with the provided query parameters.
+func (s *Store) FetchManyUsers(ctx context.Context, qr httpflow.Query) ([]user.User, int, error) {
 	err := qr.Validate(user.CheckFilterKey, user.CheckSortKey)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	ord := "asc"
@@ -137,19 +139,22 @@ func (s *Store) FetchManyUsers(ctx context.Context, qr httpflow.Query) ([]user.U
 
 	name := fmt.Sprintf("select_users_by_%s_%s_%s", qr.FilterBy, ord, qr.SortBy)
 
-	crs := []*user.Core{}
+	data := []struct {
+		User     *user.Core `db:"user"`
+		LastPage int        `db:"last_page"`
+	}{}
 
-	err = s.q.SelectContext(ctx, s.db, &crs, name, qr.FilterVal, qr.Limit, qr.Limit*(qr.Page-1))
+	err = s.q.SelectContext(ctx, s.db, &data, name, qr.FilterVal, qr.Limit, qr.Limit*(qr.Page-1))
 	if err != nil {
-		return nil, detectErr(err)
+		return nil, 0, detectErr(err)
 	}
 
-	usrs := make([]user.User, len(crs))
-	for i, cr := range crs {
-		usrs[i] = cr
+	usrs := make([]user.User, len(data))
+	for i, datum := range data {
+		usrs[i] = datum.User
 	}
 
-	return usrs, nil
+	return usrs, data[0].LastPage, nil
 }
 
 // FetchUserByID retrieves a user from the underlying data store
