@@ -242,12 +242,6 @@ func Test_Store_CreateUser(t *testing.T) {
 }
 
 func Test_Story_FetchManyUsers(t *testing.T) {
-	db, mock := newDB(t)
-	dbx := sqlx.NewDb(db, "postgres")
-	s := Store{db: dbx}
-	err := s.initSQL()
-	require.NoError(t, err)
-
 	inpUsrs := []user.User{
 		toPointer(newFullUser()),
 		toPointer(newFullUser()),
@@ -257,28 +251,31 @@ func Test_Story_FetchManyUsers(t *testing.T) {
 	inpEml := "1@em"
 
 	cc := map[string]struct {
-		Expect func()
+		Expect func(t *testing.T) (*sql.DB, sqlmock.Sqlmock)
 		Query  httpflow.Query
 		Users  []user.User
 		Err    error
 	}{
 		"Invalid query data": {
-			Expect: func() {},
+			Expect: newDB,
 			Query: httpflow.Query{
 				Limit:     5,
 				Page:      10,
 				FilterBy:  "email123",
 				FilterVal: inpEml,
 				SortBy:    "created_at",
-				Desc:      true,
+				Asc:       true,
 			},
 			Err: assert.AnError,
 		},
 		"Error returned during users select": {
-			Expect: func() {
+			Expect: func(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {
+				db, mock := newDB(t)
 				mock.ExpectQuery(rawQuery("select_users_by_email_desc_created_at")).
 					WithArgs(inpEml, 5, 45).
 					WillReturnError(assert.AnError)
+
+				return db, mock
 			},
 			Query: httpflow.Query{
 				Limit:     5,
@@ -286,15 +283,18 @@ func Test_Story_FetchManyUsers(t *testing.T) {
 				FilterBy:  "email",
 				FilterVal: inpEml,
 				SortBy:    "created_at",
-				Desc:      true,
+				Asc:       true,
 			},
 			Err: assert.AnError,
 		},
 		"Successful users select by email in desc order of creation date": {
-			Expect: func() {
+			Expect: func(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {
+				db, mock := newDB(t)
 				mock.ExpectQuery(rawQuery("select_users_by_email_desc_created_at")).
 					WithArgs(inpEml, 5, 45).
 					WillReturnRows(usrsToRows(inpUsrs...))
+
+				return db, mock
 			},
 			Query: httpflow.Query{
 				Limit:     5,
@@ -302,15 +302,17 @@ func Test_Story_FetchManyUsers(t *testing.T) {
 				FilterBy:  "email",
 				FilterVal: inpEml,
 				SortBy:    "created_at",
-				Desc:      true,
+				Asc:       false,
 			},
 			Users: inpUsrs,
 		},
 		"Successful users select by email in asc order of creation date": {
-			Expect: func() {
+			Expect: func(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {
+				db, mock := newDB(t)
 				mock.ExpectQuery(rawQuery("select_users_by_email_asc_created_at")).
 					WithArgs(inpEml, 5, 45).
 					WillReturnRows(usrsToRows(inpUsrs...))
+				return db, mock
 			},
 			Query: httpflow.Query{
 				Limit:     5,
@@ -318,15 +320,17 @@ func Test_Story_FetchManyUsers(t *testing.T) {
 				FilterBy:  "email",
 				FilterVal: inpEml,
 				SortBy:    "created_at",
-				Desc:      false,
+				Asc:       true,
 			},
 			Users: inpUsrs,
 		},
 		"Successful users select by email in desc order of last update date": {
-			Expect: func() {
+			Expect: func(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {
+				db, mock := newDB(t)
 				mock.ExpectQuery(rawQuery("select_users_by_email_desc_updated_at")).
 					WithArgs(inpEml, 5, 45).
 					WillReturnRows(usrsToRows(inpUsrs...))
+				return db, mock
 			},
 			Query: httpflow.Query{
 				Limit:     5,
@@ -334,15 +338,17 @@ func Test_Story_FetchManyUsers(t *testing.T) {
 				FilterBy:  "email",
 				FilterVal: inpEml,
 				SortBy:    "updated_at",
-				Desc:      true,
+				Asc:       false,
 			},
 			Users: inpUsrs,
 		},
 		"Successful users select by email in asc order of last update date": {
-			Expect: func() {
+			Expect: func(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {
+				db, mock := newDB(t)
 				mock.ExpectQuery(rawQuery("select_users_by_email_asc_updated_at")).
 					WithArgs(inpEml, 5, 45).
 					WillReturnRows(usrsToRows(inpUsrs...))
+				return db, mock
 			},
 			Query: httpflow.Query{
 				Limit:     5,
@@ -350,15 +356,17 @@ func Test_Story_FetchManyUsers(t *testing.T) {
 				FilterBy:  "email",
 				FilterVal: inpEml,
 				SortBy:    "updated_at",
-				Desc:      false,
+				Asc:       true,
 			},
 			Users: inpUsrs,
 		},
 		"Successful users select by email in desc order of activation date": {
-			Expect: func() {
+			Expect: func(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {
+				db, mock := newDB(t)
 				mock.ExpectQuery(rawQuery("select_users_by_email_desc_activated_at")).
 					WithArgs(inpEml, 5, 45).
 					WillReturnRows(usrsToRows(inpUsrs...))
+				return db, mock
 			},
 			Query: httpflow.Query{
 				Limit:     5,
@@ -366,15 +374,17 @@ func Test_Story_FetchManyUsers(t *testing.T) {
 				FilterBy:  "email",
 				FilterVal: inpEml,
 				SortBy:    "activated_at",
-				Desc:      true,
+				Asc:       false,
 			},
 			Users: inpUsrs,
 		},
 		"Successful users select by email in asc order of activation date": {
-			Expect: func() {
+			Expect: func(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {
+				db, mock := newDB(t)
 				mock.ExpectQuery(rawQuery("select_users_by_email_asc_activated_at")).
 					WithArgs(inpEml, 5, 45).
 					WillReturnRows(usrsToRows(inpUsrs...))
+				return db, mock
 			},
 			Query: httpflow.Query{
 				Limit:     5,
@@ -382,15 +392,17 @@ func Test_Story_FetchManyUsers(t *testing.T) {
 				FilterBy:  "email",
 				FilterVal: inpEml,
 				SortBy:    "activated_at",
-				Desc:      false,
+				Asc:       true,
 			},
 			Users: inpUsrs,
 		},
 		"Successful users select by email in desc order of email": {
-			Expect: func() {
+			Expect: func(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {
+				db, mock := newDB(t)
 				mock.ExpectQuery(rawQuery("select_users_by_email_desc_email")).
 					WithArgs(inpEml, 5, 45).
 					WillReturnRows(usrsToRows(inpUsrs...))
+				return db, mock
 			},
 			Query: httpflow.Query{
 				Limit:     5,
@@ -398,15 +410,17 @@ func Test_Story_FetchManyUsers(t *testing.T) {
 				FilterBy:  "email",
 				FilterVal: inpEml,
 				SortBy:    "email",
-				Desc:      true,
+				Asc:       false,
 			},
 			Users: inpUsrs,
 		},
 		"Successful users select by email in asc order of email": {
-			Expect: func() {
+			Expect: func(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {
+				db, mock := newDB(t)
 				mock.ExpectQuery(rawQuery("select_users_by_email_asc_email")).
 					WithArgs(inpEml, 5, 45).
 					WillReturnRows(usrsToRows(inpUsrs...))
+				return db, mock
 			},
 			Query: httpflow.Query{
 				Limit:     5,
@@ -414,7 +428,7 @@ func Test_Story_FetchManyUsers(t *testing.T) {
 				FilterBy:  "email",
 				FilterVal: inpEml,
 				SortBy:    "email",
-				Desc:      false,
+				Asc:       true,
 			},
 			Users: inpUsrs,
 		},
@@ -424,7 +438,9 @@ func Test_Story_FetchManyUsers(t *testing.T) {
 		c := c
 
 		t.Run(cn, func(t *testing.T) {
-			c.Expect()
+			db, mock := c.Expect(t)
+			s := Store{db: sqlx.NewDb(db, "postgres")}
+			require.NoError(t, s.initSQL())
 
 			usrs, lastPage, err := s.FetchManyUsers(context.Background(), c.Query)
 			testutil.AssertEqualError(t, c.Err, err)

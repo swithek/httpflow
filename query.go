@@ -8,10 +8,10 @@ import (
 // data stores.
 type Query struct {
 	// Limit specifies the total amount of data elements per page.
-	Limit int `schema:"count"`
+	Limit uint64 `schema:"count"`
 
 	// Page specifies data batch number.
-	Page int `schema:"page"`
+	Page uint64 `schema:"page"`
 
 	// FilterBy specifies a column by which filtering should be done.
 	// If FilterVal is empty, no filtering should be done.
@@ -26,8 +26,8 @@ type Query struct {
 	// NOTE: should be checked before use.
 	SortBy string `schema:"sort_by"`
 
-	// Desc specifies whether descending sorting order should be used.
-	Desc bool `schema:"desc"`
+	// Asc specifies whether ascending sorting order should be used.
+	Asc bool `schema:"asc"`
 }
 
 // Validate checks whether query field values go out the bounds of

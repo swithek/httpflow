@@ -132,9 +132,9 @@ func (s *Store) FetchManyUsers(ctx context.Context, qr httpflow.Query) ([]user.U
 		return nil, 0, err
 	}
 
-	ord := "asc"
-	if qr.Desc {
-		ord = "desc"
+	ord := "desc"
+	if qr.Asc {
+		ord = "asc"
 	}
 
 	name := fmt.Sprintf("select_users_by_%s_%s_%s", qr.FilterBy, ord, qr.SortBy)

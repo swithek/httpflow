@@ -422,7 +422,8 @@ func (c CoreStats) ExposeCore() CoreStats {
 
 // CheckFilterKey determines whether the filter key is valid or not.
 func CheckFilterKey(fk string) error {
-	if fk == "email" { // more options might be added
+	switch fk {
+	case "", "email":
 		return nil
 	}
 
@@ -432,7 +433,7 @@ func CheckFilterKey(fk string) error {
 // CheckSortKey determines whether the sort key is valid or not.
 func CheckSortKey(sk string) error {
 	switch sk {
-	case "created_at", "updated_at", "activated_at", "email":
+	case "", "created_at", "updated_at", "activated_at", "email":
 		return nil
 	}
 

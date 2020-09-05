@@ -60,10 +60,6 @@ func (e *statusError) Unwrap() error {
 // DetectError wraps the provided error with additional information
 // useful for applications.
 func DetectError(err error) error {
-	if _, ok := err.(*statusError); ok {
-		return err
-	}
-
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return ErrNotFound
@@ -72,6 +68,12 @@ func DetectError(err error) error {
 	case errors.Is(err, sessionup.ErrUnauthorized):
 		return NewError(err, http.StatusUnauthorized,
 			strings.ToLower(http.StatusText(http.StatusUnauthorized)))
+	}
+
+	if serr, ok := err.(*statusError); ok {
+		if serr.code < 500 {
+			return err
+		}
 	}
 
 	return NewError(err, http.StatusInternalServerError,

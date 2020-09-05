@@ -47,7 +47,7 @@ func TestQueryValidate(t *testing.T) {
 				return nil
 			},
 			Query: Query{
-				Limit: -3,
+				Limit: 0,
 				Page:  20,
 			},
 			Err: assert.AnError,
@@ -61,7 +61,7 @@ func TestQueryValidate(t *testing.T) {
 			},
 			Query: Query{
 				Limit: 3,
-				Page:  -20,
+				Page:  0,
 			},
 			Err: assert.AnError,
 		},

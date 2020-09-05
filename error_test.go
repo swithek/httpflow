@@ -52,11 +52,6 @@ func Test_DetectError(t *testing.T) {
 		Message string
 		Code    int
 	}{
-		"Status error pass through": {
-			Err:     NewError(errors.New("error"), 400, "error"),
-			Message: "error",
-			Code:    400,
-		},
 		"No rows found error": {
 			Err:     sql.ErrNoRows,
 			Message: strings.ToLower(http.StatusText(http.StatusNotFound)),
@@ -71,6 +66,17 @@ func Test_DetectError(t *testing.T) {
 			Err:     sessionup.ErrUnauthorized,
 			Message: strings.ToLower(http.StatusText(http.StatusUnauthorized)),
 			Code:    http.StatusUnauthorized,
+		},
+		"Status error pass through": {
+			Err:     NewError(errors.New("error"), http.StatusBadRequest, "error"),
+			Message: "error",
+			Code:    http.StatusBadRequest,
+		},
+		"Internal server status error": {
+			Err: NewError(errors.New("error"), http.StatusInternalServerError, "error"),
+			Message: strings.ToLower(
+				http.StatusText(http.StatusInternalServerError)),
+			Code: http.StatusInternalServerError,
 		},
 		"Undefined error": {
 			Err: errors.New("error"),
