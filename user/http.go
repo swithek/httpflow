@@ -862,7 +862,7 @@ type DB interface {
 	// underlying data store.
 	UserStats(ctx context.Context) (Stats, error)
 
-	// CreateUser should insert the freshly created user into the
+	// CreateUser should insert a freshly created user into the
 	// underlying data store.
 	CreateUser(ctx context.Context, usr User) error
 
