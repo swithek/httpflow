@@ -4,6 +4,16 @@ import (
 	"net/http"
 )
 
+var (
+	// ErrInvalidFilterKey is returned when filter key is
+	// determined to be invalid.
+	ErrInvalidFilterKey = NewError(nil, http.StatusBadRequest, "invalid filter key")
+
+	// ErrInvalidSortKey is returned when sort key is
+	// determined to be invalid.
+	ErrInvalidSortKey = NewError(nil, http.StatusBadRequest, "invalid sort key")
+)
+
 // Query is used to filter and retrieve bulk data from
 // data stores.
 type Query struct {

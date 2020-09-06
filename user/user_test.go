@@ -6,6 +6,7 @@ import (
 
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
+	"github.com/swithek/httpflow"
 	"github.com/swithek/httpflow/testutil"
 	"github.com/swithek/httpflow/timeutil"
 	"golang.org/x/crypto/bcrypt"
@@ -669,7 +670,7 @@ func Test_CoreStats_ExposeCore(t *testing.T) {
 func Test_CheckFilterKey(t *testing.T) {
 	assert.NoError(t, CheckFilterKey(""))
 	assert.NoError(t, CheckFilterKey("email"))
-	assert.Error(t, CheckFilterKey("email1"))
+	assert.Error(t, httpflow.ErrInvalidFilterKey, CheckFilterKey("email1"))
 }
 
 func Test_CheckSortKey(t *testing.T) {
@@ -678,5 +679,5 @@ func Test_CheckSortKey(t *testing.T) {
 	assert.NoError(t, CheckSortKey("updated_at"))
 	assert.NoError(t, CheckSortKey("activated_at"))
 	assert.NoError(t, CheckSortKey("email"))
-	assert.Error(t, CheckSortKey("email1"))
+	assert.Equal(t, httpflow.ErrInvalidSortKey, CheckSortKey("email1"))
 }

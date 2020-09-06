@@ -427,7 +427,7 @@ func CheckFilterKey(fk string) error {
 		return nil
 	}
 
-	return httpflow.NewError(nil, http.StatusBadRequest, "invalid filter key")
+	return httpflow.ErrInvalidFilterKey
 }
 
 // CheckSortKey determines whether the sort key is valid or not.
@@ -437,5 +437,5 @@ func CheckSortKey(sk string) error {
 		return nil
 	}
 
-	return httpflow.NewError(nil, http.StatusBadRequest, "invalid sort key")
+	return httpflow.ErrInvalidSortKey
 }
