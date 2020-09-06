@@ -42,10 +42,10 @@ type Query struct {
 
 // Validate checks whether query field values go out the bounds of
 // sanity or not.
-// First parameter should be sort key checking func, second - filter key
-// checking func.
-func (q Query) Validate(fck, sck func(v string) error) error {
-	if err := fck(q.FilterBy); err != nil {
+// First parameter should be filter key and value checking func,
+// second - sort key checking func.
+func (q Query) Validate(fck func(k, v string) error, sck func(k string) error) error {
+	if err := fck(q.FilterBy, q.FilterVal); err != nil {
 		return err
 	}
 

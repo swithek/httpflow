@@ -668,9 +668,9 @@ func Test_CoreStats_ExposeCore(t *testing.T) {
 }
 
 func Test_CheckFilterKey(t *testing.T) {
-	assert.NoError(t, CheckFilterKey(""))
-	assert.NoError(t, CheckFilterKey("email"))
-	assert.Error(t, httpflow.ErrInvalidFilterKey, CheckFilterKey("email1"))
+	assert.NoError(t, CheckFilterKey("", "test123"))
+	assert.NoError(t, CheckFilterKey("email", "test123"))
+	assert.Error(t, httpflow.ErrInvalidFilterKey, CheckFilterKey("email1", "test123"))
 }
 
 func Test_CheckSortKey(t *testing.T) {

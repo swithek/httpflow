@@ -8,16 +8,16 @@ import (
 
 func TestQueryValidate(t *testing.T) {
 	cc := map[string]struct {
-		FilterKeyCheck func(string) error
+		FilterKeyCheck func(string, string) error
 		SortKeyCheck   func(string) error
 		Query          Query
 		Err            error
 	}{
 		"Error returned by filter key checking func": {
-			FilterKeyCheck: func(v string) error {
+			FilterKeyCheck: func(_, _ string) error {
 				return assert.AnError
 			},
-			SortKeyCheck: func(v string) error {
+			SortKeyCheck: func(_ string) error {
 				return nil
 			},
 			Query: Query{
@@ -27,10 +27,10 @@ func TestQueryValidate(t *testing.T) {
 			Err: assert.AnError,
 		},
 		"Error returned by sort key checking func": {
-			FilterKeyCheck: func(v string) error {
+			FilterKeyCheck: func(_, _ string) error {
 				return nil
 			},
-			SortKeyCheck: func(v string) error {
+			SortKeyCheck: func(_ string) error {
 				return assert.AnError
 			},
 			Query: Query{
@@ -40,10 +40,10 @@ func TestQueryValidate(t *testing.T) {
 			Err: assert.AnError,
 		},
 		"Invalid count value": {
-			FilterKeyCheck: func(v string) error {
+			FilterKeyCheck: func(_, _ string) error {
 				return nil
 			},
-			SortKeyCheck: func(v string) error {
+			SortKeyCheck: func(_ string) error {
 				return nil
 			},
 			Query: Query{
@@ -53,10 +53,10 @@ func TestQueryValidate(t *testing.T) {
 			Err: assert.AnError,
 		},
 		"Invalid page value": {
-			FilterKeyCheck: func(v string) error {
+			FilterKeyCheck: func(_, _ string) error {
 				return nil
 			},
-			SortKeyCheck: func(v string) error {
+			SortKeyCheck: func(_ string) error {
 				return nil
 			},
 			Query: Query{
@@ -66,10 +66,10 @@ func TestQueryValidate(t *testing.T) {
 			Err: assert.AnError,
 		},
 		"Successful validation": {
-			FilterKeyCheck: func(v string) error {
+			FilterKeyCheck: func(_, _ string) error {
 				return nil
 			},
-			SortKeyCheck: func(v string) error {
+			SortKeyCheck: func(_ string) error {
 				return nil
 			},
 			Query: Query{
