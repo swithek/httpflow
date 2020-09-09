@@ -14,7 +14,7 @@ var (
 	// ErrUnauthorized is returned when authorization process fails.
 	ErrUnauthorized = NewError(nil, http.StatusUnauthorized, "")
 
-	// ErrNotFound is returned when target resources is not found.
+	// ErrNotFound is returned when target resource is not found.
 	ErrNotFound = NewError(nil, http.StatusNotFound, "")
 
 	// ErrMethodNotAllowed is returned when request's method is not
