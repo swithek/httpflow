@@ -155,9 +155,9 @@ func Test_Store_UserStats(t *testing.T) {
 			Expect: func() {
 				mock.ExpectQuery(rawQuery("select_stats")).
 					WillReturnRows(sqlmock.NewRows(
-						[]string{"total_count"}).AddRow(11))
+						[]string{"total"}).AddRow(11))
 			},
-			Stats: user.CoreStats{TotalCount: 11},
+			Stats: user.CoreStats{Total: 11},
 		},
 	}
 
