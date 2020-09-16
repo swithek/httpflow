@@ -663,7 +663,7 @@ func Test_CoreSummary_ExposeCore(t *testing.T) {
 }
 
 func Test_CoreStats_ExposeCore(t *testing.T) {
-	cStats := CoreStats{TotalCount: 10}
+	cStats := CoreStats{Total: 10}
 	assert.Equal(t, cStats, cStats.ExposeCore())
 }
 

@@ -411,8 +411,8 @@ type Stats interface {
 
 // CoreStats holds core user statistics.
 type CoreStats struct {
-	// TotalCount specifies the total number of users in the data store.
-	TotalCount int `json:"total_count" db:"total_count"`
+	// Total specifies the total number of users in the data store.
+	Total int `json:"total" db:"total"`
 }
 
 // ExposeCore returns users' core statistics.
