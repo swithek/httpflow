@@ -212,8 +212,8 @@ var _escData = map[string]*_escFile{
 	"/queries.sql": {
 		name:    "queries.sql",
 		local:   "./queries.sql",
-		size:    7801,
-		modtime: 1600268060,
+		size:    7809,
+		modtime: 1600949649,
 		compressed: `
 H4sIAAAAAAAC/+yY32+jRhDHn71/xQhRHT7tpYfT31ceiL1W0WFIYX137gvizLaH6mAXcJpI/uOrXRxY
 DMTp+cF+4CUSO9/ZGeb7yQTlzRtIwjv2CyxTFuYs2GYszYI8/LxiaOwRkxKg5o1NwJqC41Ignyyf+iBk
@@ -226,10 +226,10 @@ qD9gUH/EoP6EQf0Zg6q/5T+4UudS/XooFypAEYWCz49BHKH57YRjWVTyCQWJJQNUHaMaOoboABVIGLwV
 3YTYhBLJ03p2S3KciGnuN0PnBQcj579bYDoT6BrDr+C4H7Wa03scpW73TMYRBlStFIwqw+te48LlpsEH
 3nbbavqgyLErfqp0GN0Q7wNKt/uNlCqmtFPBM57On7ppMFITVV20MVOTStVRFxNgWzOLgv6MVWLGvVtn
 datcZMcMy0rHgohly6CyqnJQ1OXiqzhSanZWkepMkT2uBNWZcrCSS4l8qux5qKLiUWlZ11WJg4hyuMRL
-Ze1YeR4pkfC/uGpmvAyuZt6LCBNpL8KsrjzOWl0vAzcmlq2VXwfuB+JpQ/gWNHUEr0G/ejsUnwyrMMuD
-TfgX6wLUtt4TePXNK9jtOKq7nXhwvQnx4GYBEmgT4o/3KKsjcKdT/qdevT5OddhD3UN9oVCbX8m02NQV
-ez3UPdRnhlri6KRN3UPdQ32JUJ+0qWWweqx7rM+MdQ2Tk7Z1D3YP9qWCfdLGPvgXVk90T/RZiC5EJ+3o
-HuUe5ctBuWsr/xcAAP//xepKxXkeAAA=
+Ze1YeR4pkfC/uGpmvAyuZt6LCBNpL8KsrjzOWl0vAzcmlq2VXwfuB+JpQ/gWNHUEr0G/ejsUnwyb8C8W
+LNfbJO8i1LbeE3j1zSvY7Tiru514cL0J8eBmARJpE+KP9yyrI3CnU/63Xr0+jnXYU91TfalUm18JtdjV
+FXw91T3V56ZaAumkXd1T3VN9kVSftKtlsnque67PzXWNk5P2dU92T/bFkn3Szj74R1aPdI/0eZAuRCdt
+6Z7lnuULYrlrL/8XAAD//07JMheBHgAA
 `,
 	},
 }

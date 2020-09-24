@@ -124,8 +124,7 @@ func (s *Store) CreateUser(ctx context.Context, usr user.User) error {
 
 // FetchManyUsers retrieves multiple users from the underlying data store by
 // the provided query.
-// Int return value specifies the last possible page that may be
-// used with the provided query parameters.
+// Int return value specifies the total page count.
 func (s *Store) FetchManyUsers(ctx context.Context, qr httpflow.Query) ([]user.User, int, error) {
 	err := qr.Validate(user.CheckFilterKey, user.CheckSortKey)
 	if err != nil {
@@ -140,8 +139,8 @@ func (s *Store) FetchManyUsers(ctx context.Context, qr httpflow.Query) ([]user.U
 	name := fmt.Sprintf("select_users_by_%s_%s_%s", qr.FilterBy, ord, qr.SortBy)
 
 	data := []struct {
-		User     *user.Core `db:"user"`
-		LastPage int        `db:"last_page"`
+		User      *user.Core `db:"user"`
+		PageCount int        `db:"page_count"`
 	}{}
 
 	err = s.q.SelectContext(ctx, s.db, &data, name, qr.FilterVal, qr.Limit, qr.Limit*(qr.Page-1))
@@ -154,7 +153,7 @@ func (s *Store) FetchManyUsers(ctx context.Context, qr httpflow.Query) ([]user.U
 		usrs[i] = datum.User
 	}
 
-	return usrs, data[0].LastPage, nil
+	return usrs, data[0].PageCount, nil
 }
 
 // FetchUserByID retrieves a user from the underlying data store

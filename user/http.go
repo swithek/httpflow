@@ -868,8 +868,7 @@ type DB interface {
 
 	// FetchManyUsers should retrieve multiple users from the
 	// underlying data store by the provided query.
-	// Int return value specifies the last possible page that may be
-	// used with the provided query parameters.
+	// Int return value specifies the total page count.
 	FetchManyUsers(ctx context.Context, qr httpflow.Query) ([]User, int, error)
 
 	// FetchUserByID should retrieve a user from the underlying

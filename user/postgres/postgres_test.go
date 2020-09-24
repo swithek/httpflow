@@ -731,7 +731,7 @@ func usrsToRows(usrs ...user.User) *sqlmock.Rows {
 	}
 
 	if len(usrs) > 1 {
-		rr = append(rr, "last_page")
+		rr = append(rr, "page_count")
 	}
 
 	rows := sqlmock.NewRows(rr)
