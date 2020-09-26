@@ -314,7 +314,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go h.email.SendAccountActivation(context.Background(), usrC.Email, tok)
+	go h.email.SendAccountActivation(ctx, usrC.Email, tok)
 
 	w.Header().Add("Location", "/") // id will be retrieved from the session
 	httpflow.Respond(h.log, w, r, usr, http.StatusCreated)
@@ -465,12 +465,11 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if updC.Password {
-		go h.email.SendPasswordChanged(context.Background(), usrC.Email, false)
+		go h.email.SendPasswordChanged(ctx, usrC.Email, false)
 	}
 
 	if tok != "" {
-		go h.email.SendEmailVerification(context.Background(),
-			usrC.UnverifiedEmail.String, tok)
+		go h.email.SendEmailVerification(ctx, usrC.UnverifiedEmail.String, tok)
 	}
 
 	httpflow.Respond(h.log, w, r, nil, http.StatusNoContent)
@@ -521,7 +520,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go h.email.SendAccountDeleted(context.Background(), usrC.Email)
+	go h.email.SendAccountDeleted(ctx, usrC.Email)
 
 	httpflow.Respond(h.log, w, r, nil, http.StatusNoContent)
 }
@@ -631,9 +630,9 @@ func (h *Handler) ResendVerification(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if usrC.IsActivated() {
-		go h.email.SendEmailVerification(context.Background(), usrC.UnverifiedEmail.String, tok)
+		go h.email.SendEmailVerification(ctx, usrC.UnverifiedEmail.String, tok)
 	} else {
-		go h.email.SendAccountActivation(context.Background(), usrC.Email, tok)
+		go h.email.SendAccountActivation(ctx, usrC.Email, tok)
 	}
 
 	httpflow.Respond(h.log, w, r, nil, http.StatusAccepted)
@@ -666,7 +665,7 @@ func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if oEml != usrC.Email { // email was changed
-		go h.email.SendEmailChanged(context.Background(), oEml, usrC.Email)
+		go h.email.SendEmailChanged(ctx, oEml, usrC.Email)
 	}
 
 	httpflow.Respond(h.log, w, r, nil, http.StatusNoContent)
@@ -748,7 +747,7 @@ func (h *Handler) InitRecovery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go h.email.SendAccountRecovery(context.Background(), usrC.Email, tok)
+	go h.email.SendAccountRecovery(ctx, usrC.Email, tok)
 
 	httpflow.Respond(h.log, w, r, nil, http.StatusAccepted)
 }
@@ -789,7 +788,7 @@ func (h *Handler) Recover(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go h.email.SendPasswordChanged(context.Background(), usrC.Email, true)
+	go h.email.SendPasswordChanged(ctx, usrC.Email, true)
 
 	httpflow.Respond(h.log, w, r, nil, http.StatusNoContent)
 }
