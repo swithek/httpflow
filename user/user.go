@@ -117,7 +117,7 @@ func (c *Core) ApplyInput(inp Inputer) (Summary, error) {
 		return nil, err
 	}
 
-	pass, err := c.SetPassword(cInp.Password)
+	pass, err := c.UpdatePassword(cInp.OldPassword, cInp.Password)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +188,7 @@ func (c *Core) SetUnverifiedEmail(e string) (bool, error) {
 	return true, nil
 }
 
-// SetPassword checks and updates user's password hash.
+// SetPassword checks and updates user's password.
 // First return value determines whether the password was set or not.
 func (c *Core) SetPassword(p string) (bool, error) {
 	if p == "" {
@@ -212,6 +212,18 @@ func (c *Core) SetPassword(p string) (bool, error) {
 	c.PasswordHash = h
 
 	return true, nil
+}
+
+// UpdatePassword checks and update's users password.
+// NOTE: it will also check the old/current password before
+// setting a new one.
+// First return value determines whether the password was set or not.
+func (c *Core) UpdatePassword(oldPass, newPass string) (bool, error) {
+	if c.PasswordHash != nil && !c.IsPasswordCorrect(oldPass) {
+		return false, ErrInvalidPassword
+	}
+
+	return c.SetPassword(newPass)
 }
 
 // IsPasswordCorrect checks whether the provided password matches the hash
@@ -364,9 +376,13 @@ type CoreInput struct {
 	// Email is user's email address submitted for further processing.
 	Email string `json:"email"`
 
-	// Password is user's plain-text password version submitted for
+	// Password is user's plain-text password submitted for
 	// further processing.
 	Password string `json:"password"`
+
+	// OldPassword is user's plain-text password submitted for
+	// confirmation before password's update.
+	OldPassword string `json:"old_password"`
 
 	// RememberMe specifies whether a persistent session should be
 	// created on registration / log in or not.

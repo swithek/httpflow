@@ -6,6 +6,7 @@ import (
 
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/swithek/httpflow"
 	"github.com/swithek/httpflow/testutil"
 	"github.com/swithek/httpflow/timeutil"
@@ -273,6 +274,41 @@ func Test_Core_SetPassword(t *testing.T) {
 				cr.PasswordHash, []byte(c.Password)))
 		})
 	}
+}
+
+func Test_Core_UpdatePassword(t *testing.T) {
+	var (
+		cr  Core
+		err error
+	)
+
+	cr.PasswordHash, err = bcrypt.GenerateFromPassword([]byte("password1"), bcrypt.DefaultCost)
+	require.NoError(t, err)
+
+	// invalid old password
+	res, err := cr.UpdatePassword("password123", "password2")
+	require.Equal(t, ErrInvalidPassword, err)
+	assert.False(t, res)
+	assert.NoError(t, bcrypt.CompareHashAndPassword(cr.PasswordHash, []byte("password1")))
+
+	// invalid new password
+	res, err = cr.UpdatePassword("password1", "pass")
+	require.Error(t, err)
+	assert.False(t, res)
+	assert.NoError(t, bcrypt.CompareHashAndPassword(cr.PasswordHash, []byte("password1")))
+
+	// success
+	res, err = cr.UpdatePassword("password1", "password2")
+	require.NoError(t, err)
+	assert.True(t, res)
+	assert.NoError(t, bcrypt.CompareHashAndPassword(cr.PasswordHash, []byte("password2")))
+
+	// success - without old password
+	cr.PasswordHash = nil
+	res, err = cr.UpdatePassword("", "password2")
+	require.NoError(t, err)
+	assert.True(t, res)
+	assert.NoError(t, bcrypt.CompareHashAndPassword(cr.PasswordHash, []byte("password2")))
 }
 
 func Test_Core_IsPasswordCorrect(t *testing.T) {

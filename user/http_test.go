@@ -114,12 +114,12 @@ func Test_DefaultParser(t *testing.T) {
 	assert.Error(t, err)
 
 	req = httptest.NewRequest("GET", "http://test.com/",
-		strings.NewReader(toJSON(_email, "password1", false)))
+		strings.NewReader(toJSON(_email, "password123", "", false)))
 	inp, err = DefaultParser(req)
 	assert.NoError(t, err)
 	require.NotNil(t, inp)
 	assert.Equal(t, _email, inp.ExposeCore().Email)
-	assert.Equal(t, "password1", inp.ExposeCore().Password)
+	assert.Equal(t, "password123", inp.ExposeCore().Password)
 }
 
 func Test_DefaultCreator(t *testing.T) {
@@ -271,7 +271,7 @@ func Test_Handler_Register(t *testing.T) {
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil),
 			Email:        emailStub(),
-			Body:         toJSON(_email, "password1", false),
+			Body:         toJSON(_email, "password1", "", false),
 			Creator: func(ctx context.Context, inp Inputer) (User, error) {
 				return nil, assert.AnError
 			},
@@ -285,7 +285,7 @@ func Test_Handler_Register(t *testing.T) {
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil),
 			Email:        emailStub(),
-			Body:         toJSON(_email, "password1", false),
+			Body:         toJSON(_email, "password1", "", false),
 			Creator: func(ctx context.Context, inp Inputer) (User, error) {
 				usr, _ := NewCore(inp)
 				_, err := usr.ExposeCore().InitVerification(
@@ -305,7 +305,7 @@ func Test_Handler_Register(t *testing.T) {
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(assert.AnError),
 			Email:        emailStub(),
-			Body:         toJSON(_email, "password1", false),
+			Body:         toJSON(_email, "password1", "", false),
 			Creator:      DefaultCreator,
 			Checks: checks(
 				hasResp(true, false),
@@ -317,7 +317,7 @@ func Test_Handler_Register(t *testing.T) {
 			SessionStore: sessionStoreStub(assert.AnError),
 			DB:           dbStub(nil),
 			Email:        emailStub(),
-			Body:         toJSON(_email, "password1", true),
+			Body:         toJSON(_email, "password1", "", true),
 			Creator:      DefaultCreator,
 			Checks: checks(
 				hasResp(true, false),
@@ -329,7 +329,7 @@ func Test_Handler_Register(t *testing.T) {
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil),
 			Email:        emailStub(),
-			Body:         toJSON(_email, "password1", true),
+			Body:         toJSON(_email, "password1", "", true),
 			Creator:      DefaultCreator,
 			Checks: checks(
 				hasResp(false, true),
@@ -341,7 +341,7 @@ func Test_Handler_Register(t *testing.T) {
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil),
 			Email:        emailStub(),
-			Body:         toJSON(_email, "password1", false),
+			Body:         toJSON(_email, "password1", "", false),
 			Creator:      DefaultCreator,
 			Checks: checks(
 				hasResp(false, false),
@@ -450,7 +450,7 @@ func Test_Handler_LogIn(t *testing.T) {
 	}
 
 	inpUsr := Core{Email: _email}
-	inpPass := "password1"
+	inpPass := "password12"
 	_, err := inpUsr.SetPassword(inpPass)
 	require.NoError(t, err)
 
@@ -479,7 +479,7 @@ func Test_Handler_LogIn(t *testing.T) {
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			LoginCheck:   DefaultLoginCheck(true),
-			Body:         toJSON("useremail.com", inpPass, false),
+			Body:         toJSON("useremail.com", inpPass, "", false),
 			Checks: checks(
 				hasResp(false, http.StatusUnauthorized),
 				wasFetchUserByEmailCalled(0, ""),
@@ -491,7 +491,7 @@ func Test_Handler_LogIn(t *testing.T) {
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(assert.AnError, nil, nil),
 			LoginCheck:   DefaultLoginCheck(true),
-			Body:         toJSON(inpUsr.Email, inpPass, false),
+			Body:         toJSON(inpUsr.Email, inpPass, "", false),
 			Checks: checks(
 				hasResp(false, http.StatusInternalServerError),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
@@ -503,7 +503,7 @@ func Test_Handler_LogIn(t *testing.T) {
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(httpflow.ErrNotFound, nil, nil),
 			LoginCheck:   DefaultLoginCheck(true),
-			Body:         toJSON(inpUsr.Email, inpPass, false),
+			Body:         toJSON(inpUsr.Email, inpPass, "", false),
 			Checks: checks(
 				hasResp(false, http.StatusUnauthorized),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
@@ -515,7 +515,7 @@ func Test_Handler_LogIn(t *testing.T) {
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			LoginCheck:   DefaultLoginCheck(false),
-			Body:         toJSON(inpUsr.Email, inpPass, false),
+			Body:         toJSON(inpUsr.Email, inpPass, "", false),
 			Checks: checks(
 				hasResp(false, http.StatusForbidden),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
@@ -527,7 +527,7 @@ func Test_Handler_LogIn(t *testing.T) {
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			LoginCheck:   DefaultLoginCheck(true),
-			Body:         toJSON(inpUsr.Email, "password2", false),
+			Body:         toJSON(inpUsr.Email, "password2", "", false),
 			Checks: checks(
 				hasResp(false, http.StatusUnauthorized),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
@@ -539,7 +539,7 @@ func Test_Handler_LogIn(t *testing.T) {
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil, assert.AnError, toPointer(inpUsr)),
 			LoginCheck:   DefaultLoginCheck(true),
-			Body:         toJSON(inpUsr.Email, inpPass, false),
+			Body:         toJSON(inpUsr.Email, inpPass, "", false),
 			Checks: checks(
 				hasResp(false, http.StatusInternalServerError),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
@@ -551,7 +551,7 @@ func Test_Handler_LogIn(t *testing.T) {
 			SessionStore: sessionStoreStub(assert.AnError),
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			LoginCheck:   DefaultLoginCheck(true),
-			Body:         toJSON(inpUsr.Email, inpPass, true),
+			Body:         toJSON(inpUsr.Email, inpPass, "", true),
 			Checks: checks(
 				hasResp(false, http.StatusInternalServerError),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
@@ -563,7 +563,7 @@ func Test_Handler_LogIn(t *testing.T) {
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			LoginCheck:   DefaultLoginCheck(true),
-			Body:         toJSON(inpUsr.Email, inpPass, true),
+			Body:         toJSON(inpUsr.Email, inpPass, "", true),
 			Checks: checks(
 				hasResp(true, http.StatusOK),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
@@ -575,7 +575,7 @@ func Test_Handler_LogIn(t *testing.T) {
 			SessionStore: sessionStoreStub(nil),
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			LoginCheck:   DefaultLoginCheck(true),
-			Body:         toJSON(inpUsr.Email, inpPass, false),
+			Body:         toJSON(inpUsr.Email, inpPass, "", false),
 			Checks: checks(
 				hasResp(false, http.StatusOK),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
@@ -591,7 +591,7 @@ func Test_Handler_LogIn(t *testing.T) {
 				return &tmp
 			}()),
 			LoginCheck: DefaultLoginCheck(true),
-			Body:       toJSON(inpUsr.Email, inpPass, true),
+			Body:       toJSON(inpUsr.Email, inpPass, "", true),
 			Checks: checks(
 				hasResp(true, http.StatusOK),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
@@ -607,7 +607,7 @@ func Test_Handler_LogIn(t *testing.T) {
 				return &tmp
 			}()),
 			LoginCheck: DefaultLoginCheck(true),
-			Body:       toJSON(inpUsr.Email, inpPass, false),
+			Body:       toJSON(inpUsr.Email, inpPass, "", false),
 			Checks: checks(
 				hasResp(false, http.StatusOK),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
@@ -914,10 +914,14 @@ func Test_Handler_Update(t *testing.T) {
 	}
 
 	inpUsr := Core{
-		ID:           xid.New(),
-		Email:        _email,
-		PasswordHash: []byte("password1"),
+		ID:    xid.New(),
+		Email: _email,
 	}
+	inpOldPass := "password1"
+
+	_, err := inpUsr.SetPassword(inpOldPass)
+	require.NoError(t, err)
+
 	inpNewEml := "user123@email.com"
 	inpNewPass := "password@1"
 
@@ -933,7 +937,7 @@ func Test_Handler_Update(t *testing.T) {
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
-			Body:         toJSON(inpNewEml, inpNewPass, false),
+			Body:         toJSON(inpNewEml, inpNewPass, inpOldPass, false),
 			Checks: checks(
 				hasResp(true),
 				wasFetchUserByIDCalled(0, xid.ID{}),
@@ -960,7 +964,7 @@ func Test_Handler_Update(t *testing.T) {
 			DB:           dbStub(assert.AnError, nil, nil),
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
-			Body:         toJSON(inpNewEml, inpNewPass, false),
+			Body:         toJSON(inpNewEml, inpNewPass, inpOldPass, false),
 			Session:      true,
 			Checks: checks(
 				hasResp(true),
@@ -974,7 +978,7 @@ func Test_Handler_Update(t *testing.T) {
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
-			Body:         toJSON(inpNewEml, "pass", false),
+			Body:         toJSON(inpNewEml, "pass", inpOldPass, false),
 			Session:      true,
 			Checks: checks(
 				hasResp(true),
@@ -992,7 +996,7 @@ func Test_Handler_Update(t *testing.T) {
 			}())),
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
-			Body:         toJSON(inpNewEml, inpNewPass, false),
+			Body:         toJSON(inpNewEml, inpNewPass, inpOldPass, false),
 			Session:      true,
 			Checks: checks(
 				hasResp(true),
@@ -1006,7 +1010,7 @@ func Test_Handler_Update(t *testing.T) {
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(assert.AnError),
-			Body:         toJSON(inpNewEml, inpNewPass, false),
+			Body:         toJSON(inpNewEml, inpNewPass, inpOldPass, false),
 			Session:      true,
 			Checks: checks(
 				hasResp(true),
@@ -1020,7 +1024,7 @@ func Test_Handler_Update(t *testing.T) {
 			DB:           dbStub(nil, assert.AnError, toPointer(inpUsr)),
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
-			Body:         toJSON(inpNewEml, inpNewPass, false),
+			Body:         toJSON(inpNewEml, inpNewPass, inpOldPass, false),
 			Session:      true,
 			Checks: checks(
 				hasResp(true),
@@ -1034,7 +1038,7 @@ func Test_Handler_Update(t *testing.T) {
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
-			Body:         toJSON("", inpNewPass, false),
+			Body:         toJSON("", inpNewPass, inpOldPass, false),
 			Session:      true,
 			Checks: checks(
 				hasResp(false),
@@ -1048,7 +1052,7 @@ func Test_Handler_Update(t *testing.T) {
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
-			Body:         toJSON(inpNewEml, "", false),
+			Body:         toJSON(inpNewEml, "", inpOldPass, false),
 			Session:      true,
 			Checks: checks(
 				hasResp(false),
@@ -1062,7 +1066,7 @@ func Test_Handler_Update(t *testing.T) {
 			DB:           dbStub(nil, nil, toPointer(inpUsr)),
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
-			Body:         toJSON(inpNewEml, inpNewPass, false),
+			Body:         toJSON(inpNewEml, inpNewPass, inpOldPass, false),
 			Session:      true,
 			Checks: checks(
 				hasResp(false),
@@ -1214,7 +1218,7 @@ func Test_Handler_Delete(t *testing.T) {
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
 			DeleteCheck:  DefaultDeleteCheck,
-			Body:         toJSON("", inpPass, false),
+			Body:         toJSON("", inpPass, "", false),
 			Checks: checks(
 				hasResp(true),
 				wasFetchUserByIDCalled(0, xid.ID{}),
@@ -1241,7 +1245,7 @@ func Test_Handler_Delete(t *testing.T) {
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
 			DeleteCheck:  DefaultDeleteCheck,
-			Body:         toJSON("", inpPass, false),
+			Body:         toJSON("", inpPass, "", false),
 			Session:      true,
 			Checks: checks(
 				hasResp(true),
@@ -1257,7 +1261,7 @@ func Test_Handler_Delete(t *testing.T) {
 			DeleteCheck: func(_ context.Context, _ User) error {
 				return assert.AnError
 			},
-			Body:    toJSON("", inpPass, false),
+			Body:    toJSON("", inpPass, "", false),
 			Session: true,
 			Checks: checks(
 				hasResp(true),
@@ -1271,7 +1275,7 @@ func Test_Handler_Delete(t *testing.T) {
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
 			DeleteCheck:  DefaultDeleteCheck,
-			Body:         toJSON("", "password2", false),
+			Body:         toJSON("", "password2", "", false),
 			Session:      true,
 			Checks: checks(
 				hasResp(true),
@@ -1285,7 +1289,7 @@ func Test_Handler_Delete(t *testing.T) {
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(assert.AnError),
 			DeleteCheck:  DefaultDeleteCheck,
-			Body:         toJSON("", inpPass, false),
+			Body:         toJSON("", inpPass, "", false),
 			Session:      true,
 			Checks: checks(
 				hasResp(true),
@@ -1299,7 +1303,7 @@ func Test_Handler_Delete(t *testing.T) {
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
 			DeleteCheck:  DefaultDeleteCheck,
-			Body:         toJSON("", inpPass, false),
+			Body:         toJSON("", inpPass, "", false),
 			Session:      true,
 			Checks: checks(
 				hasResp(true),
@@ -1313,7 +1317,7 @@ func Test_Handler_Delete(t *testing.T) {
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
 			DeleteCheck:  DefaultDeleteCheck,
-			Body:         toJSON("", inpPass, false),
+			Body:         toJSON("", inpPass, "", false),
 			Session:      true,
 			Checks: checks(
 				hasResp(false),
@@ -2262,7 +2266,7 @@ func Test_Handler_InitRecovery(t *testing.T) {
 		"Invalid email": {
 			DB:    dbStub(nil, nil, toPointer(inpUsr)),
 			Email: emailStub(),
-			Body:  toJSON("useremail.com", "", false),
+			Body:  toJSON("useremail.com", "", "", false),
 			Checks: checks(
 				hasResp(true, 0),
 				wasFetchUserByEmailCalled(0, ""),
@@ -2273,7 +2277,7 @@ func Test_Handler_InitRecovery(t *testing.T) {
 		"User error returned by DB.FetchUserByEmail": {
 			DB:    dbStub(httpflow.NewError(nil, 400, "123"), nil, nil),
 			Email: emailStub(),
-			Body:  toJSON(_email, "", false),
+			Body:  toJSON(_email, "", "", false),
 			Checks: checks(
 				hasResp(false, 0),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
@@ -2284,7 +2288,7 @@ func Test_Handler_InitRecovery(t *testing.T) {
 		"Error returned by DB.FetchUserByEmail": {
 			DB:    dbStub(assert.AnError, nil, nil),
 			Email: emailStub(),
-			Body:  toJSON(_email, "", false),
+			Body:  toJSON(_email, "", "", false),
 			Checks: checks(
 				hasResp(true, 0),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
@@ -2299,7 +2303,7 @@ func Test_Handler_InitRecovery(t *testing.T) {
 				return tmp
 			}())),
 			Email: emailStub(),
-			Body:  toJSON(_email, "", false),
+			Body:  toJSON(_email, "", "", false),
 			Checks: checks(
 				hasResp(true, 3600),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
@@ -2311,7 +2315,7 @@ func Test_Handler_InitRecovery(t *testing.T) {
 			DB: dbStub(nil, httpflow.NewError(nil, 400, "123"),
 				toPointer(inpUsr)),
 			Email: emailStub(),
-			Body:  toJSON(_email, "", false),
+			Body:  toJSON(_email, "", "", false),
 			Checks: checks(
 				hasResp(false, 0),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
@@ -2322,7 +2326,7 @@ func Test_Handler_InitRecovery(t *testing.T) {
 		"Error returned by DB.UpdateUser": {
 			DB:    dbStub(nil, assert.AnError, toPointer(inpUsr)),
 			Email: emailStub(),
-			Body:  toJSON(_email, "", false),
+			Body:  toJSON(_email, "", "", false),
 			Checks: checks(
 				hasResp(true, 0),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
@@ -2333,7 +2337,7 @@ func Test_Handler_InitRecovery(t *testing.T) {
 		"Successful recovery init": {
 			DB:    dbStub(nil, nil, toPointer(inpUsr)),
 			Email: emailStub(),
-			Body:  toJSON(_email, "", false),
+			Body:  toJSON(_email, "", "", false),
 			Checks: checks(
 				hasResp(false, 0),
 				wasFetchUserByEmailCalled(1, inpUsr.Email),
@@ -2461,7 +2465,7 @@ func Test_Handler_Recover(t *testing.T) {
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
 			Token:        inpTok,
-			Body:         toJSON("", "password1", false),
+			Body:         toJSON("", "password1", "", false),
 			Checks: checks(
 				hasResp(true),
 				wasUpdateUserCalled(0),
@@ -2489,7 +2493,7 @@ func Test_Handler_Recover(t *testing.T) {
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
 			Token:        inpTok,
-			Body:         toJSON("", "password1", false),
+			Body:         toJSON("", "password1", "", false),
 			Checks: checks(
 				hasResp(true),
 				wasUpdateUserCalled(0),
@@ -2501,7 +2505,7 @@ func Test_Handler_Recover(t *testing.T) {
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(assert.AnError),
 			Token:        inpTok,
-			Body:         toJSON("", "password1", false),
+			Body:         toJSON("", "password1", "", false),
 			Checks: checks(
 				hasResp(true),
 				wasUpdateUserCalled(0),
@@ -2513,7 +2517,7 @@ func Test_Handler_Recover(t *testing.T) {
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
 			Token:        inpTok,
-			Body:         toJSON("", "password1", false),
+			Body:         toJSON("", "password1", "", false),
 			Checks: checks(
 				hasResp(true),
 				wasUpdateUserCalled(1),
@@ -2525,7 +2529,7 @@ func Test_Handler_Recover(t *testing.T) {
 			Email:        emailStub(),
 			SessionStore: sessionStoreStub(nil),
 			Token:        inpTok,
-			Body:         toJSON("", "password1", false),
+			Body:         toJSON("", "password1", "", false),
 			Checks: checks(
 				hasResp(false),
 				wasUpdateUserCalled(1),
@@ -2880,8 +2884,8 @@ func Test_Handler_FetchByToken(t *testing.T) {
 	}
 }
 
-func toJSON(eml, pass string, rem bool) string {
-	b, err := json.Marshal(CoreInput{Email: eml, Password: pass, RememberMe: rem})
+func toJSON(eml, pass, oldPass string, rem bool) string {
+	b, err := json.Marshal(CoreInput{Email: eml, Password: pass, OldPassword: oldPass, RememberMe: rem})
 	if err != nil {
 		panic(err)
 	}
